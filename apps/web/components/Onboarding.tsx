@@ -129,7 +129,7 @@ export default function Onboarding() {
               <img 
                 src="/logotype_new.png" 
                 alt="WiseOS" 
-                className="h-11 w-auto"
+                className="h-12 w-auto"
                 style={{
                   animation: "logoFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
                 }}

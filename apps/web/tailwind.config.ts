@@ -6,19 +6,19 @@ const config: Config = {
   theme: {
     extend: {
       colors: {
-        // Premium soft pink palette - Linear/Notion inspired
+        // Premium muted rose palette - Notion/Linear enterprise feel
         wise: {
-          50: "#fdf6fc",   // Subtle background accent
-          100: "#fbf0fa",
-          200: "#f5e0f3",
-          300: "#e8b0e4",  // Primary accent
-          400: "#d89dd3",  // Hover accent
-          500: "#c78bbf",
-          600: "#b077a8",
-          700: "#8f5f8a",
-          800: "#6e4a6b",
-          900: "#4d3549",
-          950: "#2d1f2b",
+          50: "#faf8f9",   // Almost white, subtle warmth
+          100: "#f5f1f3",  // Soft muted rose - premium cards
+          200: "#ebe4e8",  // Refined, less saturated
+          300: "#d4c4d0",  // Sophisticated midtone
+          400: "#b9a3b3",  // Elegant muted
+          500: "#9B5A97",  // Brand purple - primary
+          600: "#875085",  // Hover state
+          700: "#6d4169",  // Active/pressed
+          800: "#553352",  // Dark accent
+          900: "#3d253a",  // Very dark
+          950: "#251822",  // Near black
         },
         // Neutral ink colors for text
         ink: {

@@ -9,10 +9,10 @@ export const metadata: Metadata = {
   description: "Wisecast AB · Mathematica-driven rättning för svenska skolor",
   icons: {
     icon: [
-      { url: "/logotype_new.png?v=5", type: "image/png", sizes: "any" },
+      { url: "/logotype_black.png?v=6", type: "image/png", sizes: "any" },
     ],
-    shortcut: "/logotype_new.png?v=5",
-    apple: "/logotype_new.png?v=5",
+    shortcut: "/logotype_black.png?v=6",
+    apple: "/logotype_black.png?v=6",
   },
 };
 

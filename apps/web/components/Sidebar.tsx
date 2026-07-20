@@ -40,7 +40,7 @@ export default function Sidebar() {
             <img 
               src="/logotype_new.png" 
               alt="WiseOS" 
-              className="h-10 w-auto object-contain"
+              className="h-11 w-auto object-contain"
             />
           </div>
           
