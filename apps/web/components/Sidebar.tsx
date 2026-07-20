@@ -33,13 +33,13 @@ export default function Sidebar() {
       }`}
     >
       {/* Logo */}
-      <div className="px-6 py-7">
-        <Link href="/" className="group flex items-center gap-2">
-          <span className={`text-[22px] font-bold tracking-tight transition-colors ${
-            isDark ? "text-white" : "text-slate-900"
-          }`}>
-            wise<span className="text-[#e8b0e4]">OS</span>
-          </span>
+      <div className="px-5 py-6">
+        <Link href="/" className="group flex items-center gap-3">
+          <img 
+            src="/logotype_new.png" 
+            alt="WiseOS" 
+            className="h-9 w-auto object-contain"
+          />
         </Link>
       </div>
 

@@ -2,16 +2,17 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
 import Sidebar from "@/components/Sidebar";
+import Onboarding from "@/components/Onboarding";
 
 export const metadata: Metadata = {
   title: "WiseOS",
   description: "Wisecast AB · Mathematica-driven rättning för svenska skolor",
   icons: {
     icon: [
-      { url: "/favicon_real.png?v=4", type: "image/png", sizes: "any" },
+      { url: "/logotype_new.png?v=5", type: "image/png", sizes: "any" },
     ],
-    shortcut: "/favicon_real.png?v=4",
-    apple: "/favicon_real.png?v=4",
+    shortcut: "/logotype_new.png?v=5",
+    apple: "/logotype_new.png?v=5",
   },
 };
 
@@ -31,6 +32,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       </head>
       <body className="min-h-screen antialiased">
         <ThemeProvider>
+          <Onboarding />
           <div className="flex min-h-screen">
             <Sidebar />
             <main className="flex-1 ml-[240px] min-h-screen">

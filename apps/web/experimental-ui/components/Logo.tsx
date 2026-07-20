@@ -55,44 +55,21 @@ export function Logo({ size = 'md', showText = true, className = '' }: LogoProps
 }
 
 /**
- * Logo Icon - Isolated component for easy replacement
- * 
- * To update the logo:
- * 1. Replace the SVG content below with the new logo
- * 2. Or use an <img> tag pointing to the logo file
- * 
- * Example with image:
- * return <img src="/wiseos-logo-new.png" alt="WiseOS" width={size} height={size} />;
+ * Logo Icon - Uses the official WiseOS logo
  */
 function LogoIcon({ size }: { size: number }) {
   return (
-    <div
+    <img 
+      src="/logotype_new.png" 
+      alt="WiseOS" 
+      width={size * 3}
+      height={size}
       style={{
-        width: size,
         height: size,
-        borderRadius: tokens.radius.lg,
-        background: `linear-gradient(135deg, ${tokens.colors.primary} 0%, #7B4A77 100%)`,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        boxShadow: tokens.colors.shadowPrimary,
+        width: 'auto',
+        objectFit: 'contain',
       }}
-    >
-      <svg
-        width={size * 0.6}
-        height={size * 0.6}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="white"
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        <path d="M12 2L2 7l10 5 10-5-10-5z" />
-        <path d="M2 17l10 5 10-5" />
-        <path d="M2 12l10 5 10-5" />
-      </svg>
-    </div>
+    />
   );
 }
 

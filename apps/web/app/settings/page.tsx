@@ -2,9 +2,11 @@
 
 import LineIcon from "@/components/LineIcon";
 import { useTheme } from "@/lib/theme";
+import { useOnboarding } from "@/components/Onboarding";
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
+  const { resetOnboarding } = useOnboarding();
   const isDark = theme === "dark";
 
   return (
@@ -103,6 +105,46 @@ export default function SettingsPage() {
                 alexander@wiseos.se
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Help Section */}
+      <section>
+        <h2 className={`text-[24px] font-bold tracking-[-0.02em] mb-6 ${isDark ? "text-white" : "text-slate-900"}`}>
+          Hjälp & introduktion
+        </h2>
+        <div className={`rounded-2xl p-5 ${
+          isDark
+            ? "bg-white/5 border border-white/10"
+            : "bg-white border border-slate-200/60 shadow-soft"
+        }`}>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className={`h-10 w-10 rounded-xl grid place-items-center ${
+                isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-600"
+              }`}>
+                <LineIcon name="play" className="h-5 w-5" />
+              </div>
+              <div>
+                <div className={`text-sm font-medium ${isDark ? "text-white" : "text-slate-900"}`}>
+                  Introduktion
+                </div>
+                <div className={`text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
+                  Lär dig grunderna i WiseOS
+                </div>
+              </div>
+            </div>
+            <button
+              onClick={resetOnboarding}
+              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
+                isDark
+                  ? "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
+                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
+              }`}
+            >
+              Starta onboarding igen
+            </button>
           </div>
         </div>
       </section>
