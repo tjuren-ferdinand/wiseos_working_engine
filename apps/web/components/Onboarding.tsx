@@ -125,12 +125,31 @@ export default function Onboarding() {
           /* Welcome Screen */
           <div className="p-10 text-center">
             {/* Logo */}
-            <div className="mb-8 flex justify-center">
+            <div className="mb-8 flex items-center justify-center gap-3">
               <img 
                 src="/logotype_new.png" 
                 alt="WiseOS" 
-                className="h-12 w-auto"
+                className="h-11 w-auto"
+                style={{
+                  animation: "logoFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
+                }}
               />
+              <span 
+                className={`text-[26px] font-semibold tracking-tight ${
+                  isDark ? "text-white" : "text-slate-800"
+                }`}
+                style={{
+                  background: isDark 
+                    ? "linear-gradient(135deg, #ffffff 0%, #e8b0e4 100%)"
+                    : "linear-gradient(135deg, #1e293b 0%, #9B5A97 100%)",
+                  WebkitBackgroundClip: "text",
+                  WebkitTextFillColor: "transparent",
+                  backgroundClip: "text",
+                  animation: "textSlideIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both",
+                }}
+              >
+                WiseOS
+              </span>
             </div>
 
             <h1 className={`text-3xl font-bold tracking-tight mb-3 ${
@@ -265,6 +284,26 @@ export default function Onboarding() {
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
+          }
+        }
+        @keyframes logoFadeIn {
+          from {
+            opacity: 0;
+            transform: scale(0.8) rotate(-8deg);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1) rotate(0deg);
+          }
+        }
+        @keyframes textSlideIn {
+          from {
+            opacity: 0;
+            transform: translateX(-12px);
+          }
+          to {
+            opacity: 1;
+            transform: translateX(0);
           }
         }
       `}</style>

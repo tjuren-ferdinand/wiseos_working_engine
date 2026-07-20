@@ -33,13 +33,41 @@ export default function Sidebar() {
       }`}
     >
       {/* Logo */}
-      <div className="px-5 py-6">
-        <Link href="/" className="group flex items-center gap-3">
-          <img 
-            src="/logotype_new.png" 
-            alt="WiseOS" 
-            className="h-9 w-auto object-contain"
-          />
+      <div className="px-5 py-7">
+        <Link href="/" className="group flex items-center gap-3 overflow-hidden">
+          {/* Logo mark */}
+          <div className="relative flex-shrink-0 transition-transform duration-300 ease-out group-hover:scale-105">
+            <img 
+              src="/logotype_new.png" 
+              alt="WiseOS" 
+              className="h-10 w-auto object-contain"
+            />
+          </div>
+          
+          {/* Text with slide-in animation */}
+          <div className="relative overflow-hidden">
+            <span 
+              className={`block text-[22px] font-semibold tracking-tight transition-all duration-500 ease-out ${
+                isDark ? "text-white" : "text-slate-800"
+              }`}
+              style={{
+                background: isDark 
+                  ? "linear-gradient(135deg, #ffffff 0%, #e8b0e4 100%)"
+                  : "linear-gradient(135deg, #1e293b 0%, #9B5A97 100%)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}
+            >
+              WiseOS
+            </span>
+            {/* Animated underline on hover */}
+            <span 
+              className={`absolute bottom-0 left-0 h-[2px] w-0 transition-all duration-300 ease-out group-hover:w-full ${
+                isDark ? "bg-[#e8b0e4]/50" : "bg-[#9B5A97]/30"
+              }`}
+            />
+          </div>
         </Link>
       </div>
 
