@@ -1,0 +1,277 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --background: 245 245 247; /* #F5F5F7 */
+  --foreground: 29 29 31; /* #1D1D1F */
+  --card: 255 255 255;
+  --muted: 110 110 115; /* #6E6E73 */
+}
+
+html.dark {
+  --background: 10 10 10; /* #0a0a0a */
+  --foreground: 255 255 255;
+  --card: 26 26 26; /* #1a1a1a */
+  --muted: 255 255 255;
+}
+
+* {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background: rgb(232 176 228 / 0.35);
+  color: inherit;
+}
+
+html.dark ::selection {
+  background: rgb(232 176 228 / 0.3);
+}
+
+html, body {
+  background: rgb(var(--background));
+  color: rgb(var(--foreground));
+}
+
+/* Smooth transitions for theme changes - apply to ALL elements */
+*,
+*::before,
+*::after {
+  transition-property: background-color, border-color, color, fill, stroke, box-shadow;
+  transition-timing-function: cubic-bezier(0.4, 0, 0.2, 1);
+  transition-duration: 300ms;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgb(148 163 184 / 0.3);
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgb(148 163 184 / 0.5);
+}
+
+html.dark ::-webkit-scrollbar-thumb {
+  background: rgb(255 255 255 / 0.1);
+}
+
+html.dark ::-webkit-scrollbar-thumb:hover {
+  background: rgb(255 255 255 / 0.2);
+}
+
+/* ============================================================ */
+/*  Shared input / form-control                                  */
+/* ============================================================ */
+@layer components {
+  .input {
+    @apply block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900
+           placeholder:text-slate-400 shadow-soft transition-all
+           focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-300;
+  }
+  textarea.input { @apply leading-relaxed; }
+  select.input { @apply pr-9; }
+  
+  /* Primary button - soft pink accent */
+  .btn-primary {
+    @apply rounded-full bg-wise-300 px-5 py-2.5 text-sm font-semibold text-[#3f2a3f] 
+           transition-all hover:bg-wise-400 active:scale-[0.98];
+  }
+  
+  /* Secondary button - dark slate */
+  .btn-secondary {
+    @apply rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white 
+           transition-all hover:bg-slate-800 active:scale-[0.98];
+  }
+}
+
+/* ============================================================ */
+/*  PRINT LAYOUT – PDF-export med vattenstämpel                  */
+/* ============================================================ */
+@media print {
+  /* Visibility-teknik: dölj allt, men visa print-doc och dess barn.
+     Fungerar även när print-doc ligger djupt i wrapper-divar. */
+  body * { visibility: hidden !important; }
+  .print-doc, .print-doc * { visibility: visible !important; }
+  .print-doc {
+    position: absolute !important;
+    left: 0; top: 0; right: 0;
+    width: 100%;
+    display: block !important;
+    color: #0f172a;
+    font-family: ui-sans-serif, system-ui, "Segoe UI", sans-serif;
+  }
+  /* Extra säkerhetsdöljning för fixerade UI-lager */
+  [role="dialog"], .fixed { display: none !important; }
+
+  body { background: white !important; margin: 0 !important; }
+  html { background: white !important; }
+
+  @page { size: A4; margin: 18mm 18mm 22mm 18mm; }
+
+  .print-page {
+    page-break-after: always;
+    position: relative;
+    min-height: calc(100vh - 0px);
+  }
+  .print-page:last-child { page-break-after: auto; }
+
+  .print-cover {
+    padding-top: 40mm;
+  }
+  .print-cover-label {
+    font-size: 10px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: #7c3aed; font-weight: 600;
+  }
+  .print-cover-title {
+    font-size: 32px; font-weight: 600; letter-spacing: -0.02em;
+    margin-top: 8px; color: #0f172a;
+  }
+  .print-cover-meta {
+    margin-top: 6px; font-size: 13px; color: #475569;
+  }
+  .print-cover-student {
+    margin-top: 24mm; font-family: ui-serif, Georgia, serif;
+    font-size: 28px; font-style: italic; color: #0f172a;
+  }
+  .print-score-block {
+    margin-top: 18mm; border-top: 1px solid #cbd5e1; padding-top: 10mm;
+    display: inline-block;
+  }
+  .print-score-label {
+    font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: #64748b;
+  }
+  .print-score-value {
+    font-size: 40px; font-weight: 600; color: #0f172a; margin-top: 4px;
+    font-variant-numeric: tabular-nums;
+  }
+
+  .print-h2 {
+    font-size: 18px; font-weight: 600; letter-spacing: -0.01em;
+    color: #0f172a; margin: 0 0 14px;
+    padding-bottom: 8px; border-bottom: 1px solid #e2e8f0;
+  }
+
+  .print-steps { list-style: none; padding: 0; margin: 0; }
+  .print-step {
+    border: 1px solid #e2e8f0; border-radius: 10px;
+    padding: 12px 14px; margin-bottom: 10px;
+    page-break-inside: avoid;
+  }
+  .print-step-head {
+    display: flex; justify-content: space-between; align-items: baseline;
+    margin-bottom: 6px;
+  }
+  .print-step-label {
+    font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+    color: #64748b; font-weight: 600;
+  }
+  .print-step-points {
+    font-size: 13px; font-weight: 600; color: #0f172a;
+    font-variant-numeric: tabular-nums;
+  }
+  .print-step-row {
+    font-size: 12px; line-height: 1.5; color: #334155; margin-top: 4px;
+  }
+  .print-step-tag {
+    font-weight: 600; color: #94a3b8; margin-right: 4px;
+  }
+  .print-step-ai { color: #7f1d1d; }
+  .print-step-teacher { color: #4c1d95; }
+
+  .print-scan {
+    max-width: 100%; max-height: 230mm; display: block; margin: 0 auto;
+    border: 1px solid #e2e8f0; border-radius: 4px;
+  }
+  .print-scan-placeholder {
+    border: 1px dashed #cbd5e1; border-radius: 8px;
+    padding: 60mm 0; text-align: center; color: #94a3b8; font-style: italic;
+  }
+
+  /* --- Utökade delar för grym pitch-utskrift --- */
+  .print-score-max { color: #94a3b8; font-weight: 500; }
+  .print-score-pct { font-size: 22px; color: #7c3aed; font-weight: 500; margin-left: 6px; }
+
+  .print-stats {
+    display: flex; gap: 14mm; margin-top: 14mm;
+    border-top: 1px solid #e2e8f0; padding-top: 10mm;
+  }
+  .print-stat { text-align: left; }
+  .print-stat-value {
+    font-size: 28px; font-weight: 600; color: #0f172a;
+    font-variant-numeric: tabular-nums; line-height: 1;
+  }
+  .print-stat-correct { color: #059669; }
+  .print-stat-partial { color: #d97706; }
+  .print-stat-incorrect { color: #e11d48; }
+  .print-stat-label {
+    margin-top: 4px; font-size: 9px; text-transform: uppercase; letter-spacing: 0.12em;
+    color: #64748b; font-weight: 600;
+  }
+
+  .print-cover-signoff {
+    margin-top: 22mm; font-size: 10px; letter-spacing: 0.14em; text-transform: uppercase;
+    color: #94a3b8; font-weight: 500;
+  }
+
+  .print-step-correct { border-left: 3px solid #10b981; }
+  .print-step-partial { border-left: 3px solid #f59e0b; }
+  .print-step-incorrect { border-left: 3px solid #ef4444; }
+  .print-step-status {
+    font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em;
+    padding: 2px 8px; border-radius: 999px; margin: 0 auto 0 10px;
+  }
+  .print-status-correct { background: #d1fae5; color: #065f46; }
+  .print-status-partial { background: #fef3c7; color: #92400e; }
+  .print-status-incorrect { background: #fee2e2; color: #991b1b; }
+  .print-status-pending { background: #f1f5f9; color: #475569; }
+  .print-step-answer {
+    font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+    font-size: 11px; color: #0f172a;
+  }
+  .print-step-facit { color: #059669; }
+  .print-step-feedback {
+    margin-top: 6px; padding: 8px 10px; border-radius: 6px;
+    background: #faf5ff; border: 1px solid #e9d5ff; color: #4c1d95;
+    font-size: 11px; line-height: 1.55; page-break-inside: avoid;
+  }
+  .print-step-feedback .print-step-tag { color: #7c3aed; }
+
+  .print-scan-page {
+    border: 1px solid #e2e8f0; border-radius: 8px; padding: 10mm 12mm;
+    margin-bottom: 8mm; page-break-inside: avoid; background: #fdfcf8;
+  }
+  .print-scan-header {
+    display: flex; justify-content: space-between;
+    font-size: 8px; letter-spacing: 0.15em; text-transform: uppercase;
+    color: #94a3b8; font-weight: 600; margin-bottom: 4mm;
+    padding-bottom: 3mm; border-bottom: 1px dashed #cbd5e1;
+  }
+  .print-scan-text {
+    font-family: "Caveat", "Segoe Script", cursive;
+    font-size: 18px; line-height: 1.55; color: #1e293b;
+    white-space: pre-wrap; margin: 0;
+  }
+
+  /* Vattenstämpel-fot på varje sida */
+  .print-footer {
+    position: fixed; bottom: 8mm; left: 18mm; right: 18mm;
+    font-size: 8px; letter-spacing: 0.18em; text-transform: uppercase;
+    text-align: center; color: #cbd5e1; font-weight: 500;
+    border-top: 0.5px solid #f1f5f9; padding-top: 4mm;
+  }
+}
+
+/* Dölj print-doc på skärm */
+.print-doc { display: none; }
+

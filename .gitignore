@@ -1,0 +1,52 @@
+node_modules/
+.next/
+dist/
+build/
+out/
+
+# pnpm
+pnpm-debug.log*
+.pnpm-store/
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+.docker/
+
+# Turbo (if used)
+.turbo/
+
+# Vercel
+.vercel/
+
+# Miljöfiler – får ALDRIG checkas in (innehåller API-nycklar)
+.env
+.env.local
+.env.*.local
+.env.production
+*.env
+
+# Logs
+*.log
+
+# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# Coverage
+coverage/
+.nyc_output/

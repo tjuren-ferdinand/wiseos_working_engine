@@ -1,0 +1,41 @@
+﻿app/classes/[id]/grade/[provId]/page.tsx(56,7): error TS2367: This comparison appears to be unintentional because the types '"draft" | "grading" | "review" | "published"' and '"processing"' have no overlap.
+app/classes/[id]/grade/[provId]/page.tsx(86,66): error TS2554: Expected 2 arguments, but got 3.
+app/classes/[id]/grade/[provId]/page.tsx(86,85): error TS2339: Property 'displayedPoints' does not exist on type 'Step'.
+app/classes/[id]/grade/[provId]/page.tsx(89,58): error TS2339: Property 'pointsMax' does not exist on type 'Step'.
+app/classes/[id]/grade/[provId]/page.tsx(92,23): error TS2367: This comparison appears to be unintentional because the types '"correct" | "partial" | "incorrect" | "pending"' and '"ai_suggested"' have no overlap.
+app/classes/[id]/grade/[provId]/page.tsx(92,58): error TS2339: Property 'aiVerdict' does not exist on type 'Step'.
+app/classes/new/page.tsx(24,23): error TS2339: Property 'createKlass' does not exist on type '{ updateKlassParams: (klassId: string, params: GradingParams) => void; startProv: (data: { klassId: string; title: string; date: string; maxPoints: number; facitMode: "uploaded" | "ai_generated" | "none"; facit?: string | undefined; customParams?: string | undefined; }) => Prov; ... 4 more ...; setBatchProgress: (pr...'.
+app/results/page.tsx(15,52): error TS2339: Property 'isPublished' does not exist on type 'StudentResult'.
+app/results/page.tsx(53,25): error TS2554: Expected 2 arguments, but got 1.
+app/results/page.tsx(54,30): error TS2339: Property 'displayedPoints' does not exist on type 'Step'.
+app/results/page.tsx(56,66): error TS2339: Property 'pointsMax' does not exist on type 'Step'.
+app/student/[id]/page.tsx(28,25): error TS2554: Expected 2 arguments, but got 1.
+app/student/[id]/page.tsx(29,30): error TS2339: Property 'displayedPoints' does not exist on type 'Step'.
+app/student/[id]/page.tsx(31,71): error TS2339: Property 'pointsMax' does not exist on type 'Step'.
+app/student/[id]/page.tsx(64,23): error TS2554: Expected 2 arguments, but got 1.
+app/student/[id]/page.tsx(65,33): error TS2339: Property 'displayedPoints' does not exist on type 'Step'.
+app/student/[id]/page.tsx(65,57): error TS2339: Property 'pointsMax' does not exist on type 'Step'.
+components/AccordionCard.tsx(6,15): error TS2305: Module '"@/lib/store"' has no exported member 'GradingStep'.
+components/AccordionCard.tsx(96,29): error TS2322: Type 'string' is not assignable to type 'IconName'.
+components/AccordionCard.tsx(141,31): error TS2820: Type '"edit-3"' is not assignable to type 'IconName'. Did you mean '"edit"'?
+components/AccordionCard.tsx(156,31): error TS2322: Type '"message-square"' is not assignable to type 'IconName'.
+components/AccordionCard.tsx(172,33): error TS2322: Type '"alert-triangle"' is not assignable to type 'IconName'.
+components/PublishResultsModal.tsx(19,41): error TS2339: Property 'isPublished' does not exist on type 'StudentResult'.
+components/PublishResultsModal.tsx(50,37): error TS2554: Expected 1 arguments, but got 2.
+components/PublishResultsModal.tsx(76,69): error TS2339: Property 'pointsMax' does not exist on type 'Step'.
+components/ReviewWorkbench.tsx(16,44): error TS2367: This comparison appears to be unintentional because the types '"draft" | "grading" | "review" | "published"' and '"ready"' have no overlap.
+components/ReviewWorkbench.tsx(33,52): error TS2345: Argument of type 'GradingParams | ""' is not assignable to parameter of type 'string'.
+  Type 'GradingParams' is not assignable to type 'string'.
+components/ReviewWorkbench.tsx(36,69): error TS2339: Property 'pointsMax' does not exist on type 'Step'.
+components/ReviewWorkbench.tsx(84,21): error TS2322: Type '"clipboard"' is not assignable to type 'IconName'.
+components/ReviewWorkbench.tsx(101,64): error TS2339: Property 'isPublished' does not exist on type 'StudentResult'.
+components/ReviewWorkbench.tsx(145,84): error TS2339: Property 'isPublished' does not exist on type 'StudentResult'.
+components/ReviewWorkbench.tsx(154,27): error TS2322: Type '"send"' is not assignable to type 'IconName'.
+components/ReviewWorkbench.tsx(172,28): error TS2339: Property 'isPublished' does not exist on type 'StudentResult'.
+components/ReviewWorkbench.tsx(196,31): error TS2339: Property 'isPublished' does not exist on type 'StudentResult'.
+lib/mockStudents.ts(1,10): error TS2305: Module '"./store"' has no exported member 'uid'.
+lib/seedDemo.ts(1,10): error TS2305: Module '"./store"' has no exported member 'uid'.
+lib/seedDemo.ts(3,43): error TS2305: Module '"./store"' has no exported member 'State'.
+lib/seedDemo.ts(11,5): error TS2322: Type 'string' is not assignable to type 'GradingParams'.
+lib/seedDemo.ts(20,5): error TS2322: Type 'string' is not assignable to type 'GradingParams'.
+lib/seedDemo.ts(33,5): error TS2322: Type '"ready"' is not assignable to type '"draft" | "grading" | "review" | "published"'.

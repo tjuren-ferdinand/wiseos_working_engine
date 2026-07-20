@@ -1,0 +1,14 @@
+{
+  "name": "wiseos",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "dev:web": "pnpm --filter @wiseos/web dev",
+    "build:web": "pnpm --filter @wiseos/web build"
+  },
+  "packageManager": "pnpm@9.0.0"
+}
