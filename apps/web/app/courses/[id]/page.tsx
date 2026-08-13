@@ -3,143 +3,98 @@
 import LineIcon from "@/components/LineIcon";
 import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
 import { useParams } from "next/navigation";
+import PageHeader from "@/components/ui/PageHeader";
+import Surface from "@/components/ui/Surface";
+import EmptyState from "@/components/ui/EmptyState";
+import Breadcrumb from "@/components/ui/Breadcrumb";
 
 export default function CoursePage() {
   const params = useParams();
   const kursId = params.id as string;
-  
+
   const kurser = useStore((s) => s.kurser);
   const klasser = useStore((s) => s.klasser);
   const prov = useStore((s) => s.prov);
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
   const kurs = kurser.find((k) => k.id === kursId);
   const kursKlasser = klasser.filter((k) => k.kursId === kursId);
 
   if (!kurs) {
-    return <div className={isDark ? "text-white" : "text-slate-900"}>Kursen hittades inte</div>;
+    return <div className="text-ink-secondary">Kursen hittades inte</div>;
   }
 
+  const totalStudents = kursKlasser.reduce((sum, k) => sum + k.students.length, 0);
+
   return (
-    <div className="space-y-12">
-      {/* Breadcrumb */}
-      <nav className="flex items-center gap-2 text-sm">
-        <Link 
-          href="/courses" 
-          className={`hover:underline ${isDark ? "text-white/60" : "text-slate-500"}`}
-        >
-          Kurser
-        </Link>
-        <span className={isDark ? "text-white/40" : "text-slate-400"}>/</span>
-        <span className={isDark ? "text-white" : "text-slate-900"}>{kurs.name}</span>
-      </nav>
+    <div className="space-y-10">
+      <div>
+        <Breadcrumb
+          items={[{ label: "Kurser", href: "/courses" }, { label: kurs.name }]}
+          className="mb-6"
+        />
+        <PageHeader eyebrow={kurs.code} title={kurs.name} subtitle={kurs.description} />
 
-      {/* Header */}
-      <section className="pt-4">
-        <div>
-          <p className={`text-[13px] font-semibold tracking-[0.2em] uppercase ${isDark ? "text-[#e8b0e4]" : "text-[#c78bbf]"}`}>
-            {kurs.code}
-          </p>
-          <h1 className={`mt-5 text-[48px] font-bold leading-[1.1] tracking-[-0.03em] ${isDark ? "text-white" : "text-slate-900"}`}>
-            {kurs.name}
-          </h1>
-          <p className={`mt-4 text-lg ${isDark ? "text-white/60" : "text-slate-600"}`}>
-            {kurs.description}
-          </p>
-        </div>
-
-        {/* Stats */}
-        <div className="mt-8 flex items-center gap-8">
+        {/* Stats — integrated row, not boxed widgets */}
+        <div className="mt-8 flex items-center gap-12 border-t border-ink-hairline pt-6">
           <div>
-            <div className={`text-3xl font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+            <div className="text-[24px] font-medium tracking-[-0.01em] text-ink tabular-nums">
               {kursKlasser.length}
             </div>
-            <div className={`text-sm ${isDark ? "text-white/50" : "text-slate-500"}`}>
-              {kursKlasser.length === 1 ? "Klass" : "Klasser"}
+            <div className="mt-0.5 text-[12.5px] text-ink-muted">
+              {kursKlasser.length === 1 ? "klass" : "klasser"}
             </div>
           </div>
           <div>
-            <div className={`text-3xl font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
-              {kursKlasser.reduce((sum, k) => sum + k.students.length, 0)}
+            <div className="text-[24px] font-medium tracking-[-0.01em] text-ink tabular-nums">
+              {totalStudents}
             </div>
-            <div className={`text-sm ${isDark ? "text-white/50" : "text-slate-500"}`}>
-              Elever totalt
-            </div>
+            <div className="mt-0.5 text-[12.5px] text-ink-muted">elever totalt</div>
           </div>
         </div>
-      </section>
+      </div>
 
-      {/* Classes Grid */}
+      {/* Classes */}
       <section>
-        <h2 className={`mb-6 text-xl font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
+        <h2 className="mb-4 text-[12px] font-medium uppercase tracking-[0.1em] text-ink-muted">
           Klasser som läser {kurs.name}
         </h2>
-        
+
         {kursKlasser.length === 0 ? (
-          <div className={`rounded-2xl border-2 border-dashed p-16 text-center ${
-            isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"
-          }`}>
-            <div className={`mx-auto h-14 w-14 rounded-2xl grid place-items-center ${
-              isDark ? "bg-[#e8b0e4]/10" : "bg-[#e8b0e4]/15"
-            }`}>
-              <LineIcon name="graduation-cap" className={`h-7 w-7 ${isDark ? "text-[#e8b0e4]" : "text-[#c78bbf]"}`} />
-            </div>
-            <h3 className={`mt-5 text-lg font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
-              Inga klasser ännu
-            </h3>
-            <p className={`mt-2 text-sm ${isDark ? "text-white/50" : "text-slate-500"}`}>
-              Skapa en klass för {kurs.name}.
-            </p>
-          </div>
+          <EmptyState
+            icon="graduation-cap"
+            title="Inga klasser ännu"
+            description={`Skapa en klass för ${kurs.name}.`}
+          />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
             {kursKlasser.map((klass) => {
               const klassProv = prov.filter((p) => p.klassId === klass.id);
-              
+
               return (
-                <Link
-                  key={klass.id}
-                  href={`/classes/${klass.id}`}
-                  className={`group relative rounded-2xl p-6 transition-all hover:-translate-y-0.5 ${
-                    isDark
-                      ? "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20"
-                      : "bg-white border border-slate-200/60 shadow-soft hover:shadow-card"
-                  }`}
-                >
-                  <div className={`absolute right-5 top-5 transition-colors ${
-                    isDark ? "text-white/20 group-hover:text-[#e8b0e4]" : "text-slate-200 group-hover:text-[#c78bbf]"
-                  }`}>
-                    <LineIcon name="graduation-cap" className="h-6 w-6" />
+                <Surface key={klass.id} href={`/classes/${klass.id}`} padding="p-5" className="relative">
+                  <div className="absolute right-4 top-4 text-ink-muted/50 transition-colors group-hover:text-ink-secondary">
+                    <LineIcon name="graduation-cap" className="h-5 w-5" />
                   </div>
-                  
-                  <div className={`text-base font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
-                    {klass.name}
-                  </div>
-                  
-                  <div className={`mt-4 flex items-center gap-4 text-sm ${isDark ? "text-white/50" : "text-slate-500"}`}>
+                  <h3 className="text-[15px] font-medium text-ink">{klass.name}</h3>
+                  <div className="mt-3 flex items-center gap-4 text-[13px] text-ink-secondary">
                     <span className="flex items-center gap-1.5">
-                      <LineIcon name="users" className="h-4 w-4" />
+                      <LineIcon name="users" className="h-3.5 w-3.5 opacity-70" />
                       {klass.students.length} elever
                     </span>
-                    <span>
-                      {klassProv.length} prov
-                    </span>
+                    <span>{klassProv.length} prov</span>
                   </div>
-                  
                   {klassProv.length > 0 && (
-                    <div className={`mt-4 pt-4 border-t ${isDark ? "border-white/10" : "border-slate-200"}`}>
-                      <div className={`text-xs ${isDark ? "text-white/40" : "text-slate-400"}`}>
+                    <div className="mt-4 pt-4 border-t border-ink-hairline">
+                      <div className="text-[11px] uppercase tracking-[0.1em] text-ink-muted">
                         Senaste prov
                       </div>
-                      <div className={`mt-1 text-sm font-medium ${isDark ? "text-white/80" : "text-slate-700"}`}>
+                      <div className="mt-1 text-[13px] font-medium text-ink-secondary truncate">
                         {klassProv[klassProv.length - 1].title}
                       </div>
                     </div>
                   )}
-                </Link>
+                </Surface>
               );
             })}
           </div>

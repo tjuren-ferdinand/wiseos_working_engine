@@ -30,6 +30,7 @@ from ..schemas import (
     BatchStudentResult,
     WolframResult,
 )
+from . import vision_ocr
 from .feedback import generate_feedback
 from .ocr import process_image
 from .wolfram import WolframVerifier
@@ -192,44 +193,72 @@ async def grade_batch(
 ) -> list[BatchStudentResult]:
     """Kör hela pipelinen för en uppsättning elever (en fil per elev)."""
     verifier = WolframVerifier()
-    results: list[BatchStudentResult] = []
+    semaphore = asyncio.Semaphore(2)
 
-    for upload in files:
-        student_name = derive_student_name(upload.filename)
-        try:
-            student_text = await _ocr_one(upload)
-        except Exception:
-            student_text = ""
+    async def _process_one(upload: UploadedFile) -> BatchStudentResult:
+        async with semaphore:
+            student_name = derive_student_name(upload.filename)
+            try:
+                student_text = await _ocr_one(upload)
+            except Exception:
+                student_text = ""
 
-        # Kör Wolfram + Claude parallellt över alla facit-items för denna elev
-        step_tasks = [
-            _grade_one_step(
-                item=item,
-                student_text=student_text,
-                klass_params=class_grading_parameters,
-                test_params=test_specific_parameters,
-                verifier=verifier,
-            )
-            for item in answer_key
-        ]
-        steps = await asyncio.gather(*step_tasks)
+            # Kör Wolfram + AI parallellt över alla facit-items för denna elev
+            step_tasks = [
+                _grade_one_step(
+                    item=item,
+                    student_text=student_text,
+                    klass_params=class_grading_parameters,
+                    test_params=test_specific_parameters,
+                    verifier=verifier,
+                )
+                for item in answer_key
+            ]
+            steps = await asyncio.gather(*step_tasks, return_exceptions=True)
+            resolved_steps: list[BatchGradingStep] = []
+            for st in steps:
+                if isinstance(st, Exception):
+                    resolved_steps.append(
+                        BatchGradingStep(
+                            id=str(uuid.uuid4()),
+                            label="Uppgift ? · Fel",
+                            studentWork="",
+                            baseAnnotation=f"Fel i rättningssteget: {st!s}",
+                            appliedRules=[],
+                            aiVerdict="incorrect",
+                            pointsMax=1.0,
+                            pointsBase=0.0,
+                            pointsTeacher=None,
+                            status="ai_suggested",
+                            confidence=0.0,
+                            wolframNotes=None,
+                        )
+                    )
+                else:
+                    resolved_steps.append(st)
 
-        results.append(
-            BatchStudentResult(
+            return BatchStudentResult(
                 id=str(uuid.uuid4()),
                 provId=prov_id,
                 studentName=student_name,
                 scanPages=[],  # frontend lägger på data-URLs
-                steps=list(steps),
+                steps=resolved_steps,
             )
-        )
 
-    return results
+    results = await asyncio.gather(*[_process_one(u) for u in files])
+    return list(results)
 
 
-def integration_status() -> dict[str, bool]:
+def integration_status() -> dict[str, bool | str]:
+    provider = settings.AI_PROVIDER.strip().lower()
+    mathpix = bool(settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY)
+    ocr_provider = vision_ocr.provider_name()
     return {
         "wolfram": bool(settings.WOLFRAM_APP_ID or settings.WOLFRAM_API_URL),
-        "anthropic": bool(settings.ANTHROPIC_API_KEY),
-        "mathpix": bool(settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY),
+        "groq": provider == "groq" and bool(settings.GROQ_API_KEY),
+        "anthropic": provider == "anthropic" and bool(settings.ANTHROPIC_API_KEY),
+        "mathpix": mathpix,
+        # OCR körs live via Mathpix eller en gratis vision-provider som tillfällig ersättare.
+        "ocr": ocr_provider != "mock",
+        "ocrProvider": ocr_provider,
     }

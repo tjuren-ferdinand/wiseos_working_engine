@@ -93,7 +93,7 @@ export type BatchGradeResponse = {
   activeRules: string[];
   totalStudents: number;
   totalSteps: number;
-  integrations: Record<string, boolean>;
+  integrations: Record<string, boolean | string>;
 };
 
 export type BatchGradeRequest = {
@@ -135,15 +135,42 @@ export const api = {
     if (!res.ok) throw new Error(`Facit ${res.status}: ${await res.text()}`);
     return res.json();
   },
-  batchGrade: async (req: BatchGradeRequest): Promise<BatchGradeResponse> => {
+  answerKeyGenerate: async (description: string, questionCount = 4): Promise<AnswerKeyItem[]> => {
+    const fd = new FormData();
+    fd.append("description", description);
+    fd.append("question_count", String(questionCount));
+    const res = await fetch(`${API_URL}/api/v1/ocr/answer-key/generate`, { method: "POST", body: fd });
+    if (!res.ok) throw new Error(`Facit ${res.status}: ${await res.text()}`);
+    return res.json();
+  },
+  batchGrade: async (req: BatchGradeRequest, signal?: AbortSignal): Promise<BatchGradeResponse> => {
     const fd = new FormData();
     fd.append("prov_id", req.provId);
     fd.append("class_grading_parameters", req.classGradingParameters);
     fd.append("test_specific_parameters", req.testSpecificParameters);
     fd.append("answer_key_json", JSON.stringify(req.answerKey));
     for (const f of req.files) fd.append("files", f, f.name);
-    const res = await fetch(`${API_URL}/api/v1/batch/grade`, { method: "POST", body: fd });
-    if (!res.ok) throw new Error(`Batch ${res.status}: ${await res.text()}`);
-    return res.json();
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 300_000);
+    const onAbort = () => controller.abort();
+    signal?.addEventListener("abort", onAbort);
+    try {
+      const res = await fetch(`${API_URL}/api/v1/batch/grade`, {
+        method: "POST",
+        body: fd,
+        signal: controller.signal,
+      });
+      if (!res.ok) throw new Error(`Batch ${res.status}: ${await res.text()}`);
+      return res.json();
+    } catch (error) {
+      if ((error as Error).name === "AbortError") {
+        throw new Error("Rättningen tog längre än fem minuter. Kontrollera att backend körs och försök igen.");
+      }
+      throw error;
+    } finally {
+      clearTimeout(timeout);
+      signal?.removeEventListener("abort", onAbort);
+    }
   },
 };

@@ -1,95 +1,69 @@
 "use client";
 
 import LineIcon from "@/components/LineIcon";
-import Link from "next/link";
 import { useStore } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
+import PageHeader from "@/components/ui/PageHeader";
+import Surface from "@/components/ui/Surface";
 
 export default function CoursesPage() {
   const kurser = useStore((s) => s.kurser);
   const klasser = useStore((s) => s.klasser);
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
 
   return (
-    <div className="space-y-12">
-      <section className="pt-4">
-        <div className="flex items-start justify-between">
-          <div>
-            <p className={`text-[13px] font-semibold tracking-[0.2em] uppercase ${isDark ? "text-[#e8b0e4]" : "text-[#c78bbf]"}`}>
-              Välj kurs
-            </p>
-            <h1 className={`mt-5 text-[48px] font-bold leading-[1.1] tracking-[-0.03em] ${isDark ? "text-white" : "text-slate-900"}`}>
-              Kurser
-            </h1>
-            <p className={`mt-4 text-lg ${isDark ? "text-white/50" : "text-slate-500"}`}>
-              Välj en kurs för att se dess klasser och prov.
-            </p>
-          </div>
-        </div>
-      </section>
+    <div className="space-y-10">
+      <PageHeader
+        eyebrow="Välj kurs"
+        title="Kurser"
+        subtitle="Välj en kurs för att se dess klasser och prov."
+      />
 
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {kurser.map((kurs) => {
           const kursKlasser = klasser.filter((k) => k.kursId === kurs.id);
           const totalStudents = kursKlasser.reduce((sum, k) => sum + k.students.length, 0);
-          
+
           return (
-            <Link
-              key={kurs.id}
-              href={`/courses/${kurs.id}`}
-              className={`group relative rounded-3xl p-8 transition-all hover:-translate-y-1 ${
-                isDark
-                  ? "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20"
-                  : "bg-white border border-slate-200/60 shadow-soft hover:shadow-card"
-              }`}
-            >
-              <div className={`absolute right-6 top-6 transition-colors ${
-                isDark ? "text-white/20 group-hover:text-[#e8b0e4]" : "text-slate-200 group-hover:text-[#c78bbf]"
-              }`}>
-                <LineIcon name="graduation-cap" className="h-8 w-8" />
+            <Surface key={kurs.id} href={`/courses/${kurs.id}`} padding="p-6" className="relative">
+              <div className="absolute right-5 top-5 text-ink-muted/50 transition-colors group-hover:text-ink-secondary">
+                <LineIcon name="graduation-cap" className="h-5 w-5" />
               </div>
-              
-              <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${
-                isDark ? "text-white/40" : "text-slate-400"
-              }`}>
+
+              <div className="text-[11px] uppercase tracking-[0.12em] font-medium text-ink-muted">
                 {kurs.code}
               </div>
-              
-              <div className={`mt-2 text-2xl font-bold ${isDark ? "text-white" : "text-slate-900"}`}>
+              <h2 className="mt-1.5 text-[17px] font-medium tracking-[-0.01em] text-ink">
                 {kurs.name}
-              </div>
-              
-              <p className={`mt-3 text-sm leading-relaxed ${isDark ? "text-white/60" : "text-slate-600"}`}>
+              </h2>
+              <p className="mt-2 text-[13.5px] leading-relaxed text-ink-secondary line-clamp-3">
                 {kurs.description}
               </p>
-              
-              <div className={`mt-6 flex items-center gap-6 text-sm ${isDark ? "text-white/50" : "text-slate-500"}`}>
-                <span className="flex items-center gap-2">
-                  <LineIcon name="users" className="h-4 w-4" />
+
+              <div className="mt-5 flex items-center gap-5 text-[13px] text-ink-secondary">
+                <span className="flex items-center gap-1.5">
+                  <LineIcon name="users" className="h-3.5 w-3.5 opacity-70" />
                   {kursKlasser.length} {kursKlasser.length === 1 ? "klass" : "klasser"}
                 </span>
-                <span className="flex items-center gap-2">
-                  <LineIcon name="users" className="h-4 w-4" />
+                <span className="flex items-center gap-1.5">
+                  <LineIcon name="users" className="h-3.5 w-3.5 opacity-70" />
                   {totalStudents} elever
                 </span>
               </div>
-              
+
               {kurs.gradeThresholds && (
-                <div className={`mt-4 pt-4 border-t ${isDark ? "border-white/10" : "border-slate-200"}`}>
-                  <div className={`text-xs ${isDark ? "text-white/40" : "text-slate-400"}`}>
+                <div className="mt-4 pt-4 border-t border-ink-hairline">
+                  <div className="text-[11px] uppercase tracking-[0.1em] text-ink-muted">
                     Betygsgränser
                   </div>
-                  <div className={`mt-2 flex items-center gap-2 text-xs font-medium ${isDark ? "text-white/60" : "text-slate-600"}`}>
-                    <span>A: {kurs.gradeThresholds.A}%</span>
-                    <span>·</span>
-                    <span>C: {kurs.gradeThresholds.C}%</span>
-                    <span>·</span>
-                    <span>E: {kurs.gradeThresholds.E}%</span>
+                  <div className="mt-1.5 flex items-center gap-2 text-[12.5px] font-medium tabular-nums text-ink-secondary">
+                    <span>A {kurs.gradeThresholds.A}%</span>
+                    <span className="text-ink-muted">·</span>
+                    <span>C {kurs.gradeThresholds.C}%</span>
+                    <span className="text-ink-muted">·</span>
+                    <span>E {kurs.gradeThresholds.E}%</span>
                   </div>
                 </div>
               )}
-            </Link>
+            </Surface>
           );
         })}
       </div>

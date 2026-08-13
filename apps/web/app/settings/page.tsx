@@ -3,6 +3,16 @@
 import LineIcon from "@/components/LineIcon";
 import { useTheme } from "@/lib/theme";
 import { useOnboarding } from "@/components/Onboarding";
+import PageHeader from "@/components/ui/PageHeader";
+import Surface from "@/components/ui/Surface";
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="mb-4 text-[12px] font-medium uppercase tracking-[0.1em] text-ink-muted">
+      {children}
+    </h2>
+  );
+}
 
 export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -10,54 +20,34 @@ export default function SettingsPage() {
   const isDark = theme === "dark";
 
   return (
-    <div className="space-y-12 max-w-2xl">
-      <section className="pt-4">
-        <p className={`text-[13px] font-semibold tracking-[0.2em] uppercase ${isDark ? "text-[#e8b0e4]" : "text-[#c78bbf]"}`}>
-          Konfiguration
-        </p>
-        <h1 className={`mt-5 text-[48px] font-bold leading-[1.1] tracking-[-0.03em] ${isDark ? "text-white" : "text-slate-900"}`}>
-          Inställningar
-        </h1>
-        <p className={`mt-4 text-lg ${isDark ? "text-white/50" : "text-slate-500"}`}>
-          Anpassa wiseOS efter dina preferenser.
-        </p>
-      </section>
+    <div className="space-y-10 max-w-2xl">
+      <PageHeader
+        eyebrow="Konfiguration"
+        title="Inställningar"
+        subtitle="Anpassa WiseOS efter dina preferenser."
+      />
 
-      {/* Theme Section */}
+      {/* Theme */}
       <section>
-        <h2 className={`text-[24px] font-bold tracking-[-0.02em] mb-6 ${isDark ? "text-white" : "text-slate-900"}`}>
-          Utseende
-        </h2>
-        <div className={`rounded-2xl p-5 ${
-          isDark
-            ? "bg-white/5 border border-white/10"
-            : "bg-white border border-slate-200/60 shadow-soft"
-        }`}>
-          <div className="flex items-center justify-between">
+        <SectionTitle>Utseende</SectionTitle>
+        <Surface padding="p-5">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl grid place-items-center ${
-                isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-600"
-              }`}>
+              <div className="h-10 w-10 rounded-[10px] grid place-items-center bg-ink/[0.04] border border-ink-hairline text-ink-secondary">
                 <LineIcon name={isDark ? "moon" : "sun"} className="h-5 w-5" />
               </div>
               <div>
-                <div className={`text-sm font-medium ${isDark ? "text-white" : "text-slate-900"}`}>
-                  Tema
-                </div>
-                <div className={`text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
+                <div className="text-[14px] font-medium text-ink">Tema</div>
+                <div className="text-[12.5px] text-ink-muted">
                   {isDark ? "Mörkt tema aktivt" : "Ljust tema aktivt"}
                 </div>
               </div>
             </div>
-            <div className="flex gap-2">
+            <div className="flex gap-1 rounded-[12px] bg-ink/[0.04] border border-ink-hairline p-1">
               <button
                 onClick={() => setTheme("light")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-                  theme === "light"
-                    ? "bg-slate-900 text-white"
-                    : isDark
-                    ? "bg-white/10 text-white/70 hover:bg-white/20"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                className={`flex items-center gap-1.5 rounded-[9px] px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+                  theme === "light" ? "bg-paper-raised text-ink shadow-soft" : "text-ink-secondary hover:text-ink"
                 }`}
               >
                 <LineIcon name="sun" className="h-4 w-4" />
@@ -65,12 +55,8 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={() => setTheme("dark")}
-                className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-                  theme === "dark"
-                    ? "bg-white text-slate-900"
-                    : isDark
-                    ? "bg-white/10 text-white/70 hover:bg-white/20"
-                    : "bg-slate-100 text-slate-600 hover:bg-slate-200"
+                className={`flex items-center gap-1.5 rounded-[9px] px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+                  theme === "dark" ? "bg-paper-elevated text-ink shadow-soft" : "text-ink-secondary hover:text-ink"
                 }`}
               >
                 <LineIcon name="moon" className="h-4 w-4" />
@@ -78,95 +64,58 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
-        </div>
+        </Surface>
       </section>
 
-      {/* Account Section */}
+      {/* Account */}
       <section>
-        <h2 className={`text-[24px] font-bold tracking-[-0.02em] mb-6 ${isDark ? "text-white" : "text-slate-900"}`}>
-          Konto
-        </h2>
-        <div className={`rounded-2xl p-5 ${
-          isDark
-            ? "bg-white/5 border border-white/10"
-            : "bg-white border border-slate-200/60 shadow-soft"
-        }`}>
+        <SectionTitle>Konto</SectionTitle>
+        <Surface padding="p-5">
           <div className="flex items-center gap-4">
-            <div className={`h-12 w-12 rounded-full grid place-items-center text-lg font-semibold ${
-              isDark ? "bg-wise-300/20 text-wise-300" : "bg-wise-100 text-wise-600"
-            }`}>
+            <div className="h-11 w-11 rounded-full grid place-items-center text-[15px] font-medium bg-ink/[0.05] border border-ink-hairline text-ink">
               A
             </div>
             <div>
-              <div className={`text-sm font-medium ${isDark ? "text-white" : "text-slate-900"}`}>
-                Alexander
-              </div>
-              <div className={`text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
-                alexander@wiseos.se
-              </div>
+              <div className="text-[14px] font-medium text-ink">Alexander</div>
+              <div className="text-[12.5px] text-ink-muted">alexander@wiseos.se</div>
             </div>
           </div>
-        </div>
+        </Surface>
       </section>
 
-      {/* Help Section */}
+      {/* Help */}
       <section>
-        <h2 className={`text-[24px] font-bold tracking-[-0.02em] mb-6 ${isDark ? "text-white" : "text-slate-900"}`}>
-          Hjälp & introduktion
-        </h2>
-        <div className={`rounded-2xl p-5 ${
-          isDark
-            ? "bg-white/5 border border-white/10"
-            : "bg-white border border-slate-200/60 shadow-soft"
-        }`}>
-          <div className="flex items-center justify-between">
+        <SectionTitle>Hjälp & introduktion</SectionTitle>
+        <Surface padding="p-5">
+          <div className="flex items-center justify-between gap-4">
             <div className="flex items-center gap-3">
-              <div className={`h-10 w-10 rounded-xl grid place-items-center ${
-                isDark ? "bg-white/10 text-white" : "bg-slate-100 text-slate-600"
-              }`}>
+              <div className="h-10 w-10 rounded-[10px] grid place-items-center bg-ink/[0.04] border border-ink-hairline text-ink-secondary">
                 <LineIcon name="play" className="h-5 w-5" />
               </div>
               <div>
-                <div className={`text-sm font-medium ${isDark ? "text-white" : "text-slate-900"}`}>
-                  Introduktion
-                </div>
-                <div className={`text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
-                  Lär dig grunderna i WiseOS
-                </div>
+                <div className="text-[14px] font-medium text-ink">Introduktion</div>
+                <div className="text-[12.5px] text-ink-muted">Lär dig grunderna i WiseOS</div>
               </div>
             </div>
-            <button
-              onClick={resetOnboarding}
-              className={`flex items-center gap-2 rounded-xl px-4 py-2 text-sm font-medium transition-all ${
-                isDark
-                  ? "bg-white/10 text-white/70 hover:bg-white/20 hover:text-white"
-                  : "bg-slate-100 text-slate-600 hover:bg-slate-200 hover:text-slate-900"
-              }`}
-            >
-              Starta onboarding igen
+            <button onClick={resetOnboarding} className="btn-secondary">
+              Starta igen
             </button>
           </div>
-        </div>
+        </Surface>
       </section>
 
-      {/* About Section */}
+      {/* About */}
       <section>
-        <h2 className={`text-[24px] font-bold tracking-[-0.02em] mb-6 ${isDark ? "text-white" : "text-slate-900"}`}>
-          Om wiseOS
-        </h2>
-        <div className={`rounded-2xl p-5 ${
-          isDark
-            ? "bg-white/5 border border-white/10"
-            : "bg-white border border-slate-200/60 shadow-soft"
-        }`}>
-          <div className={`text-sm ${isDark ? "text-white/70" : "text-slate-600"}`}>
-            <p>wiseOS v0.1</p>
+        <SectionTitle>Om WiseOS</SectionTitle>
+        <Surface padding="p-5">
+          <div className="text-[13.5px] text-ink-secondary">
+            <p>WiseOS v0.1</p>
             <p className="mt-1">© {new Date().getFullYear()} Wisecast AB</p>
-            <p className={`mt-3 text-xs ${isDark ? "text-white/40" : "text-slate-400"}`}>
+            <p className="mt-3 text-[12px] text-ink-muted">
               AI-driven rättningsassistent för svenska STEM-lärare
             </p>
           </div>
-        </div>
+        </Surface>
       </section>
     </div>
   );

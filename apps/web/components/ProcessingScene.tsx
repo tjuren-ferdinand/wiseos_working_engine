@@ -35,7 +35,7 @@ const PHASES = [
   {
     key: "feedback",
     title: "Genererar pedagogisk feedback",
-    desc: "Claude formulerar varm, konkret feedback per uppgift och elev.",
+    desc: "WiseOS genererar varm, konkret feedback per uppgift och elev.",
     icon: "check" as PhaseIcon,
   },
   {

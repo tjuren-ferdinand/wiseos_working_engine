@@ -1821,6 +1821,30 @@ export const useStore = create<StoreState>(() => ({
 // ============================================================================
 
 export const actions = {
+  createKlass: (data: {
+    name: string;
+    subject?: string;
+    gradeLevel?: string;
+    gradingParams?: string;
+    kursId?: string;
+  }): Klass => {
+    const kurserState = useStore.getState().kurser;
+    const customRules = (data.gradingParams || "")
+      .split("\n")
+      .map((r) => r.trim())
+      .filter(Boolean);
+    const newKlass: Klass = {
+      id: `klass-${Date.now()}`,
+      name: data.name,
+      kursId: data.kursId || kurserState[0]?.id || "",
+      students: [],
+      gradingParams: { ...DEFAULT_GRADING_PARAMS, customRules },
+      gradeThresholds: { ...DEFAULT_GRADE_THRESHOLDS },
+    };
+    useStore.setState((state) => ({ klasser: [...state.klasser, newKlass] }));
+    return newKlass;
+  },
+
   updateKlassParams: (klassId: string, params: GradingParams) => {
     useStore.setState((state) => ({
       klasser: state.klasser.map((k) =>
@@ -1953,8 +1977,9 @@ export async function runBatchGrade(opts: {
   files: File[];
   identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id';
   onPhase?: (phase: 'uploading' | 'processing' | 'saving') => void;
-}): Promise<{ added: StudentResult[]; activeRules: string[]; integrations: Record<string, boolean> }> {
-  const { provId, klassId, klassParams, customParams, answerKey, files, identificationMethod, onPhase } = opts;
+  signal?: AbortSignal;
+}): Promise<{ added: StudentResult[]; activeRules: string[]; integrations: Record<string, boolean | string> }> {
+  const { provId, klassId, klassParams, customParams, answerKey, files, identificationMethod, onPhase, signal } = opts;
 
   actions.setBatchProgress(provId, 'uploading', 0, files.length);
   onPhase?.('uploading');
@@ -1969,32 +1994,38 @@ export async function runBatchGrade(opts: {
   actions.setBatchProgress(provId, 'processing', 0, files.length);
   onPhase?.('processing');
 
-  const resp = await api.batchGrade({
-    provId,
-    classGradingParameters: classText,
-    testSpecificParameters: customParams || '',
-    answerKey,
-    files,
-  });
+  try {
+    const resp = await api.batchGrade({
+      provId,
+      classGradingParameters: classText,
+      testSpecificParameters: customParams || '',
+      answerKey,
+      files,
+    }, signal);
 
-  onPhase?.('saving');
+    onPhase?.('saving');
 
-  // Matcha varje resultat mot en klasslista-elev via namn (case-insensitive substring).
-  const klass = useStore.getState().klasser.find((k) => k.id === klassId);
-  const added: StudentResult[] = resp.results.map((b) => {
-    const match = klass?.students.find(
-      (s) => s.name.toLowerCase() === b.studentName.toLowerCase()
-        || s.name.toLowerCase().includes(b.studentName.toLowerCase())
-        || b.studentName.toLowerCase().includes(s.name.toLowerCase()),
-    );
-    return mapBatchToStudentResult(b, match?.id ?? `unknown-${b.id}`, identificationMethod);
-  });
+    // Matcha varje resultat mot en klasslista-elev via namn (case-insensitive substring).
+    const klass = useStore.getState().klasser.find((k) => k.id === klassId);
+    const added: StudentResult[] = resp.results.map((b) => {
+      const match = klass?.students.find(
+        (s) => s.name.toLowerCase() === b.studentName.toLowerCase()
+          || s.name.toLowerCase().includes(b.studentName.toLowerCase())
+          || b.studentName.toLowerCase().includes(s.name.toLowerCase()),
+      );
+      return mapBatchToStudentResult(b, match?.id ?? `unknown-${b.id}`, identificationMethod);
+    });
 
-  useStore.setState((state) => ({ results: [...state.results, ...added] }));
-  actions.updateProvStatus(provId, 'review');
-  actions.setBatchProgress(provId, 'done', files.length, files.length);
+    useStore.setState((state) => ({ results: [...state.results, ...added] }));
+    actions.updateProvStatus(provId, 'review');
+    actions.setBatchProgress(provId, 'done', files.length, files.length);
 
-  return { added, activeRules: resp.activeRules, integrations: resp.integrations };
+    return { added, activeRules: resp.activeRules, integrations: resp.integrations };
+  } catch (error) {
+    actions.updateProvStatus(provId, 'draft');
+    actions.setBatchProgress(provId, 'error', 0, files.length);
+    throw error;
+  }
 }
 
 // ============================================================================

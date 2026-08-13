@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 import type { AnswerKeyItem } from "@/lib/api";
-import { runBatchGrade, type GradingParams, type StudentResult } from "@/lib/store";
+import { actions, runBatchGrade, type GradingParams, type StudentResult } from "@/lib/store";
 
 // ============================================================================
 // TYPES
@@ -32,9 +32,17 @@ interface BatchGradingPipelineProps {
 // MAIN COMPONENT
 // ============================================================================
 
+const OCR_LABELS: Record<string, string> = {
+  mathpix: "Mathpix OCR",
+  gemini: "Gemini Vision OCR",
+  openrouter: "OpenRouter Vision OCR",
+  groq: "Groq Vision OCR",
+  mock: "OCR (demo-läge)",
+};
+
 const PHASE_LABEL: Record<Exclude<Phase, "idle">, string> = {
   uploading: "Laddar upp och sektionerar",
-  processing: "OCR + Wolfram + Claude arbetar",
+  processing: "OCR + Wolfram + AI arbetar",
   saving: "Sparar resultat",
   complete: "Klar",
   error: "Fel",
@@ -58,21 +66,50 @@ export default function BatchGradingPipeline({
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<StudentResult[]>([]);
   const [activeRules, setActiveRules] = useState<string[]>([]);
-  const [integrations, setIntegrations] = useState<Record<string, boolean>>({});
+  const [integrations, setIntegrations] = useState<Record<string, boolean | string>>({});
   const [analysisTime, setAnalysisTime] = useState(0);
   const startedRef = useRef(false);
+  const abortRef = useRef<AbortController | null>(null);
+  const runArgsRef = useRef({
+    files,
+    answerKey,
+    klassParams,
+    customParams,
+    identificationMethod,
+    provId,
+    klassId,
+  });
+  runArgsRef.current = {
+    files,
+    answerKey,
+    klassParams,
+    customParams,
+    identificationMethod,
+    provId,
+    klassId,
+  };
 
   useEffect(() => {
     if (!open) {
       startedRef.current = false;
+      abortRef.current?.abort();
+      abortRef.current = null;
       setPhase("idle");
       setError(null);
       setResults([]);
       return;
     }
     if (startedRef.current) return;
-    if (files.length === 0 || answerKey.length === 0) return;
+
+    const { files, answerKey, klassParams, customParams, identificationMethod, provId, klassId } = runArgsRef.current;
+    if (files.length === 0) {
+      actions.updateProvStatus(provId, "draft");
+      setError("Ladda upp minst ett elevsvar innan rättningen startas.");
+      setPhase("error");
+      return;
+    }
     startedRef.current = true;
+    abortRef.current = new AbortController();
 
     const t0 = Date.now();
     (async () => {
@@ -86,6 +123,7 @@ export default function BatchGradingPipeline({
           files,
           identificationMethod,
           onPhase: (p) => setPhase(p),
+          signal: abortRef.current?.signal,
         });
         setResults(out.added);
         setActiveRules(out.activeRules);
@@ -93,11 +131,17 @@ export default function BatchGradingPipeline({
         setAnalysisTime(Math.round((Date.now() - t0) / 1000));
         setPhase("complete");
       } catch (e) {
+        if ((e as Error).name === "AbortError") return;
         setError((e as Error).message);
         setPhase("error");
       }
     })();
-  }, [open, files, answerKey, provId, klassId, klassParams, customParams, identificationMethod]);
+
+    return () => {
+      abortRef.current?.abort();
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const completedCount = results.length;
   const totalScore = results.reduce((s, r) => s + r.totalScore, 0);
@@ -185,15 +229,25 @@ export default function BatchGradingPipeline({
             <div className="relative px-10 py-6 border-b border-slate-100">
               <div className="flex items-center justify-between">
                 {[
-                  { id: "mathpix", label: "Mathpix OCR", desc: "Läser handskrift", live: integrations.mathpix },
-                  { id: "wolfram", label: "Wolfram", desc: "Verifierar matematik", live: integrations.wolfram },
-                  { id: "claude", label: "Claude AI", desc: "Genererar feedback", live: integrations.anthropic },
+                  {
+                    id: "mathpix",
+                    label: OCR_LABELS[String(integrations.ocrProvider ?? "")] ?? "OCR",
+                    desc: "Läser handskrift",
+                    live: Boolean(integrations.ocr ?? integrations.mathpix),
+                  },
+                  { id: "wolfram", label: "Wolfram", desc: "Verifierar matematik", live: Boolean(integrations.wolfram) },
+                  {
+                    id: "generative-ai",
+                    label: integrations.groq ? "Groq AI" : integrations.anthropic ? "Claude AI" : "Generativ AI",
+                    desc: "Genererar feedback",
+                    live: Boolean(integrations.groq || integrations.anthropic),
+                  },
                 ].map((step, i) => {
                   const done = phase === "complete";
                   const activeStage =
                     (step.id === "mathpix" && phase === "processing") ||
                     (step.id === "wolfram" && phase === "processing") ||
-                    (step.id === "claude" && phase === "saving");
+                    (step.id === "generative-ai" && phase === "saving");
                   return (
                     <div key={step.id} className="flex items-center">
                       <div className="text-center">

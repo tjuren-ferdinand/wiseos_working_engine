@@ -10,15 +10,31 @@ def _uuid() -> str:
     return str(uuid.uuid4())
 
 
+class User(Base):
+    """Användarkonto för autentisering."""
+    __tablename__ = "users"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    password_hash: Mapped[str] = mapped_column(String(255))
+    full_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    teacher: Mapped["Teacher | None"] = relationship(back_populates="user", uselist=False)
+
+
 class Teacher(Base):
     __tablename__ = "teachers"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    user_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("users.id"), nullable=True, unique=True)
     email: Mapped[str] = mapped_column(String(255), unique=True)
     school_name: Mapped[str | None] = mapped_column(String(255), nullable=True)
     subscription_tier: Mapped[str] = mapped_column(String(50), default="trial")
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
+    user: Mapped[User | None] = relationship(back_populates="teacher")
     assignments: Mapped[list["Assignment"]] = relationship(back_populates="teacher")
 
 

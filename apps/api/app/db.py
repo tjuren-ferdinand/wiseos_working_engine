@@ -42,6 +42,8 @@ def init_db() -> None:
         "ALTER TABLE submissions ADD COLUMN reviewed_at DATETIME",
         "ALTER TABLE submissions ADD COLUMN final_feedback TEXT",
         "ALTER TABLE submissions ADD COLUMN final_score INTEGER",
+        # Sprint: Authentication - koppla Teacher till User
+        "ALTER TABLE teachers ADD COLUMN user_id VARCHAR(36)",
     ]
     with engine.begin() as conn:
         for stmt in migrations:

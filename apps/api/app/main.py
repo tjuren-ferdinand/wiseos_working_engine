@@ -1,9 +1,9 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from .config import settings
 from .db import init_db
-from .routers import assignments, submissions, ocr, wolfram_test, batch
+from .routers import assignments, submissions, ocr, wolfram_test, batch, auth
+from .services.batch_pipeline import integration_status
 
 app = FastAPI(
     title="wiseOS API",
@@ -33,11 +33,7 @@ def root():
         "name": "wiseOS API",
         "version": "0.1.0",
         "docs": "/docs",
-        "integrations": {
-            "wolfram": bool(settings.WOLFRAM_APP_ID),
-            "anthropic": bool(settings.ANTHROPIC_API_KEY),
-            "mathpix": bool(settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY),
-        },
+        "integrations": integration_status(),
     }
 
 
@@ -46,6 +42,7 @@ def health():
     return {"status": "ok"}
 
 
+app.include_router(auth.router)
 app.include_router(assignments.router)
 app.include_router(submissions.router)
 app.include_router(ocr.router)

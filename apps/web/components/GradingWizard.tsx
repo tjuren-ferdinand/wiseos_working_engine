@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { api, type AnswerKeyItem } from "@/lib/api";
 import { actions, type Klass } from "@/lib/store";
 import LineIcon from "./LineIcon";
@@ -45,6 +45,21 @@ export default function GradingWizard({
   // Batch grading pipeline state
   const [showBatchPipeline, setShowBatchPipeline] = useState(false);
   const [createdProvId, setCreatedProvId] = useState<string | null>(null);
+
+  const effectiveAnswerKey: AnswerKeyItem[] = useMemo(
+    () =>
+      answerKeyItems.length > 0
+        ? answerKeyItems
+        : facit
+            .split(/\n{2,}/)
+            .map((block, i) => ({
+              question_number: String(i + 1),
+              final_answer: block.trim(),
+              derivation_steps: [],
+            }))
+            .filter((it) => it.final_answer.length > 0),
+    [answerKeyItems, facit],
+  );
 
   if (!open && !showBatchPipeline) return null;
 
@@ -158,18 +173,6 @@ export default function GradingWizard({
 
   // Show batch pipeline if active
   if (showBatchPipeline && createdProvId) {
-    // Bygg answer_key från antingen strukturerad förhandsvisning eller manuell text
-    const effectiveAnswerKey: AnswerKeyItem[] = answerKeyItems.length > 0
-      ? answerKeyItems
-      : facit
-          .split(/\n{2,}/)
-          .map((block, i) => ({
-            question_number: String(i + 1),
-            final_answer: block.trim(),
-            derivation_steps: [],
-          }))
-          .filter((it) => it.final_answer.length > 0);
-
     return (
       <BatchGradingPipeline
         open={showBatchPipeline}

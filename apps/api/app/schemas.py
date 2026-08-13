@@ -148,4 +148,4 @@ class BatchGradeResponse(BaseModel):
     # Snabb summering för pitch/loggning
     totalStudents: int
     totalSteps: int
-    integrations: dict[str, bool] = {}
+    integrations: dict[str, bool | str] = {}

@@ -18,6 +18,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
 from .. import schemas
+from ..services.answer_key import generate_answer_key
 from ..services.batch_pipeline import (
     UploadedFile,
     active_rules,
@@ -44,17 +45,23 @@ async def batch_grade(
     prov_id: str = Form(...),
     class_grading_parameters: str = Form(""),
     test_specific_parameters: str = Form(""),
-    answer_key_json: str = Form(...),
+    answer_key_json: str = Form("[]"),
     files: list[UploadFile] = File(...),
 ):
     # 1. Validera facit-JSON
     try:
-        raw_items = json.loads(answer_key_json)
+        raw_items = json.loads(answer_key_json or "[]")
         answer_key = [schemas.AnswerKeyItem.model_validate(it) for it in raw_items]
     except (json.JSONDecodeError, ValidationError) as e:
         raise HTTPException(400, f"answer_key_json är inte giltig: {e!s}") from e
+    # Saknas facit genererar vi ett med den konfigurerade AI-providern i stället
+    # för att avbryta rättningen.
     if not answer_key:
-        raise HTTPException(400, "answer_key_json måste innehålla minst en uppgift")
+        answer_key = await generate_answer_key(
+            f"{class_grading_parameters}\n{test_specific_parameters}".strip()
+        )
+    if not answer_key:
+        raise HTTPException(400, "Kunde inte skapa något facit för rättningen")
 
     # 2. Validera filer
     if not files:

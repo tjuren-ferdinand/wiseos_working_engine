@@ -20,12 +20,42 @@ const config: Config = {
           900: "#3d253a",  // Very dark
           950: "#251822",  // Near black
         },
-        // Neutral ink colors for text
-        ink: {
-          DEFAULT: "#1e293b",
-          light: "#475569",
-          muted: "#64748b",
+        arc: {
+          bg: "#FAF7F2",
+          surface: "#FFFFFF",
+          text: "#2B2620",
+          muted: "#8A8377",
+          subtle: "rgba(43, 38, 32, 0.08)",
+          gold: "#C9A24B",
+          copper: "#B87A4B",
         },
+        // WiseOS design system — "Graphite" — theme-agnostic tokens tied to CSS variables
+        paper: {
+          DEFAULT: "rgb(var(--background))",
+          raised: "rgb(var(--surface))",
+          secondary: "rgb(var(--surface-2))",
+          elevated: "rgb(var(--surface-elevated))",
+        },
+        ink: {
+          DEFAULT: "rgb(var(--foreground))",
+          secondary: "rgb(var(--muted))",
+          muted: "rgb(var(--muted-2))",
+          hairline: "rgb(var(--hairline) / 0.08)",
+        },
+        accent: {
+          DEFAULT: "rgb(var(--accent))",
+          soft: "rgb(var(--accent-soft))",
+          tint: "rgb(var(--accent) / 0.12)",
+        },
+        state: {
+          success: "rgb(var(--state-success))",
+          warning: "rgb(var(--state-warning))",
+          danger: "rgb(var(--state-danger))",
+        },
+      },
+      borderRadius: {
+        control: "10px",
+        panel: "18px",
       },
       fontFamily: {
         sans: [
@@ -37,14 +67,17 @@ const config: Config = {
         ],
       },
       boxShadow: {
-        // Ultra-soft shadows for premium feel
-        soft: "0 1px 2px 0 rgb(15 23 42 / 0.03), 0 1px 3px 0 rgb(15 23 42 / 0.04)",
-        card: "0 1px 3px 0 rgb(15 23 42 / 0.04), 0 4px 8px -2px rgb(15 23 42 / 0.06)",
-        elevated: "0 4px 12px -2px rgb(15 23 42 / 0.08), 0 8px 24px -4px rgb(15 23 42 / 0.06)",
-        glow: "0 0 0 1px rgb(232 176 228 / 0.12), 0 4px 16px -4px rgb(232 176 228 / 0.15)",
+        // Extremely soft — "light floating in space", barely visible in dark, gentle in light
+        soft: "0 1px 2px rgba(0,0,0,0.08)",
+        card: "0 4px 24px rgba(0,0,0,0.08)",
+        elevated: "0 12px 48px rgba(0,0,0,0.12)",
+        glow: "0 0 0 1px rgba(0,0,0,0.05), 0 12px 48px rgba(0,0,0,0.10)",
       },
       borderColor: {
-        subtle: "#eef2f7",
+        subtle: "rgb(var(--hairline) / 0.08)",
+      },
+      backdropBlur: {
+        xs: "6px",
       },
     },
   },

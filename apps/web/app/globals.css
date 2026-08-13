@@ -3,17 +3,48 @@
 @tailwind utilities;
 
 :root {
-  --background: 245 245 247; /* #F5F5F7 */
-  --foreground: 29 29 31; /* #1D1D1F */
-  --card: 255 255 255;
-  --muted: 110 110 115; /* #6E6E73 */
+  /* WiseOS "Graphite" design system — premium, spatial, near-monochrome OS.
+     Light theme by default; dark theme is a re-tint of the same visual hierarchy. */
+  --background: 245 245 247;   /* #F5F5F7 — soft light app background */
+  --surface: 255 255 255;      /* #FFFFFF primary surface */
+  --surface-2: 244 244 246;    /* #F4F4F6 secondary surface */
+  --surface-elevated: 255 255 255; /* #FFFFFF elevated/floating surface */
+  --card: 255 255 255;         /* alias — kept for legacy usages */
+  --foreground: 12 12 14;      /* #0C0C0E — soft black, not pure black */
+  --muted: 110 110 115;        /* #6E6E73 secondary text */
+  --muted-2: 161 161 166;      /* #A1A1A6 tertiary text */
+  --hairline: 0 0 0;           /* used with .08 alpha for subtle borders */
+  --accent: 91 141 83;         /* #5B8D53 restrained muted green */
+  --accent-soft: 120 168 113;  /* #78A871 */
+  --state-success: 91 141 83;
+  --state-warning: 110 110 115;
+  --state-danger: 184 91 82;   /* #B85B52 muted brick red, used sparingly */
+
+  /* Legacy arc aliases kept for backward compatibility within this branch */
+  --arc-subtle: 0 0 0;
+  --arc-gold: 110 110 115;
+  --arc-copper: 120 168 113;
 }
 
 html.dark {
-  --background: 10 10 10; /* #0a0a0a */
-  --foreground: 255 255 255;
-  --card: 26 26 26; /* #1a1a1a */
-  --muted: 255 255 255;
+  --background: 8 9 11;        /* #08090B */
+  --surface: 13 15 18;         /* #0D0F12 primary surface */
+  --surface-2: 17 19 24;       /* #111318 secondary surface */
+  --surface-elevated: 21 24 29;/* #15181D elevated/floating surface */
+  --card: 13 15 18;
+  --foreground: 237 237 239;   /* #EDEDEF soft white */
+  --muted: 154 158 166;        /* #9A9EA6 secondary text */
+  --muted-2: 100 104 111;      /* #64686F tertiary text */
+  --hairline: 255 255 255;     /* used with .07 alpha for subtle borders */
+  --accent: 122 168 116;       /* #7AA874 muted green */
+  --accent-soft: 143 185 137;  /* #8FB989 */
+  --state-success: 122 168 116;
+  --state-warning: 154 158 166;
+  --state-danger: 201 123 114; /* #C97B72 muted, used sparingly */
+
+  --arc-subtle: 255 255 255;
+  --arc-gold: 154 158 166;
+  --arc-copper: 143 185 137;
 }
 
 * {
@@ -21,12 +52,12 @@ html.dark {
 }
 
 ::selection {
-  background: rgb(232 176 228 / 0.35);
+  background: rgb(var(--accent) / 0.22);
   color: inherit;
 }
 
 html.dark ::selection {
-  background: rgb(232 176 228 / 0.3);
+  background: rgb(var(--accent) / 0.28);
 }
 
 html, body {
@@ -54,45 +85,135 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(148 163 184 / 0.3);
+  background: rgb(var(--foreground) / 0.12);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(148 163 184 / 0.5);
-}
-
-html.dark ::-webkit-scrollbar-thumb {
-  background: rgb(255 255 255 / 0.1);
-}
-
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgb(255 255 255 / 0.2);
+  background: rgb(var(--foreground) / 0.22);
 }
 
 /* ============================================================ */
 /*  Shared input / form-control                                  */
 /* ============================================================ */
 @layer components {
+  /* Input — adapts via CSS variables: surfaces, borders, focus */
   .input {
-    @apply block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900
-           placeholder:text-slate-400 shadow-soft transition-all
-           focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-300;
+    @apply block w-full rounded-[10px] border border-[rgb(var(--hairline)/0.10)] bg-[rgb(var(--surface-2))] px-3.5 py-2.5 text-sm text-[rgb(var(--foreground))]
+           placeholder:text-[rgb(var(--muted-2))] transition-all
+           focus:outline-none focus:ring-2 focus:ring-[rgb(var(--foreground)/0.05)] focus:border-[rgb(var(--foreground)/0.16)];
   }
   textarea.input { @apply leading-relaxed; }
   select.input { @apply pr-9; }
-  
-  /* Primary button - soft pink accent */
+
+  /* Primary button — high-contrast: light bg dark text in light, white bg dark text in dark */
   .btn-primary {
-    @apply rounded-full bg-wise-300 px-5 py-2.5 text-sm font-semibold text-[#3f2a3f] 
-           transition-all hover:bg-wise-400 active:scale-[0.98];
+    @apply rounded-[10px] bg-[rgb(var(--foreground))] px-5 py-2.5 text-sm font-medium text-[rgb(var(--background))]
+           transition-all hover:bg-[rgb(var(--foreground)/0.85)] active:scale-[0.98];
   }
-  
-  /* Secondary button - dark slate */
+
+  /* Secondary button — elevated tinted surface with subtle border */
   .btn-secondary {
-    @apply rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white 
-           transition-all hover:bg-slate-800 active:scale-[0.98];
+    @apply rounded-[10px] bg-[rgb(var(--surface-elevated))] border border-[rgb(var(--hairline)/0.08)] px-5 py-2.5 text-sm font-medium text-[rgb(var(--foreground))]
+           transition-all hover:bg-[rgb(var(--surface-2))] active:scale-[0.98];
   }
+
+  /* Tertiary button — text/icon only */
+  .btn-tertiary {
+    @apply rounded-[10px] px-3 py-2 text-sm font-medium text-[rgb(var(--muted))]
+           transition-all hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--foreground)/0.04)];
+  }
+}
+
+/* ============================================================ */
+/*  ARC INTRO SYSTEM — splash + scroll reveal (13-08-26 branch)  */
+/*  Inspired by NobleArc's intro feel, re-themed light/beige     */
+/* ============================================================ */
+@keyframes arc-flow {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+
+.arc-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--background));
+  transition: opacity 0.8s ease, visibility 0.8s ease;
+}
+
+.arc-splash.arc-fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+}
+
+.arc-splash-text {
+  font-weight: 200;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  font-size: clamp(1.5rem, 6vw, 3.25rem);
+  background: linear-gradient(
+    90deg,
+    rgb(var(--foreground)) 0%,
+    rgb(var(--muted)) 50%,
+    rgb(var(--foreground)) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  animation: arc-flow 3s linear infinite;
+}
+
+.arc-main {
+  opacity: 0;
+  transform: translateY(20px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+  transition-delay: 0.35s;
+}
+
+.arc-main.arc-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.arc-section {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.arc-section.arc-in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.arc-line {
+  fill: none;
+  stroke: rgb(var(--muted));
+  stroke-width: 1;
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  transition: stroke-dashoffset 1.8s ease;
+}
+
+.arc-line.arc-in-view {
+  stroke-dashoffset: 0;
+}
+
+.arc-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
 }
 
 /* ============================================================ */

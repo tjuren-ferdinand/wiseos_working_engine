@@ -1,9 +1,9 @@
 import base64
 
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 
 from .. import schemas
-from ..services.answer_key import extract_answer_key
+from ..services.answer_key import extract_answer_key, generate_answer_key
 from ..services.ocr import process_image
 
 router = APIRouter(prefix="/api/v1/ocr", tags=["ocr"])
@@ -37,3 +37,12 @@ async def answer_key_upload(file: UploadFile = File(...)):
     if len(data) > MAX_BYTES:
         raise HTTPException(413, "Filen är för stor (max 10 MB)")
     return await extract_answer_key(data, file.content_type or "application/pdf")
+
+
+@router.post("/answer-key/generate", response_model=list[schemas.AnswerKeyItem])
+async def answer_key_generate(
+    description: str = Form(""),
+    question_count: int = Form(4),
+):
+    count = max(1, min(question_count, 20))
+    return await generate_answer_key(description, count)

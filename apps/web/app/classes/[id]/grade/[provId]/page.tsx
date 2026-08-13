@@ -53,7 +53,7 @@ export default function GradePage() {
   }
 
   // Processing
-  if (prov.status === "processing") {
+  if (prov.status === "grading") {
     return (
       <div className="space-y-6">
         <Link href={`/classes/${klass.id}`} className="text-sm text-slate-500 hover:text-slate-800">← {klass.name}</Link>
