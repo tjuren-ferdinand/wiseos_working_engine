@@ -8,6 +8,7 @@ from __future__ import annotations
 import httpx
 from fastapi import APIRouter, HTTPException, Query
 
+from .. import schemas
 from ..config import settings
 from ..services.wolfram import WolframVerifier
 
@@ -44,6 +45,13 @@ async def verify(
     verifier = WolframVerifier()
     result = await verifier.verify_equation(student, correct)
     return result.model_dump()
+
+
+@router.post("/verify", response_model=schemas.WolframResult)
+async def verify_post(payload: schemas.WolframVerifyRequest) -> schemas.WolframResult:
+    """JSON-body-variant av GET /verify för klienter som föredrar POST."""
+    verifier = WolframVerifier()
+    return await verifier.verify_equation(payload.student, payload.correct)
 
 
 @router.get("/raw")

@@ -27,7 +27,7 @@ class Settings(BaseSettings):
     GROQ_TIMEOUT_SECONDS: float = 30.0
     # Gratis vision-providers som tillfälligt ersätter Mathpix för handskrifts-OCR.
     GEMINI_API_KEY: str = ""
-    GEMINI_MODEL: str = "gemini-2.0-flash"
+    GEMINI_MODEL: str = "gemini-3.6-flash"
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_VISION_MODEL: str = "meta-llama/llama-3.2-11b-vision-instruct:free"
     ANTHROPIC_API_KEY: str = ""

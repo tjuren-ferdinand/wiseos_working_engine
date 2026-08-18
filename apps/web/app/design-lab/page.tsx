@@ -151,7 +151,7 @@ export default function DesignLabPage() {
           <div style={{ marginBottom: tokens.spacing[8] }}>
             <DisplayLg>Good morning, Anna</DisplayLg>
             <Body style={{ color: tokens.colors.textSecondary, marginTop: tokens.spacing[2] }}>
-              Here's what's happening with your classes today.
+              Here&apos;s what&apos;s happening with your classes today.
             </Body>
           </div>
 

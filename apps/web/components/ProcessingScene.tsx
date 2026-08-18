@@ -104,7 +104,7 @@ export default function ProcessingScene({ prov }: { prov: Prov }) {
           </span>
         </div>
         <h2 className={`mt-4 text-2xl sm:text-3xl font-semibold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
-          Rättar "{prov.title}"
+          Rättar &quot;{prov.title}&quot;
         </h2>
         <p className={`mt-2 text-sm max-w-xl ${isError ? "text-rose-400" : isDark ? "text-white/60" : "text-slate-600"}`}>
           {isError

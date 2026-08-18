@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { api, type Assignment, type Submission, type ReviewStatus } from "@/lib/api";
 import ImageDropZone from "@/components/ImageDropZone";
 import BulkUploadZone from "@/components/BulkUploadZone";
@@ -18,7 +18,7 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
   const [editFeedback, setEditFeedback] = useState("");
   const [editScore, setEditScore] = useState<number>(0);
 
-  async function refresh() {
+  const refresh = useCallback(async () => {
     try {
       const [a, subs] = await Promise.all([
         api.getAssignment(params.id),
@@ -29,11 +29,11 @@ export default function AssignmentDetailPage({ params }: { params: { id: string 
     } catch (e) {
       setError((e as Error).message);
     }
-  }
+  }, [params.id]);
 
   useEffect(() => {
     refresh();
-  }, [params.id]);
+  }, [refresh]);
 
   async function grade(e: any) {
     e.preventDefault();

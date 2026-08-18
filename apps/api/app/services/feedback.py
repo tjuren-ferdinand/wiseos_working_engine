@@ -1,11 +1,16 @@
 """Pedagogisk feedback-generator (Claude med mock-fallback)."""
 from __future__ import annotations
 
+import logging
+
 import httpx
 
 from ..config import settings
 from ..schemas import WolframResult
+from . import gemini_client
 from .anonymize import scrub_pii
+
+logger = logging.getLogger(__name__)
 
 
 SYSTEM_PROMPT = (
@@ -77,12 +82,20 @@ async def _generate_with_anthropic(user_msg: str) -> str:
     return "\n".join(b.text for b in msg.content if getattr(b, "type", None) == "text").strip()
 
 
-async def generate_feedback(
+async def generate_feedback_detailed(
     problem: str,
     student_answer: str,
     correct_answer: str,
     wolfram: WolframResult,
-) -> str:
+) -> tuple[str, str]:
+    """Returnerar (feedback_text, provider_used).
+
+    provider_used är den FAKTISKA källan: 'groq' | 'gemini' | 'anthropic' | 'mock'.
+    Detta är avsiktligt ärligt — om AI_PROVIDER=gemini men anropet misslyckas
+    (t.ex. transient 503) rapporteras 'mock', inte 'gemini', så att ingen
+    nedströms konsument kan påstå att en AI-provider genererade svaret när den
+    inte gjorde det (se krav om ärliga provider-svar).
+    """
     safe_problem = scrub_pii(problem)
     safe_student = scrub_pii(student_answer)
     safe_correct = scrub_pii(correct_answer)
@@ -91,12 +104,30 @@ async def generate_feedback(
 
     try:
         if provider == "groq" and settings.GROQ_API_KEY:
-            return await _generate_with_groq(user_msg) or _mock_feedback(problem, student_answer, correct_answer, wolfram)
-        if provider == "anthropic" and settings.ANTHROPIC_API_KEY:
-            return await _generate_with_anthropic(user_msg) or _mock_feedback(problem, student_answer, correct_answer, wolfram)
+            text = await _generate_with_groq(user_msg)
+            if text:
+                return text, "groq"
+        elif provider == "gemini" and settings.GEMINI_API_KEY:
+            text = await gemini_client.complete_text(SYSTEM_PROMPT, user_msg, max_tokens=1200)
+            if text:
+                return text, "gemini"
+        elif provider == "anthropic" and settings.ANTHROPIC_API_KEY:
+            text = await _generate_with_anthropic(user_msg)
+            if text:
+                return text, "anthropic"
     except (httpx.HTTPError, KeyError, IndexError, TypeError):
-        pass
+        logger.exception("AI-provider %r misslyckades, faller tillbaka på mock-feedback", provider)
     except Exception:
-        pass
+        logger.exception("Oväntat fel i generate_feedback (provider=%r), faller tillbaka på mock-feedback", provider)
 
-    return _mock_feedback(problem, student_answer, correct_answer, wolfram)
+    return _mock_feedback(problem, student_answer, correct_answer, wolfram), "mock"
+
+
+async def generate_feedback(
+    problem: str,
+    student_answer: str,
+    correct_answer: str,
+    wolfram: WolframResult,
+) -> str:
+    text, _provider_used = await generate_feedback_detailed(problem, student_answer, correct_answer, wolfram)
+    return text

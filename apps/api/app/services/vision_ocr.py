@@ -100,7 +100,7 @@ async def _gemini(image_bytes: bytes, mime_type: str, prompt: str) -> str:
                         ]
                     }
                 ],
-                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 1200},
+                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 3000},
             },
         )
         response.raise_for_status()

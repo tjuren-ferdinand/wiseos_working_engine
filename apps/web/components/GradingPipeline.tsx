@@ -229,7 +229,7 @@ export default function GradingPipeline({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          onClick={(e) => e.stopPropagation()}
+          onClick={(e: React.MouseEvent<HTMLDivElement>) => e.stopPropagation()}
           className="relative w-full max-w-5xl mx-4"
         >
           {/* Glassmorphism card */}

@@ -1,6 +1,6 @@
 "use client";
 
-import { useStore, deriveStep } from "@/lib/store";
+import { useStore } from "@/lib/store";
 import PageHeader from "@/components/ui/PageHeader";
 import Surface from "@/components/ui/Surface";
 import EmptyState from "@/components/ui/EmptyState";
@@ -10,7 +10,11 @@ export default function ResultsPage() {
   const prov = useStore((s) => s.prov);
   const klasser = useStore((s) => s.klasser);
 
-  const publishedResults = results.filter((r) => r.isPublished);
+  // A result is "published" when its parent prov has been published.
+  const publishedProvIds = new Set(
+    prov.filter((p) => p.status === "published").map((p) => p.id),
+  );
+  const publishedResults = results.filter((r) => publishedProvIds.has(r.provId));
 
   return (
     <div className="space-y-10">
@@ -31,12 +35,9 @@ export default function ResultsPage() {
           {publishedResults.map((r) => {
             const provData = prov.find((p) => p.id === r.provId);
             const klass = klasser.find((k) => k.id === provData?.klassId);
-            const totalPoints = r.steps.reduce((sum, s) => {
-              const d = deriveStep(s);
-              return sum + d.displayedPoints;
-            }, 0);
-            const maxPoints = r.steps.reduce((sum, s) => sum + s.pointsMax, 0);
-            const pct = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
+            const totalPoints = r.totalScore;
+            const maxPoints = r.maxScore;
+            const pct = r.percentage;
 
             return (
               <Surface key={r.id} padding="p-5">

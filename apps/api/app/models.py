@@ -80,3 +80,104 @@ class Submission(Base):
     final_score: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     assignment: Mapped[Assignment] = relationship(back_populates="submissions")
+
+
+# ============================================================================
+# V2 MODELS – Kurs → Klass → Prov(Test) → Resultat
+# Speglar frontendens lib/store.ts (Kurs/Klass/Prov/StudentResult) och
+# persisterar det som tidigare bara låg i Zustand-minnet.
+# ============================================================================
+
+
+class Klass(Base):
+    """En klass/grupp av elever knuten till en kurs (kursId är en fri textkod,
+    t.ex. 'fysik2', eftersom kurser hanteras som statisk katalog i frontend)."""
+
+    __tablename__ = "classes"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255))
+    kurs_id: Mapped[str] = mapped_column(String(100), index=True)
+    grading_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    grade_thresholds: Mapped[dict | None] = mapped_column(JSON, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    students: Mapped[list["KlassStudent"]] = relationship(
+        back_populates="klass", cascade="all, delete-orphan"
+    )
+    tests: Mapped[list["Test"]] = relationship(
+        back_populates="klass", cascade="all, delete-orphan"
+    )
+
+
+class KlassStudent(Base):
+    __tablename__ = "students"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    klass_id: Mapped[str] = mapped_column(String(36), ForeignKey("classes.id"))
+    name: Mapped[str] = mapped_column(String(255))
+    identifier: Mapped[str | None] = mapped_column(String(100), nullable=True)
+
+    klass: Mapped[Klass] = relationship(back_populates="students")
+
+
+class Test(Base):
+    """Motsvarar frontendens `Prov`."""
+
+    __tablename__ = "tests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    klass_id: Mapped[str] = mapped_column(String(36), ForeignKey("classes.id"))
+    title: Mapped[str] = mapped_column(String(255))
+    date: Mapped[str | None] = mapped_column(String(32), nullable=True)
+    max_points: Mapped[int] = mapped_column(Integer, default=0)
+    facit_mode: Mapped[str] = mapped_column(String(32), default="none")
+    custom_params: Mapped[str | None] = mapped_column(Text, nullable=True)
+    questions: Mapped[list | None] = mapped_column(JSON, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="draft")
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    klass: Mapped[Klass] = relationship(back_populates="tests")
+    grading_results: Mapped[list["GradingResult"]] = relationship(
+        back_populates="test", cascade="all, delete-orphan"
+    )
+    answer_key: Mapped["AnswerKeyRecord | None"] = relationship(
+        back_populates="test", uselist=False, cascade="all, delete-orphan"
+    )
+
+
+class GradingResult(Base):
+    """Motsvarar frontendens `StudentResult` (inkl. steg som JSON)."""
+
+    __tablename__ = "grading_results"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    test_id: Mapped[str] = mapped_column(String(36), ForeignKey("tests.id"), index=True)
+    student_name: Mapped[str] = mapped_column(String(255))
+    student_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    identification_method: Mapped[str] = mapped_column(String(32), default="name_field")
+    identification_confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    steps: Mapped[list] = mapped_column(JSON, default=list)
+    total_score: Mapped[float] = mapped_column(Float, default=0.0)
+    max_score: Mapped[float] = mapped_column(Float, default=0.0)
+    percentage: Mapped[float] = mapped_column(Float, default=0.0)
+    grade: Mapped[str | None] = mapped_column(String(4), nullable=True)
+    feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    scanned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    graded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    test: Mapped[Test] = relationship(back_populates="grading_results")
+
+
+class AnswerKeyRecord(Base):
+    """Sparat facit per test – slipper generera/OCR:a om igen vid omrättning."""
+
+    __tablename__ = "answer_keys"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    test_id: Mapped[str] = mapped_column(String(36), ForeignKey("tests.id"), unique=True)
+    items: Mapped[list] = mapped_column(JSON, default=list)
+    source: Mapped[str] = mapped_column(String(32), default="generated")  # 'uploaded' | 'generated'
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+    test: Mapped[Test] = relationship(back_populates="answer_key")

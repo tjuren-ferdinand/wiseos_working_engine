@@ -149,3 +149,169 @@ class BatchGradeResponse(BaseModel):
     totalStudents: int
     totalSteps: int
     integrations: dict[str, bool | str] = {}
+
+
+# ---------------------------------------------------------------------------
+# V2 – Kurs → Klass → Test(Prov) → GradingResult
+# Persisterar det som tidigare bara låg i frontendens Zustand-store.
+# ---------------------------------------------------------------------------
+
+
+class GradingParamsSchema(BaseModel):
+    allowPartialCredit: bool = True
+    unitErrorPenalty: float = 0.5
+    roundingTolerance: float = 5
+    requireWorkShown: bool = True
+    significantFigures: bool = True
+    customRules: list[str] = []
+
+
+class GradeThresholdsSchema(BaseModel):
+    A: float = 90
+    B: float = 80
+    C: float = 65
+    D: float = 50
+    E: float = 35
+    F: float = 0
+
+
+class StudentIn(BaseModel):
+    name: str
+    identifier: str | None = None
+
+
+class StudentOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    identifier: str | None = None
+
+
+class ClassCreate(BaseModel):
+    name: str
+    kursId: str
+    students: list[StudentIn] = []
+    gradingParams: GradingParamsSchema | None = None
+    gradeThresholds: GradeThresholdsSchema | None = None
+
+
+class ClassOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    name: str
+    kursId: str = Field(validation_alias="kurs_id", serialization_alias="kursId")
+    students: list[StudentOut] = []
+    gradingParams: dict[str, Any] | None = Field(default=None, validation_alias="grading_params", serialization_alias="gradingParams")
+    gradeThresholds: dict[str, Any] | None = Field(default=None, validation_alias="grade_thresholds", serialization_alias="gradeThresholds")
+    createdAt: datetime = Field(validation_alias="created_at", serialization_alias="createdAt")
+
+
+class QuestionSchema(BaseModel):
+    id: str
+    number: str
+    maxPoints: float
+
+
+class TestCreate(BaseModel):
+    title: str
+    date: str | None = None
+    maxPoints: float = 0
+    facitMode: str = "none"
+    customParams: str | None = None
+    questions: list[QuestionSchema] = []
+    status: str = "draft"
+
+
+class TestOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    klassId: str = Field(validation_alias="klass_id", serialization_alias="klassId")
+    title: str
+    date: str | None = None
+    maxPoints: float = Field(validation_alias="max_points", serialization_alias="maxPoints")
+    facitMode: str = Field(validation_alias="facit_mode", serialization_alias="facitMode")
+    customParams: str | None = Field(default=None, validation_alias="custom_params", serialization_alias="customParams")
+    questions: list[dict[str, Any]] = []
+    status: str
+    createdAt: datetime = Field(validation_alias="created_at", serialization_alias="createdAt")
+
+
+class GradingStepSchema(BaseModel):
+    id: str
+    questionId: str | None = None
+    label: str
+    maxPoints: float
+    earnedPoints: float
+    status: str
+    feedback: str | None = None
+    studentWork: str | None = None
+    correctAnswer: str | None = None
+
+
+class GradingResultCreate(BaseModel):
+    testId: str
+    studentName: str
+    studentId: str | None = None
+    identificationMethod: str = "name_field"
+    identificationConfidence: float = 1.0
+    steps: list[GradingStepSchema]
+    totalScore: float
+    maxScore: float
+    percentage: float
+    grade: str | None = None
+    feedback: str | None = None
+
+
+class GradingResultOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    provId: str = Field(validation_alias="test_id", serialization_alias="provId")
+    studentId: str | None = Field(default=None, validation_alias="student_id", serialization_alias="studentId")
+    studentName: str = Field(validation_alias="student_name", serialization_alias="studentName")
+    identificationMethod: str = Field(validation_alias="identification_method", serialization_alias="identificationMethod")
+    identificationConfidence: float = Field(validation_alias="identification_confidence", serialization_alias="identificationConfidence")
+    steps: list[dict[str, Any]] = []
+    totalScore: float = Field(validation_alias="total_score", serialization_alias="totalScore")
+    maxScore: float = Field(validation_alias="max_score", serialization_alias="maxScore")
+    percentage: float
+    grade: str | None = None
+    feedback: str | None = None
+    scannedAt: datetime = Field(validation_alias="scanned_at", serialization_alias="scannedAt")
+    gradedAt: datetime | None = Field(default=None, validation_alias="graded_at", serialization_alias="gradedAt")
+
+
+class AnswerKeyRecordOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    testId: str = Field(validation_alias="test_id", serialization_alias="testId")
+    items: list[AnswerKeyItem] = []
+    source: str
+    createdAt: datetime = Field(validation_alias="created_at", serialization_alias="createdAt")
+
+
+class WolframVerifyRequest(BaseModel):
+    student: str
+    correct: str
+
+
+class ClaudeAnalyzeRequest(BaseModel):
+    """Ett provider-agnostiskt analysanrop. Fältet heter 'claude' i URL:en för
+    att matcha den slutgiltiga arkitekturen — idag körs det via Gemini/Groq
+    beroende på AI_PROVIDER, imorgon via Anthropic utan kodändring i frontend."""
+
+    problem: str
+    studentAnswer: str
+    correctAnswer: str
+    context: str | None = None
+
+
+class ClaudeAnalyzeResponse(BaseModel):
+    feedback: str
+    isCorrect: bool
+    confidence: float
+    provider: str

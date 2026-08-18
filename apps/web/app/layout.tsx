@@ -1,7 +1,8 @@
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/lib/theme";
-import Sidebar from "@/components/Sidebar";
+import Header from "@/components/Header";
+import BottomNav from "@/components/BottomNav";
 import Onboarding from "@/components/Onboarding";
 import Splash from "@/components/Splash";
 
@@ -31,18 +32,15 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Caveat:wght@400;500;600&display=swap" rel="stylesheet" />
       </head>
-      <body className="min-h-screen antialiased bg-paper text-ink">
+      <body className="min-h-screen antialiased bg-equi-50 text-ink dark:bg-equi-950">
         <ThemeProvider>
           <Splash>
             <Onboarding />
-            <div className="flex min-h-screen">
-              <Sidebar />
-              <main className="flex-1 ml-[248px] min-h-screen">
-                <div className="mx-auto w-full max-w-[1180px] px-6 sm:px-10 py-10 sm:py-12">
-                  {children}
-                </div>
-              </main>
-            </div>
+            <Header />
+            <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pt-24 pb-28">
+              {children}
+            </main>
+            <BottomNav />
           </Splash>
         </ThemeProvider>
       </body>
