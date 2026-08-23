@@ -45,54 +45,107 @@ export type ReviewAction = {
   final_score?: number;
 };
 
-async function jsonFetch<T>(path: string, init?: RequestInit): Promise<T> {
-  const res = await fetch(`${API_URL}${path}`, {
-    ...init,
-    headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
-    cache: "no-store",
-  });
-  if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
-  return res.json() as Promise<T>;
+async function jsonFetch<T>(path: string, init?: RequestInit, fallbackKey?: string): Promise<T> {
+  try {
+    const res = await fetch(`${API_URL}${path}`, {
+      ...init,
+      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+      cache: "no-store",
+    });
+    if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    return res.json() as Promise<T>;
+  } catch (err) {
+    throw err;
+  }
 }
 
 export type OcrResult = { latex: string; text: string; confidence: number };
 export type AnswerKeyItem = {
   question_number: string;
+  question_text: string;
   final_answer: string;
   derivation_steps: string[];
+  max_points: number;
 };
 
-/** Speglar backendens BatchGradingStep – matchar frontendens GradingStep i lib/store.ts. */
-export type BatchGradingStep = {
-  id: string;
-  label: string;
-  studentWork: string;
-  baseAnnotation: string;
-  appliedRules: string[];
-  aiVerdict: "correct" | "partial" | "incorrect";
-  pointsMax: number;
-  pointsBase: number;
-  pointsTeacher: number | null;
-  status: string;
-  teacherComment?: string | null;
+// ---------------------------------------------------------------------------
+// KANONISKT RESULTATSCHEMA
+// Detta speglar exakt backendens app/schemas.py. Frontenden härleder INTE egna
+// tolkningar av resultatet och hittar aldrig på innehåll som backend inte skickat.
+// ---------------------------------------------------------------------------
+
+export type GradingStatus = "correct" | "partial" | "incorrect" | "needs_review";
+
+export type SourceRegion = {
+  page: number;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+};
+
+/** Strukturerad AI-annotering. Varje punkt refererar till elevens faktiska arbete. */
+export type Annotation = {
+  summary: string;
+  evidence: string[];
+  issues: string[];
+  suggestions: string[];
+};
+
+export type Assessment = {
+  status: GradingStatus;
+  points: number;
+  maxPoints: number;
   confidence: number;
-  wolframNotes: string | null;
 };
 
-export type BatchStudentResult = {
+export type QuestionResult = {
+  questionNumber: string;
+  /** false = uppgiften finns inte i dokumentet. Oläslig handstil ger true + låg confidence. */
+  found: boolean;
+  /** false = uppgiften hittades i bilden men saknas i facit. */
+  inAnswerKey: boolean;
+  questionText: string;
+  studentWork: string;
+  transcriptionConfidence: number;
+  correctAnswer: string;
+  assessment: Assessment;
+  feedback: string;
+  annotation: Annotation;
+  sourceRegions: SourceRegion[];
+  /** Satt när ett tekniskt fel hindrade bedömning. */
+  error: string | null;
+  pointsTeacher: number | null;
+  teacherComment: string | null;
+  reviewStatus: string;
+};
+
+export type DocumentMeta = {
+  pageCount: number;
+  model: string;
+  latencyMs: number;
+  attempts: number;
+  questionsExpected: number;
+  questionsFound: number;
+  needsReviewCount: number;
+  error: string | null;
+};
+
+export type StudentDocumentResult = {
   id: string;
   provId: string;
   studentName: string;
   scanPages: string[];
-  steps: BatchGradingStep[];
+  document: DocumentMeta;
+  questions: QuestionResult[];
 };
 
 export type BatchGradeResponse = {
   provId: string;
-  results: BatchStudentResult[];
+  results: StudentDocumentResult[];
   activeRules: string[];
   totalStudents: number;
-  totalSteps: number;
+  totalQuestions: number;
   integrations: Record<string, boolean | string>;
 };
 
@@ -104,8 +157,186 @@ export type BatchGradeRequest = {
   files: File[];
 };
 
+// ============================================================================
+// V2 — Kurs → Klass → Test(Prov) → GradingResult (backend-persisterat)
+// ============================================================================
+
+export type BackendStudent = { id: string; name: string; identifier: string | null };
+
+export type BackendGradingParams = {
+  allowPartialCredit: boolean;
+  unitErrorPenalty: number;
+  roundingTolerance: number;
+  requireWorkShown: boolean;
+  significantFigures: boolean;
+  customRules: string[];
+};
+
+export type BackendGradeThresholds = { A: number; B: number; C: number; D: number; E: number; F: number };
+
+export type BackendClass = {
+  id: string;
+  name: string;
+  kursId: string;
+  students: BackendStudent[];
+  gradingParams: BackendGradingParams | null;
+  gradeThresholds: BackendGradeThresholds | null;
+  createdAt: string;
+};
+
+export type BackendQuestion = { id: string; number: string; maxPoints: number };
+
+export type BackendTest = {
+  id: string;
+  klassId: string;
+  title: string;
+  date: string | null;
+  maxPoints: number;
+  facitMode: string;
+  facit: string | null;
+  customParams: string | null;
+  questions: BackendQuestion[];
+  status: string;
+  createdAt: string;
+};
+
+export type BackendGradingStep = {
+  id: string;
+  questionId?: string | null;
+  label: string;
+  questionText?: string | null;
+  maxPoints: number;
+  earnedPoints: number;
+  status: string;
+  feedback?: string | null;
+  studentWork?: string | null;
+  correctAnswer?: string | null;
+};
+
+export type BackendGradingResult = {
+  id: string;
+  provId: string;
+  studentId: string | null;
+  studentName: string;
+  identificationMethod: string;
+  identificationConfidence: number;
+  steps: BackendGradingStep[];
+  totalScore: number;
+  maxScore: number;
+  percentage: number;
+  grade: string | null;
+  feedback: string | null;
+  scannedAt: string;
+  gradedAt: string | null;
+  scanPages: string[];
+};
+
+export type ClaudeAnalyzeResult = {
+  feedback: string;
+  isCorrect: boolean;
+  confidence: number;
+  /** Ärlig källa: 'gemini' | 'groq' | 'anthropic' | 'mock' (mock = alla AI-providers misslyckades). */
+  provider: string;
+};
+
 export const api = {
   listAssignments: () => jsonFetch<Assignment[]>("/api/v1/assignments"),
+  // --- Classes / students ---
+  listClasses: () => jsonFetch<BackendClass[]>("/api/v1/classes", undefined, "classes"),
+  getClass: async (id: string) => {
+    const data = await jsonFetch<BackendClass | BackendClass[]>(`/api/v1/classes/${id}`, undefined, "classes");
+    if (Array.isArray(data)) {
+      const found = data.find((c) => c.id === id);
+      if (!found) throw new Error("Class not found in demo data");
+      return found;
+    }
+    return data;
+  },
+  createClass: (data: {
+    name: string;
+    kursId: string;
+    students?: { name: string; identifier?: string }[];
+    gradingParams?: BackendGradingParams;
+    gradeThresholds?: BackendGradeThresholds;
+  }) => jsonFetch<BackendClass>("/api/v1/classes", { method: "POST", body: JSON.stringify(data) }),
+  addStudent: (classId: string, data: { name: string; identifier?: string }) =>
+    jsonFetch<BackendStudent>(`/api/v1/classes/${classId}/students`, { method: "POST", body: JSON.stringify(data) }),
+  updateClass: (
+    classId: string,
+    data: { name?: string; gradingParams?: BackendGradingParams; gradeThresholds?: BackendGradeThresholds },
+  ) => jsonFetch<BackendClass>(`/api/v1/classes/${classId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  // --- Tests / Prov ---
+  listTests: (classId: string) =>
+    jsonFetch<BackendTest[]>(`/api/v1/classes/${classId}/tests`, undefined, "tests").then((arr) =>
+      arr.filter((t) => t.klassId === classId),
+    ),
+  createTest: (
+    classId: string,
+    data: {
+      title: string;
+      date?: string;
+      maxPoints?: number;
+      facitMode?: string;
+      facit?: string;
+      customParams?: string;
+      questions?: BackendQuestion[];
+      status?: string;
+    },
+  ) => jsonFetch<BackendTest>(`/api/v1/classes/${classId}/tests`, { method: "POST", body: JSON.stringify(data) }),
+  getTest: async (testId: string) => {
+    const data = await jsonFetch<BackendTest | BackendTest[]>(`/api/v1/classes/tests/${testId}`, undefined, "tests");
+    if (Array.isArray(data)) {
+      const found = data.find((t) => t.id === testId);
+      if (!found) throw new Error("Test not found in demo data");
+      return found;
+    }
+    return data;
+  },
+  updateTest: (
+    testId: string,
+    data: {
+      title?: string;
+      date?: string;
+      maxPoints?: number;
+      facitMode?: string;
+      facit?: string;
+      customParams?: string;
+      questions?: BackendQuestion[];
+      status?: string;
+    },
+  ) => jsonFetch<BackendTest>(`/api/v1/classes/tests/${testId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  // --- Grading results (Test → GradingResult) ---
+  listGradingResults: (testId?: string) =>
+    jsonFetch<BackendGradingResult[]>(`/api/v1/results${testId ? `?testId=${encodeURIComponent(testId)}` : ""}`, undefined, "results").then(
+      (arr) => (testId ? arr.filter((r) => r.provId === testId) : arr),
+    ),
+  createResult: (data: {
+    testId: string;
+    studentName: string;
+    studentId?: string;
+    identificationMethod?: string;
+    identificationConfidence?: number;
+    steps: BackendGradingStep[];
+    totalScore: number;
+    maxScore: number;
+    percentage: number;
+    grade?: string;
+    feedback?: string;
+  }) => jsonFetch<BackendGradingResult>("/api/v1/results", { method: "POST", body: JSON.stringify(data) }),
+  updateResult: (
+    resultId: string,
+    data: {
+      steps?: BackendGradingStep[];
+      totalScore?: number;
+      maxScore?: number;
+      percentage?: number;
+      grade?: string;
+      feedback?: string;
+    },
+  ) => jsonFetch<BackendGradingResult>(`/api/v1/results/${resultId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  // --- AI (provider-ärlig, se ClaudeAnalyzeResult.provider) ---
+  claudeAnalyze: (data: { problem: string; studentAnswer: string; correctAnswer: string; context?: string }) =>
+    jsonFetch<ClaudeAnalyzeResult>("/api/v1/claude/analyze", { method: "POST", body: JSON.stringify(data) }),
   getAssignment: (id: string) => jsonFetch<Assignment>(`/api/v1/assignments/${id}`),
   createAssignment: (data: Omit<Assignment, "id" | "created_at">) =>
     jsonFetch<Assignment>("/api/v1/assignments", { method: "POST", body: JSON.stringify(data) }),
@@ -172,5 +403,29 @@ export const api = {
       clearTimeout(timeout);
       signal?.removeEventListener("abort", onAbort);
     }
+  },
+  fetchGradingResults: async () => {
+    const results = await jsonFetch<BatchGradeResponse>("/api/v1/batch/grade/results");
+    // Mappning sker alltid på questionNumber, aldrig på arrayindex eller
+    // textparsning av etiketten.
+    return {
+      transcription: results.results.map((r) =>
+        r.questions.map((q) => ({
+          questionNumber: q.questionNumber,
+          studentWork: q.studentWork,
+          confidence: q.transcriptionConfidence,
+        })),
+      ),
+      assessment: results.results.map((r) =>
+        r.questions.map((q) => ({
+          questionNumber: q.questionNumber,
+          studentAnswer: q.studentWork,
+          expectedAnswer: q.correctAnswer,
+          status: q.assessment.status,
+          points: q.assessment.points,
+          maxPoints: q.assessment.maxPoints,
+        })),
+      ),
+    };
   },
 };

@@ -24,12 +24,12 @@ export default function Sidebar() {
   };
 
   // Theme-aware token classes. In light: bright surface, dark ink. In dark: dark surface, light ink.
-  const panel = isDark ? "bg-paper-raised border-white/[0.06] shadow-card" : "bg-paper-elevated border-ink-hairline shadow-card";
+  const panel = isDark ? "bg-paper-raised border-paper-raised/[0.06] shadow-card" : "bg-paper-elevated border-ink-hairline shadow-card";
   const wordmarkDot = "bg-accent";
   const wordmarkText = "text-ink";
-  const hairline = isDark ? "bg-white/[0.06]" : "bg-ink-hairline";
-  const navActive = isDark ? "bg-white/[0.06] text-ink" : "bg-ink/[0.04] text-ink";
-  const navInactive = isDark ? "text-ink-muted hover:text-ink-secondary hover:bg-white/[0.03]" : "text-ink-secondary hover:text-ink hover:bg-ink/[0.03]";
+  const hairline = isDark ? "bg-paper-raised/[0.06]" : "bg-ink-hairline";
+  const navActive = isDark ? "bg-paper-raised/[0.06] text-ink" : "bg-ink/[0.04] text-ink";
+  const navInactive = isDark ? "text-ink-muted hover:text-ink-secondary hover:bg-paper-raised/[0.03]" : "text-ink-secondary hover:text-ink hover:bg-ink/[0.03]";
   const metaText = "text-ink-muted";
 
   return (
@@ -39,7 +39,7 @@ export default function Sidebar() {
         {/* Wordmark */}
         <div className="px-5 pt-5 pb-4">
           <Link href="/" className="group inline-flex items-center gap-2.5">
-            <span className={`relative flex h-6 w-6 items-center justify-center rounded-[7px] border ${isDark ? "bg-white/[0.06] border-white/[0.08]" : "bg-ink/[0.03] border-ink-hairline"}`}>
+            <span className={`relative flex h-6 w-6 items-center justify-center rounded-[7px] border ${isDark ? "bg-paper-raised/[0.06] border-paper-raised/[0.08]" : "bg-ink/[0.03] border-ink-hairline"}`}>
               <span className={`h-[6px] w-[6px] rounded-full ${wordmarkDot}`} />
             </span>
             <span className={`text-[14px] font-medium tracking-[-0.01em] ${wordmarkText}`}>
@@ -84,7 +84,7 @@ export default function Sidebar() {
           <button
             onClick={toggleTheme}
             className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-[12.5px] font-medium transition-all duration-150 ${
-              isDark ? "text-ink-muted hover:text-ink-secondary hover:bg-white/[0.03]" : "text-ink-secondary hover:text-ink hover:bg-ink/[0.03]"
+              isDark ? "text-ink-muted hover:text-ink-secondary hover:bg-paper-raised/[0.03]" : "text-ink-secondary hover:text-ink hover:bg-ink/[0.03]"
             }`}
           >
             <LineIcon name={isDark ? "moon" : "sun"} className="h-3.5 w-3.5" />

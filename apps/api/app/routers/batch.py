@@ -5,26 +5,30 @@ POST /api/v1/batch/grade  (multipart/form-data)
 - class_grading_parameters: str
 - test_specific_parameters: str
 - answer_key_json: str (JSON-serialiserad list[AnswerKeyItem])
-- files: list[UploadFile] – en fil per elev (filnamnet ger studentnamn)
+- files: list[UploadFile] – en eller flera filer per elev. Filnamnet ger
+  studentnamn, och ett sidnummersuffix ("Anna_Andersson_sida2.jpg") grupperar
+  flera sidor till ETT elevdokument.
 
-Returnerar BatchGradeResponse där varje BatchStudentResult.steps är
-färdig att stoppas in i frontendens lib/store.ts utan transformation.
+Returnerar BatchGradeResponse med kanoniska StudentDocumentResult som
+frontenden konsumerar direkt, utan egen tolkning.
 """
 from __future__ import annotations
 
 import json
+import logging
 
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
 from .. import schemas
-from ..services.answer_key import generate_answer_key
 from ..services.batch_pipeline import (
     UploadedFile,
     active_rules,
     grade_batch,
     integration_status,
 )
+
+logger = logging.getLogger("wiseos.grading")
 
 router = APIRouter(prefix="/api/v1/batch", tags=["batch"])
 
@@ -48,20 +52,12 @@ async def batch_grade(
     answer_key_json: str = Form("[]"),
     files: list[UploadFile] = File(...),
 ):
-    # 1. Validera facit-JSON
+    # 1. Validera facit-JSON (valfritt – tomt betyder facitfri rättning)
     try:
         raw_items = json.loads(answer_key_json or "[]")
         answer_key = [schemas.AnswerKeyItem.model_validate(it) for it in raw_items]
     except (json.JSONDecodeError, ValidationError) as e:
         raise HTTPException(400, f"answer_key_json är inte giltig: {e!s}") from e
-    # Saknas facit genererar vi ett med den konfigurerade AI-providern i stället
-    # för att avbryta rättningen.
-    if not answer_key:
-        answer_key = await generate_answer_key(
-            f"{class_grading_parameters}\n{test_specific_parameters}".strip()
-        )
-    if not answer_key:
-        raise HTTPException(400, "Kunde inte skapa något facit för rättningen")
 
     # 2. Validera filer
     if not files:
@@ -84,7 +80,11 @@ async def batch_grade(
             )
         )
 
-    # 3. Kör pipelinen
+    # 3. Kör pipelinen. Logga metadata, inte elevdata.
+    logger.info(
+        "batch_request prov_id=%s uploads=%d answer_key_items=%d",
+        prov_id, len(uploads), len(answer_key),
+    )
     results = await grade_batch(
         prov_id=prov_id,
         answer_key=answer_key,
@@ -100,6 +100,6 @@ async def batch_grade(
         results=results,
         activeRules=active_rules(combined_params),
         totalStudents=len(results),
-        totalSteps=sum(len(r.steps) for r in results),
+        totalQuestions=sum(len(r.questions) for r in results),
         integrations=integration_status(),
     )

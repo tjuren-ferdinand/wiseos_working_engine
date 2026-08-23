@@ -20,6 +20,7 @@ export default function PublishResultsModal({
   const klasser = useStore((s) => s.klasser);
   const [isPublishing, setIsPublishing] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [publishError, setPublishError] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -27,14 +28,19 @@ export default function PublishResultsModal({
 
   const handlePublish = async () => {
     setIsPublishing(true);
-    await new Promise((resolve) => setTimeout(resolve, 1200));
-    actions.publishResults(prov.id);
-    setIsPublishing(false);
-    setShowSuccess(true);
-    setTimeout(() => {
-      setShowSuccess(false);
-      onClose();
-    }, 1800);
+    setPublishError(null);
+    try {
+      await actions.publishResults(prov.id);
+      setIsPublishing(false);
+      setShowSuccess(true);
+      setTimeout(() => {
+        setShowSuccess(false);
+        onClose();
+      }, 1800);
+    } catch (e) {
+      setIsPublishing(false);
+      setPublishError((e as Error).message);
+    }
   };
 
   const percentageToGrade = (pct: number): string => {
@@ -50,14 +56,14 @@ export default function PublishResultsModal({
     switch (grade) {
       case "A":
       case "B":
-        return "bg-emerald-50 text-emerald-700";
+        return "bg-state-success/10 text-state-success";
       case "C":
       case "D":
-        return "bg-amber-50 text-amber-700";
+        return "bg-state-warning/10 text-state-warning";
       case "E":
-        return "bg-orange-50 text-orange-700";
+        return "bg-state-warning/10 text-state-warning";
       default:
-        return "bg-red-50 text-red-700";
+        return "bg-state-danger/10 text-state-danger";
     }
   };
 
@@ -122,7 +128,11 @@ export default function PublishResultsModal({
         <div className="px-6 py-5 border-t border-ink-hairline bg-paper-secondary">
           <div className="flex items-center justify-between gap-4">
             <div className="text-[13px] text-ink-secondary">
-              {results.length} elever kommer att publiceras
+              {publishError ? (
+                <span className="text-state-danger">{publishError}</span>
+              ) : (
+                `${results.length} elever kommer att publiceras`
+              )}
             </div>
             <div className="flex gap-3">
               <button onClick={onClose} className="btn-secondary">

@@ -294,15 +294,21 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
   const [customRulesText, setCustomRulesText] = useState(initial.customRules.join('\n'));
   const [saved, setSaved] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const save = () => {
+  const save = async () => {
     const updatedParams = {
       ...params,
       customRules: customRulesText.split('\n').filter((r) => r.trim()),
     };
-    actions.updateKlassParams(klassId, updatedParams);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      await actions.updateKlassParams(klassId, updatedParams);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setSaveError((e as Error).message);
+    }
   };
 
   const Toggle = ({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) => (
@@ -314,7 +320,7 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
           checked ? 'bg-accent' : 'bg-ink/15'
         }`}
       >
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? 'left-4' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-paper-raised shadow transition-transform ${checked ? 'left-4' : 'left-0.5'}`} />
       </button>
       <div>
         <div className="text-[14px] font-medium text-ink">{label}</div>
@@ -414,7 +420,9 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
         />
         <div className="mt-4 flex items-center justify-between">
           <div className="text-[12.5px] text-ink-muted">
-            {saved ? (
+            {saveError ? (
+              <span className="text-state-danger">{saveError}</span>
+            ) : saved ? (
               <span className="inline-flex items-center gap-1 text-accent">
                 <LineIcon name="check" className="h-3.5 w-3.5" /> Sparat
               </span>

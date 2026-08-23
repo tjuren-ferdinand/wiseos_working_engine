@@ -1,16 +1,15 @@
-"""Gratis vision-OCR-providers som tillfälligt ersätter Mathpix.
+"""Ren bild-till-text-OCR för facitdokument och /api/v1/ocr.
 
-Providers provas i ordning tills en svarar:
-1. Groq Vision  – gratis, men kräver att kontot har en multimodal modell.
-2. Google Gemini – gratis nivå i AI Studio, mycket bra på handskrift.
-3. OpenRouter    – gratis vision-modeller (t.ex. :free-varianter).
+OBS: elevrättning använder INTE den här modulen. Den går bildförst via
+services/gemini_vision.py, där samma multimodala anrop både transkriberar och
+bedömer. Här finns bara enkel texturläsning för facit och OCR-endpointen.
 
-Alla är valfria: saknas nycklar returneras None och anroparen faller
-tillbaka på Mathpix-mock. Byt till Mathpix genom att sätta MATHPIX_APP_ID/KEY.
+Providers provas i ordning tills en svarar: Gemini, OpenRouter, Groq.
 """
 from __future__ import annotations
 
 import base64
+import re
 
 import httpx
 
@@ -24,6 +23,8 @@ PROMPT = (
 )
 
 IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
+
+_GEMINI_TIMEOUT_SECONDS = 120.0
 
 
 def _normalize_mime(mime_type: str) -> str:
@@ -77,30 +78,59 @@ async def _openai_style(
         return (response.json()["choices"][0]["message"]["content"] or "").strip()
 
 
-async def _gemini(image_bytes: bytes, mime_type: str, prompt: str) -> str:
+def _clean_text(text: str) -> str:
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
+    text = re.sub(r"\bthinking\b.*?(?=\b[^\s])", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = text.replace("```json", "").replace("```", "")
+    return text.strip()
+
+
+async def _gemini(
+    image_bytes: bytes,
+    mime_type: str,
+    prompt: str,
+    *,
+    system_instruction: str = "",
+    json_mode: bool = False,
+    response_schema: dict | None = None,
+) -> str:
     url = (
         f"https://generativelanguage.googleapis.com/v1beta/models/"
         f"{settings.GEMINI_MODEL}:generateContent"
     )
-    async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
+
+    generation_config: dict = {
+        "temperature": 0.0,
+        "maxOutputTokens": 3000,
+    }
+    if json_mode:
+        generation_config["responseMimeType"] = "application/json"
+    if response_schema and json_mode:
+        generation_config["responseSchema"] = response_schema
+
+    contents: list[dict] = []
+    if system_instruction:
+        contents.append({"role": "user", "parts": [{"text": system_instruction}]})
+    contents.append({
+        "role": "user",
+        "parts": [
+            {"text": prompt},
+            {
+                "inline_data": {
+                    "mime_type": _normalize_mime(mime_type),
+                    "data": base64.b64encode(image_bytes).decode("ascii"),
+                }
+            },
+        ],
+    })
+
+    async with httpx.AsyncClient(timeout=_GEMINI_TIMEOUT_SECONDS) as client:
         response = await client.post(
             url,
             headers={"x-goog-api-key": settings.GEMINI_API_KEY},
             json={
-                "contents": [
-                    {
-                        "parts": [
-                            {"text": prompt},
-                            {
-                                "inline_data": {
-                                    "mime_type": _normalize_mime(mime_type),
-                                    "data": base64.b64encode(image_bytes).decode("ascii"),
-                                }
-                            },
-                        ]
-                    }
-                ],
-                "generationConfig": {"temperature": 0.0, "maxOutputTokens": 3000},
+                "contents": contents,
+                "generationConfig": generation_config,
             },
         )
         response.raise_for_status()
@@ -108,50 +138,36 @@ async def _gemini(image_bytes: bytes, mime_type: str, prompt: str) -> str:
         if not candidates:
             return ""
         parts = candidates[0].get("content", {}).get("parts", [])
-        return "".join(p.get("text", "") for p in parts).strip()
+        text = "".join(p.get("text", "") for p in parts).strip()
+        return _clean_text(text)
 
 
 async def read_image(image_bytes: bytes, mime_type: str, prompt: str = PROMPT) -> str | None:
-    """Returnerar avläst text, eller None om ingen provider kunde svara."""
     if not is_image(mime_type):
         return None
 
     data_url = f"data:{_normalize_mime(mime_type)};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+    errors = []
 
     if settings.GEMINI_API_KEY:
         try:
-            text = await _gemini(image_bytes, mime_type, prompt)
-            if text:
-                return text
-        except Exception:
-            pass
+            return await _gemini(image_bytes, mime_type, prompt)
+        except Exception as e:
+            errors.append(f"Gemini Error: {str(e)}")
 
     if settings.OPENROUTER_API_KEY:
         try:
-            text = await _openai_style(
-                "https://openrouter.ai/api/v1/chat/completions",
-                settings.OPENROUTER_API_KEY,
-                settings.OPENROUTER_VISION_MODEL,
-                data_url,
-                prompt,
-            )
-            if text:
-                return text
-        except Exception:
-            pass
+            return await _openai_style("https://openrouter.ai/api/v1/chat/completions", settings.OPENROUTER_API_KEY, settings.OPENROUTER_VISION_MODEL, data_url, prompt)
+        except Exception as e:
+            errors.append(f"OpenRouter Error: {str(e)}")
 
     if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL:
         try:
-            text = await _openai_style(
-                "https://api.groq.com/openai/v1/chat/completions",
-                settings.GROQ_API_KEY,
-                settings.GROQ_VISION_MODEL,
-                data_url,
-                prompt,
-            )
-            if text:
-                return text
-        except Exception:
-            pass
+            return await _openai_style("https://api.groq.com/openai/v1/chat/completions", settings.GROQ_API_KEY, settings.GROQ_VISION_MODEL, data_url, prompt)
+        except Exception as e:
+            errors.append(f"Groq Error: {str(e)}")
 
-    return None
+    if errors:
+        raise RuntimeError(" | ".join(errors))
+
+    raise RuntimeError("Ingen Vision AI-nyckel är konfigurerad i .env-filen.")

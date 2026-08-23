@@ -1,4 +1,0 @@
-Test facit för demo
-
-1) x = 3
-2) F = 24 N

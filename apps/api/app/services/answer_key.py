@@ -3,83 +3,43 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 
 from ..config import settings
 from ..schemas import AnswerKeyItem
 from . import groq_client, vision_ocr
 
 
-SYSTEM_PROMPT = """You are the core extraction engine of wiseOS, an advanced AI grading assistant for STEM teachers. Your task is to analyze the uploaded answer key (facit/lösningsförslag) and convert it into a structured, machine-readable format for the grading workbench. Analyze the provided document and extract every single question. For each question, identify and isolate: 1. The question number. 2. The final analytical answer including correct SI units, e.g., N, m/s, kg. 3. The deterministic step-by-step mathematical or physical derivation required for full marks. You must handle complex notation, sub-steps, and formulas with absolute precision. Do not hallucinate or simplify. Respond ONLY with a valid JSON array in the following format. Do not include any conversational prose, markdown blocks outside of the JSON, or explanations.
+SYSTEM_PROMPT = """Du är facit-extraheraren i wiseOS. Analysera det uppladdade facitdokumentet och extrahera varje uppgift som ett JSON-objekt. För varje uppgift, fång:
+1. Nummer (question_number).
+2. Själva frågan/uppdraget (question_text) – ordagrant eller en kort sammanfattning om texten är lång.
+3. Förväntat korrekt svar (final_answer).
+4. Eventuella lösningssteg (derivation_steps).
+5. Maxpoäng (max_points) – 1.0 om inget poängantal syns.
+
+Svara ENDAST med en giltig JSON-array. Inga förklaringar, inga kodblock, ingen annan text.
+
 [
-{
-"question_number": "1",
-"final_answer": "x = 3",
-"derivation_steps": [
-"2x + 4 = 10",
-"2x = 6",
-"x = 3"
-]
-},
-{
-"question_number": "2",
-"final_answer": "F = 24 N",
-"derivation_steps": [
-"m = 2.4 kg",
-"g = 9.81 m/s^2",
-"F = m * g",
-"F = 2.4 * 9.81 = 23.544 N",
-"Rounded to significant figures: 24 N"
-]
-}
+  {
+    "question_number": "1",
+    "question_text": "Hur många meter är 1 km?",
+    "final_answer": "1000 m",
+    "derivation_steps": [],
+    "max_points": 1
+  },
+  {
+    "question_number": "2",
+    "question_text": "Sveriges huvudstad?",
+    "final_answer": "Stockholm",
+    "derivation_steps": [],
+    "max_points": 1
+  }
 ]"""
 
 
 def _mock_answer_key(size: int) -> list[AnswerKeyItem]:
-    # Realistisk fysik 1 demo för investerare
-    return [
-        AnswerKeyItem(
-            question_number="1a",
-            final_answer="v = 19.6 m/s",
-            derivation_steps=[
-                "Ett föremål släpps från vila (v₀ = 0)",
-                "Fallhöjd: h = 19.6 m",
-                "Energilagen: mgh = ½mv²",
-                "gh = ½v² → v² = 2gh",
-                "v = √(2 × 9.82 × 19.6) = √384.9 ≈ 19.6 m/s"
-            ],
-        ),
-        AnswerKeyItem(
-            question_number="1b",
-            final_answer="t = 2.0 s",
-            derivation_steps=[
-                "Falltid från höjden",
-                "h = ½gt²",
-                "t² = 2h/g = 2×19.6/9.82 = 3.99",
-                "t = √3.99 ≈ 2.0 s"
-            ],
-        ),
-        AnswerKeyItem(
-            question_number="2",
-            final_answer="F = 1470 N",
-            derivation_steps=[
-                "Lyftkraft behövs för att motverka tyngdkraften",
-                "Massa: m = 150 kg",
-                "Tyngdacceleration: g = 9.82 m/s²",
-                "F = mg = 150 × 9.82 = 1473 N",
-                "Avrundat till 3 gällande siffror: 1470 N"
-            ],
-        ),
-        AnswerKeyItem(
-            question_number="3",
-            final_answer="a = 2.5 m/s²",
-            derivation_steps=[
-                "Newtons 2a lag: F = ma",
-                "Resultantkraft: F_net = 500 N - 250 N = 250 N",
-                "Massa: m = 100 kg",
-                "a = F_net/m = 250/100 = 2.5 m/s²"
-            ],
-        ),
-    ]
+    """Vi använder aldrig ett statiskt demo-facit."""
+    raise RuntimeError("Inget facit tillgängligt. Kontrollera API-nycklar eller uppladdat facit.")
 
 
 def _extract_json_array(text: str) -> list[dict]:
@@ -106,17 +66,30 @@ def _extract_json_array(text: str) -> list[dict]:
 
 
 GENERATE_PROMPT = (
-    "Du är wiseOS facitmotor för svenska gymnasieprov i matematik och fysik. "
+    "Du är wiseOS facitmotor för svenska prov i olika ämnen. "
     "Konstruera ett rimligt facit utifrån provets beskrivning. "
-    "Varje uppgift ska ha ett slutsvar med korrekt SI-enhet och högst fyra korta härledningssteg. "
+    "Varje uppgift ska innehålla frågan, det förväntade svaret, eventuella lösningssteg och maxpoäng. "
     'Svara enbart med JSON på formen '
-    '{"items": [{"question_number": "1", "final_answer": "F = 24 N", '
-    '"derivation_steps": ["m = 2.4 kg", "F = m*g", "F = 24 N"]}]}'
+    '{"items": [{"question_number": "1", "question_text": "Frågan", "final_answer": "Svar", '
+    '"derivation_steps": [], "max_points": 1}]}'
 )
 
 
+def _normalize_question_number(qn: str) -> str:
+    """Ta bort vanliga prefix/suffix kring numret, t.ex. 'Uppgift 1.', '1)', 'Q1'."""
+    s = str(qn).strip()
+    # Matcha "Uppgift 1" / "1." / "1)" / "Q1" etc.
+    m = re.search(r"([A-Za-z]*)(\d+[A-Za-z]?)", s)
+    if m:
+        return m.group(2).lower()
+    return s
+
+
 def _parse_items(text: str) -> list[AnswerKeyItem]:
-    return [AnswerKeyItem.model_validate(item) for item in _extract_json_array(text)]
+    items = [AnswerKeyItem.model_validate(item) for item in _extract_json_array(text)]
+    for item in items:
+        item.question_number = _normalize_question_number(item.question_number)
+    return items
 
 
 async def _extract_with_vision(file_bytes: bytes, mime_type: str) -> list[AnswerKeyItem] | None:

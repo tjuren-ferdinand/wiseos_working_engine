@@ -264,8 +264,5 @@ def _interpret_result(result_text: str) -> tuple[bool, float]:
         return True, 0.99
     if norm in {"false", "no", "0"}:
         return False, 0.99
-    # Wolfram kan returnera ett oevaluerat uttryck — om det reduceras till
-    # samma sak på båda sidor antar vi True. Detta är defensive heuristics.
-    if "==" not in norm and norm not in {"undefined", "indeterminate"}:
-        return True, 0.7  # Sannolikt förenklat till ett gemensamt uttryck
+    # Oevaluerat / tvetydigt svar – anta inte korrekt; läraren kan granska.
     return False, 0.4

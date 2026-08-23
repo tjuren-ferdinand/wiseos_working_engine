@@ -39,11 +39,11 @@ export function Logo({ size = 'md', showText = true, className = '' }: LogoProps
       <LogoIcon size={icon} />
       {showText && (
         <span
+          className="text-ink"
           style={{
             fontFamily: tokens.typography.fontSans,
             fontSize: text,
             fontWeight: tokens.typography.weightSemibold,
-            color: tokens.colors.text,
             letterSpacing: tokens.typography.trackingTight,
           }}
         >
@@ -59,16 +59,12 @@ export function Logo({ size = 'md', showText = true, className = '' }: LogoProps
  */
 function LogoIcon({ size }: { size: number }) {
   return (
-    <img 
-      src="/logotype_new.png" 
-      alt="WiseOS" 
-      width={size * 3}
+    <img
+      src="/dashboard_logo.jpg"
+      alt="WiseOS"
+      width={size * 4}
       height={size}
-      style={{
-        height: size,
-        width: 'auto',
-        objectFit: 'contain',
-      }}
+      style={{ height: size, width: 'auto', objectFit: 'contain' }}
     />
   );
 }

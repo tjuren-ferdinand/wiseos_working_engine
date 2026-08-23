@@ -7,7 +7,7 @@ import LineIcon from "./LineIcon";
 const navItems = [
   { href: "/", label: "Dashboard", icon: "grid" as const },
   { href: "/courses", label: "Kurser", icon: "graduation-cap" as const },
-  { href: "/chat", label: "AI", icon: "chat" as const },
+  { href: "/classes", label: "Klasser", icon: "users" as const },
   { href: "/review", label: "Granska", icon: "edit" as const },
   { href: "/settings", label: "Inställningar", icon: "settings" as const },
 ];

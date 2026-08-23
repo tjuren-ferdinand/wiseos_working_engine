@@ -1,25 +1,49 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useState } from "react";
 import Link from "next/link";
-import { actions } from "@/lib/store";
+import { actions, useStore } from "@/lib/store";
 import LevelAutocomplete from "@/components/LevelAutocomplete";
 
 export default function NewKlassPage() {
+  return (
+    <Suspense>
+      <NewKlassForm />
+    </Suspense>
+  );
+}
+
+function NewKlassForm() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const kurser = useStore((s) => s.kurser);
   const [form, setForm] = useState({
     name: "",
     subject: "Matematik",
     gradeLevel: "Gymnasiet åk 1",
     gradingParams: "",
+    kursId: searchParams?.get("kursId") || kurser[0]?.id || "",
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return;
-    const k = actions.createKlass(form);
-    router.push(`/classes/${k.id}`);
+    if (!form.name.trim() || !form.kursId.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const k = await actions.createKlass({
+        name: form.name,
+        kursId: form.kursId,
+        gradingParams: form.gradingParams,
+      });
+      router.push(`/classes/${k.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setSubmitting(false);
+    }
   };
 
   return (
@@ -37,6 +61,21 @@ export default function NewKlassPage() {
             placeholder="NA22B – Fysik 1"
             required
           />
+        </Field>
+
+        <Field label="Kurs">
+          <select
+            value={form.kursId}
+            onChange={(e) => setForm({ ...form, kursId: e.target.value })}
+            className="input"
+            required
+          >
+            {kurser.map((kurs) => (
+              <option key={kurs.id} value={kurs.id}>
+                {kurs.name}
+              </option>
+            ))}
+          </select>
         </Field>
 
         <div className="grid sm:grid-cols-2 gap-5">
@@ -70,9 +109,13 @@ export default function NewKlassPage() {
           />
         </Field>
 
+        {error && <p className="text-[13px] text-state-danger">{error}</p>}
+
         <div className="flex justify-end gap-3 pt-2">
           <Link href="/classes" className="btn-secondary">Avbryt</Link>
-          <button type="submit" className="btn-primary">Skapa klass</button>
+          <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+            {submitting ? "Skapar…" : "Skapa klass"}
+          </button>
         </div>
       </form>
     </div>

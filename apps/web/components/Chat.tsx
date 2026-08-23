@@ -44,7 +44,7 @@ export default function Chat() {
 
   return (
     <div className="flex h-[calc(100vh-12rem)] flex-col gap-4">
-      <div className="flex-1 space-y-4 overflow-y-auto rounded-3xl border border-equi-300/50 bg-equi-50 p-4 dark:border-equi-800/50 dark:bg-equi-950">
+      <div className="flex-1 space-y-4 overflow-y-auto rounded-2xl border border-equi-300/50 bg-equi-50 p-4 dark:border-equi-800/50 dark:bg-equi-950">
         {messages.map((message, index) => (
           <ChatMessageItem key={index} message={message} />
         ))}

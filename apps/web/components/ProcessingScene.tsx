@@ -88,25 +88,25 @@ export default function ProcessingScene({ prov }: { prov: Prov }) {
   return (
     <div className={`rounded-2xl p-8 sm:p-10 overflow-hidden relative ${
       isDark
-        ? "bg-white/5 border border-white/10"
-        : "bg-white border border-slate-200/60 shadow-soft"
+        ? "bg-paper-raised/5 border border-paper-raised/10"
+        : "bg-paper-raised border border-ink-hairline shadow-soft"
     }`}>
-      <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 h-[300px] w-[600px] rounded-full bg-wise-300/10 blur-[100px]" />
+      <div aria-hidden className="pointer-events-none absolute -top-20 left-1/2 -translate-x-1/2 h-[300px] w-[600px] rounded-full bg-paper-secondary/10 blur-[100px]" />
 
       <div className="relative">
         <div className="flex items-center gap-3">
           <div className="relative">
-            <div className="h-3 w-3 rounded-full bg-wise-300" />
-            <div className="absolute inset-0 h-3 w-3 rounded-full bg-wise-300 animate-ping" />
+            <div className="h-3 w-3 rounded-full bg-paper-secondary" />
+            <div className="absolute inset-0 h-3 w-3 rounded-full bg-paper-secondary animate-ping" />
           </div>
-          <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${isDark ? "text-wise-300" : "text-wise-500"}`}>
+          <span className={`text-xs font-semibold uppercase tracking-[0.1em] ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>
             wiseOS arbetar
           </span>
         </div>
-        <h2 className={`mt-4 text-2xl sm:text-3xl font-semibold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+        <h2 className={`mt-4 text-2xl sm:text-3xl font-semibold tracking-tight ${isDark ? "text-paper" : "text-ink"}`}>
           Rättar &quot;{prov.title}&quot;
         </h2>
-        <p className={`mt-2 text-sm max-w-xl ${isError ? "text-rose-400" : isDark ? "text-white/60" : "text-slate-600"}`}>
+        <p className={`mt-2 text-sm max-w-xl ${isError ? "text-rose-400" : isDark ? "text-ink-secondary" : "text-ink-secondary"}`}>
           {isError
             ? "Något gick fel när vi kontaktade backend-pipelinen. Kontrollera att API-tjänsten körs på :8000 och försök igen."
             : "Detta tar normalt 20–40 sekunder per elev. Du kan lämna fönstret öppet – vi sparar löpande."}
@@ -123,41 +123,41 @@ export default function ProcessingScene({ prov }: { prov: Prov }) {
                 className={`relative rounded-xl border p-4 transition-all duration-500 ${
                   active
                     ? isDark
-                      ? "border-wise-300/40 bg-wise-300/10 -translate-y-0.5"
-                      : "border-wise-200 bg-wise-50/50 shadow-sm -translate-y-0.5"
+                      ? "border-ink-hairline/40 bg-paper-secondary/10 -translate-y-0.5"
+                      : "border-ink-hairline bg-paper-secondary/50 shadow-sm -translate-y-0.5"
                     : done
                     ? isDark
-                      ? "border-emerald-500/30 bg-emerald-500/10"
-                      : "border-emerald-200 bg-emerald-50/40"
+                      ? "border-state-success/30 bg-state-success/10"
+                      : "border-state-success/20 bg-state-success/10/40"
                     : isDark
-                    ? "border-white/10 bg-white/5 opacity-50"
-                    : "border-slate-200 bg-white/60 opacity-60"
+                    ? "border-paper-raised/10 bg-paper-raised/5 opacity-50"
+                    : "border-ink-hairline bg-paper-raised/60 opacity-60"
                 }`}
               >
                 <div className="flex items-center justify-between">
                   <div
                     className={`h-8 w-8 grid place-items-center rounded-lg text-base font-semibold ${
                       done 
-                        ? "bg-emerald-500 text-white" 
+                        ? "bg-state-success text-paper" 
                         : active 
-                        ? isDark ? "bg-wise-300 text-slate-900" : "bg-wise-300 text-[#3f2a3f]"
-                        : isDark ? "bg-white/10 text-white/50" : "bg-slate-100 text-slate-500"
+                        ? isDark ? "bg-paper-secondary text-ink" : "bg-paper-secondary text-[#3f2a3f]"
+                        : isDark ? "bg-paper-raised/10 text-paper/50" : "bg-paper-secondary text-ink-secondary"
                     }`}
                   >
                     {done ? <LineIcon name="check" className="h-4 w-4" /> : <LineIcon name={p.icon} className="h-4 w-4" />}
                   </div>
                   {active && (
                     <div className="flex gap-1">
-                      <span className="h-1.5 w-1.5 rounded-full bg-wise-300 animate-bounce [animation-delay:-0.3s]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-wise-300 animate-bounce [animation-delay:-0.15s]" />
-                      <span className="h-1.5 w-1.5 rounded-full bg-wise-300 animate-bounce" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-paper-secondary animate-bounce [animation-delay:-0.3s]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-paper-secondary animate-bounce [animation-delay:-0.15s]" />
+                      <span className="h-1.5 w-1.5 rounded-full bg-paper-secondary animate-bounce" />
                     </div>
                   )}
                 </div>
-                <div className={`mt-3 font-semibold text-[14px] leading-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+                <div className={`mt-3 font-semibold text-[14px] leading-tight ${isDark ? "text-paper" : "text-ink"}`}>
                   {p.title}
                 </div>
-                <div className={`mt-1 text-xs leading-relaxed ${isDark ? "text-white/50" : "text-slate-600"}`}>
+                <div className={`mt-1 text-xs leading-relaxed ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
                   {p.desc}
                 </div>
               </div>
@@ -167,15 +167,15 @@ export default function ProcessingScene({ prov }: { prov: Prov }) {
 
         {/* Linear progress */}
         <div className="mt-8">
-          <div className={`flex items-center justify-between text-xs mb-2 ${isDark ? "text-white/50" : "text-slate-500"}`}>
+          <div className={`flex items-center justify-between text-xs mb-2 ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
             <span>Total progress</span>
-            <span className={`font-mono font-medium ${isDark ? "text-white" : "text-slate-700"}`}>
+            <span className={`font-mono font-medium ${isDark ? "text-paper" : "text-ink"}`}>
               {Math.round(progress * 100)}%
             </span>
           </div>
-          <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-slate-100"}`}>
+          <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-paper-raised/10" : "bg-paper-secondary"}`}>
             <div
-              className="h-full bg-gradient-to-r from-wise-300 to-wise-400 transition-all duration-700 ease-out"
+              className="h-full bg-gradient-to-r from-ink to-ink transition-all duration-700 ease-out"
               style={{ width: `${progress * 100}%` }}
             />
           </div>

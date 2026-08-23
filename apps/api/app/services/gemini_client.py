@@ -8,6 +8,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 
 import httpx
 
@@ -37,6 +38,7 @@ async def complete_text(
     max_tokens: int = 1200,
     temperature: float = 0.2,
     json_mode: bool = False,
+    response_schema: dict | None = None,
 ) -> str:
     if not settings.GEMINI_API_KEY:
         raise RuntimeError("GEMINI_API_KEY är inte konfigurerad")
@@ -48,6 +50,8 @@ async def complete_text(
     }
     if json_mode:
         generation_config["responseMimeType"] = "application/json"
+    if response_schema and json_mode:
+        generation_config["responseSchema"] = response_schema
 
     payload = {
         "systemInstruction": {"parts": [{"text": system_prompt}]},
@@ -86,6 +90,12 @@ async def complete_text(
 
     parts = candidates[0].get("content", {}).get("parts", [])
     text = "".join(p.get("text", "") for p in parts).strip()
+
+    # Filtrera bort eventuella interna resonemang/monologer.
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
+    text = re.sub(r"\bthinking\b.*?(?=\b[^\s])", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = text.strip()
+
     if not text:
         raise RuntimeError("Gemini gav ett tomt svar")
     return text

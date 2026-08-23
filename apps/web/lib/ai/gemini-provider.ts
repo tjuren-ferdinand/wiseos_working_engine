@@ -6,7 +6,7 @@ export class GeminiProvider implements AIProvider {
   private model: string;
   private hasKey: boolean;
 
-  constructor(apiKey: string, model = "gemini-flash-latest") {
+  constructor(apiKey: string, model = "gemini-1.5-pro") {
     this.ai = new GoogleGenAI({ apiKey });
     this.model = model;
     this.hasKey = !!apiKey && apiKey.trim().length > 0;

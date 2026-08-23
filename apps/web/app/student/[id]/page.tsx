@@ -130,9 +130,9 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
           <div
             className={`mt-2 text-[36px] font-medium tracking-[-0.02em] flex items-center gap-2 ${
               trend.direction === "up"
-                ? "text-emerald-600"
+                ? "text-state-success"
                 : trend.direction === "down"
-                  ? "text-red-600"
+                  ? "text-state-danger"
                   : "text-ink-muted"
             }`}
           >
@@ -165,10 +165,10 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
                   <span
                     className={`px-3 py-1.5 rounded-lg text-[13px] font-medium ${
                       stat.percentage >= 80
-                        ? "bg-emerald-50 text-emerald-700"
+                        ? "bg-state-success/10 text-state-success"
                         : stat.percentage >= 50
-                          ? "bg-amber-50 text-amber-700"
-                          : "bg-red-50 text-red-700"
+                          ? "bg-state-warning/10 text-state-warning"
+                          : "bg-state-danger/10 text-state-danger"
                     }`}
                   >
                     {stat.percentage}%
@@ -183,14 +183,14 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
       {(analysis.strengths.length > 0 || analysis.weaknesses.length > 0) && (
         <section className="grid grid-cols-1 sm:grid-cols-2 gap-6">
           {analysis.strengths.length > 0 && (
-            <Surface padding="p-5" className="bg-emerald-50/50 border-emerald-100">
-              <h3 className="text-[14px] font-medium text-emerald-800 mb-3 flex items-center gap-2">
+            <Surface padding="p-5" className="bg-state-success/10 border-state-success/20">
+              <h3 className="text-[14px] font-medium text-state-success mb-3 flex items-center gap-2">
                 <LineIcon name="check" className="h-4 w-4" />
                 Styrkor
               </h3>
               <ul className="space-y-2">
                 {analysis.strengths.map((s) => (
-                  <li key={s.label} className="text-[13px] text-emerald-700">
+                  <li key={s.label} className="text-[13px] text-state-success">
                     {s.label} ({s.successRate}%)
                   </li>
                 ))}
@@ -198,14 +198,14 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             </Surface>
           )}
           {analysis.weaknesses.length > 0 && (
-            <Surface padding="p-5" className="bg-red-50/50 border-red-100">
-              <h3 className="text-[14px] font-medium text-red-800 mb-3 flex items-center gap-2">
+            <Surface padding="p-5" className="bg-state-danger/10 border-state-danger/20">
+              <h3 className="text-[14px] font-medium text-state-danger mb-3 flex items-center gap-2">
                 <LineIcon name="pen" className="h-4 w-4" />
                 Utvecklingsområden
               </h3>
               <ul className="space-y-2">
                 {analysis.weaknesses.map((w) => (
-                  <li key={w.label} className="text-[13px] text-red-700">
+                  <li key={w.label} className="text-[13px] text-state-danger">
                     {w.label} ({w.successRate}%)
                   </li>
                 ))}
@@ -231,13 +231,13 @@ function gradeClass(grade: string): string {
   switch (grade) {
     case "A":
     case "B":
-      return "bg-emerald-50 text-emerald-700";
+      return "bg-state-success/10 text-state-success";
     case "C":
     case "D":
-      return "bg-amber-50 text-amber-700";
+      return "bg-state-warning/10 text-state-warning";
     case "E":
-      return "bg-orange-50 text-orange-700";
+      return "bg-state-warning/10 text-state-warning";
     default:
-      return "bg-red-50 text-red-700";
+      return "bg-state-danger/10 text-state-danger";
   }
 }

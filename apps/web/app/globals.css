@@ -5,7 +5,7 @@
 :root {
   /* WiseOS Equi design system — premium, calm, near-monochrome OS.
      Light theme by default; dark theme is a re-tint of the same visual hierarchy. */
-  --background: 251 250 249;   /* #fbfaf9 app background */
+  --background: 242 239 234;   /* #F2EFEA app background */
   --surface: 255 255 255;      /* #ffffff primary surface */
   --surface-2: 245 243 240;    /* #f5f3f0 secondary surface */
   --surface-elevated: 255 255 255; /* #ffffff elevated/floating surface */
@@ -39,17 +39,23 @@
   --arc-subtle: 28 29 32;
   --arc-gold: 109 100 90;
   --arc-copper: 160 148 134;
+
+  /* WiseOSIcon ring colors (hex, used directly as stroke — not rgb()-wrapped) */
+  --wiseos-bg: #F2EFEA;
+  --wiseos-fg: #333538;
 }
 
 html.dark {
-  --background: 21 20 18;      /* #151412 */
+  --wiseos-bg: #1A1C20;
+  --wiseos-fg: #E2E5E9;
+  --background: 26 28 32;      /* #1A1C20 */
   --surface: 28 29 32;         /* #1c1d20 primary surface */
   --surface-2: 37 36 33;       /* #252421 secondary surface */
   --surface-elevated: 28 29 32;/* #1c1d20 elevated/floating surface */
   --card: 28 29 32;
   --foreground: 245 243 240;   /* #f5f3f0 soft white */
-  --muted: 168 161 153;        /* #a8a199 secondary text */
-  --muted-2: 107 100 89;       /* #6b6459 tertiary text */
+  --muted: 185 178 170;        /* #b9b2aa secondary text */
+  --muted-2: 145 138 130;      /* #918a82 tertiary text */
   --hairline: 245 243 240;     /* used with .07 alpha for subtle borders */
   --accent: 185 175 162;       /* #b9afa2 brand */
   --accent-soft: 209 204 196;  /* #d1ccc4 */
@@ -159,8 +165,19 @@ html, body {
 /*  Inspired by NobleArc's intro feel, re-themed light/beige     */
 /* ============================================================ */
 @keyframes arc-flow {
-  0% { background-position: 100% 0; }
-  100% { background-position: -100% 0; }
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes arc-text-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
 }
 
 .arc-splash {
@@ -171,26 +188,32 @@ html, body {
   align-items: center;
   justify-content: center;
   background: rgb(var(--background));
-  transition: opacity 0.8s ease, visibility 0.8s ease;
+  transition: opacity 0.8s ease, transform 0.85s ease, filter 0.85s ease, visibility 0.8s ease;
 }
 
 .arc-splash.arc-fade-out {
   opacity: 0;
   visibility: hidden;
   pointer-events: none;
+  transform: scale(1.04);
+  filter: blur(4px);
 }
 
 .arc-splash-text {
-  font-weight: 200;
-  letter-spacing: 0.14em;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.22em;
   text-transform: uppercase;
   text-align: center;
   white-space: nowrap;
-  font-size: clamp(1.5rem, 6vw, 3.25rem);
+  font-size: clamp(1.75rem, 7vw, 3.5rem);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
   background: linear-gradient(
     90deg,
     rgb(var(--foreground)) 0%,
-    rgb(var(--muted)) 50%,
+    rgb(var(--muted)) 45%,
     rgb(var(--foreground)) 100%
   );
   background-size: 300% 100%;
@@ -198,14 +221,75 @@ html, body {
   background-clip: text;
   -webkit-text-fill-color: transparent;
   color: transparent;
-  animation: arc-flow 3s linear infinite;
+  will-change: background-position, transform, opacity;
+  animation:
+    arc-text-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both,
+    arc-flow 4s ease-in-out 1s infinite alternate;
+}
+
+.arc-splash-mark {
+  width: min(45vmin, 260px);
+  height: auto;
+  filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.28));
+}
+
+.arc-splash-mark .arc-w {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: arc-w-draw 1.4s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
+
+.arc-splash-mark .arc-dot {
+  fill: rgba(255, 255, 255, 0.95);
+  opacity: 0;
+  transform-origin: 155px 55px;
+  transform: scale(0);
+  animation: arc-dot-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 1.05s forwards;
+}
+
+@keyframes arc-w-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes arc-dot-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.arc-splash-glass {
+  padding: clamp(2.5rem, 8vmin, 4.5rem);
+  border-radius: 2.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.05), inset 0 0 30px rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: arc-glass-in 0.7s ease-out 0.1s both;
+}
+
+@keyframes arc-glass-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 .arc-main {
   opacity: 0;
-  transform: translateY(20px);
-  transition: opacity 0.8s ease, transform 0.8s ease;
-  transition-delay: 0.35s;
+  transform: translateY(24px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+  transition-delay: 0.15s;
 }
 
 .arc-main.arc-reveal {
@@ -425,3 +509,113 @@ html, body {
 /* Dölj print-doc på skärm */
 .print-doc { display: none; }
 
+/* ============================================================ */
+/*  WiseOS SVG icon — potrace draw/flood animation              */
+/* ============================================================ */
+
+/* 1. Konturen ritas upp ur intet */
+@keyframes wiseos-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* 2. Fyllningen flödar in och hårlinjen löses upp */
+@keyframes wiseos-flood {
+  from { fill-opacity: 0; stroke-opacity: 1; }
+  70%  { fill-opacity: 1; stroke-opacity: 0.6; }
+  to   { fill-opacity: 1; stroke-opacity: 0; }
+}
+
+/* 3. Hela märket landar med mjuk spring */
+@keyframes wiseos-settle {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(0) scale(1.015); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.wiseos-mark {
+  overflow: visible;
+  transform-origin: 50% 60%;
+  animation: wiseos-settle 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wiseos-link {
+  fill: currentColor;              /* följer ljust/mörkt tema */
+  stroke: currentColor;
+  stroke-width: 14;                /* i potrace-enheter (=1.4px efter skala) */
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* animerat läge – stagger via --d */
+.wiseos-link[class*="wiseos-link-"] {
+  fill-opacity: 0;
+  stroke-dasharray: 1;             /* funkar tack vare pathLength={1} */
+  stroke-dashoffset: 1;
+  animation:
+    wiseos-draw  1.05s cubic-bezier(0.65, 0, 0.35, 1) var(--d) forwards,
+    wiseos-flood 0.75s ease-out calc(var(--d) + 0.8s) forwards;
+}
+
+.wiseos-link-1 { --d: 0.1s; }
+.wiseos-link-2 { --d: 0.4s; }
+.wiseos-link-3 { --d: 0.7s; }
+
+/* ============================================================ */
+/*  WiseOS splash title — letter-by-letter animation            */
+/* ============================================================ */
+:root {
+  --wise-stroke: #333538;
+}
+html.dark {
+  --wise-stroke: #E2E5E9;
+}
+
+.wise-splash-title {
+  display: flex;
+  overflow: hidden;
+  font-size: 2.5rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  background-image: linear-gradient(90deg, var(--wise-stroke) 0%, #8a8f96 50%, var(--wise-stroke) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+}
+
+.wise-splash-letter {
+  display: inline-block;
+  min-width: 0.55em;
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+  animation: wise-letter-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes wise-letter-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wiseos-mark,
+  .wiseos-link[class*="wiseos-link-"] {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    fill-opacity: 1;
+    stroke-opacity: 0;
+    stroke-dashoffset: 0;
+  }
+
+  .wise-splash-title,
+  .wise-splash-letter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}

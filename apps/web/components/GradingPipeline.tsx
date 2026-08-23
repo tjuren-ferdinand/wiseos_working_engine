@@ -2,6 +2,8 @@
 
 import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { api } from "@/lib/api";
+const { fetchGradingResults } = api;
 
 // ============================================================================
 // TYPES
@@ -28,7 +30,7 @@ interface WolframResult {
   questionNumber: number;
   studentAnswer: string;
   expectedAnswer: string;
-  status: "correct" | "partial" | "incorrect";
+  status: "correct" | "partial" | "incorrect" | "error";
   verification: string;
 }
 
@@ -36,53 +38,6 @@ interface ClaudeFeedback {
   text: string;
   isComplete: boolean;
 }
-
-// ============================================================================
-// DEMO DATA
-// ============================================================================
-
-const MATHPIX_DEMO: MathpixResult[] = [
-  { questionNumber: 1, original: "F = m·a", converted: "F = ma" },
-  { questionNumber: 2, original: "v = v₀ + a·t", converted: "v = v₀ + at" },
-  { questionNumber: 3, original: "s = ½·a·t²", converted: "s = ½at²" },
-  { questionNumber: 4, original: "p = m·v", converted: "p = mv" },
-  { questionNumber: 5, original: "I = F·Δt", converted: "I = FΔt" },
-  { questionNumber: 6, original: "F = k·x", converted: "F = kx" },
-  { questionNumber: 7, original: "T = 2π√(m/k)", converted: "T = 2π√(m/k)" },
-  { questionNumber: 8, original: "T = 2π√(L/g)", converted: "T = 2π√(L/g)" },
-  { questionNumber: 9, original: "E_k = ½mv²", converted: "Eₖ = ½mv²" },
-  { questionNumber: 10, original: "v = f·λ", converted: "v = fλ" },
-  { questionNumber: 11, original: "d·sin(θ) = nλ", converted: "d sin θ = nλ" },
-  { questionNumber: 12, original: "f = f₀·v/(v-v_s)", converted: "f = f₀v/(v−vₛ)" },
-];
-
-const WOLFRAM_DEMO: WolframResult[] = [
-  { questionNumber: 1, studentAnswer: "3.1 m/s²", expectedAnswer: "3.1 m/s²", status: "correct", verification: "Kinematisk ekvation verifierad" },
-  { questionNumber: 2, studentAnswer: "5.4 m", expectedAnswer: "5.4 m", status: "correct", verification: "Projektilbana beräknad" },
-  { questionNumber: 3, studentAnswer: "3.0 m/s²", expectedAnswer: "3.0 m/s²", status: "correct", verification: "Newtons andra lag tillämpad" },
-  { questionNumber: 4, studentAnswer: "4 m/s, 24 m/s", expectedAnswer: "4 m/s, 24 m/s", status: "correct", verification: "Rörelsemängd bevarad" },
-  { questionNumber: 5, studentAnswer: "19 Ns", expectedAnswer: "19 Ns (med riktning)", status: "partial", verification: "Vektorriktning saknas" },
-  { questionNumber: 6, studentAnswer: "54 N, 3.2 J", expectedAnswer: "54 N, 3.24 J", status: "correct", verification: "Hookes lag verifierad" },
-  { questionNumber: 7, studentAnswer: "0.31 s", expectedAnswer: "0.31 s", status: "partial", verification: "Formelförvirring i mellanled" },
-  { questionNumber: 8, studentAnswer: "2.8 s", expectedAnswer: "2.84 s", status: "correct", verification: "Pendelperiod korrekt" },
-  { questionNumber: 9, studentAnswer: "9.9 m/s", expectedAnswer: "7.8 m/s", status: "incorrect", verification: "Friktion ej inkluderad" },
-  { questionNumber: 10, studentAnswer: "0.78 m", expectedAnswer: "0.78 m", status: "correct", verification: "Vågekvation tillämpad" },
-  { questionNumber: 11, studentAnswer: "5.1 mm", expectedAnswer: "5.1 mm", status: "incorrect", verification: "Inkonsekvent lösningsgång" },
-  { questionNumber: 12, studentAnswer: "548 Hz", expectedAnswer: "548 Hz", status: "correct", verification: "Dopplereffekt korrekt" },
-];
-
-const CLAUDE_FEEDBACK_PARTS = [
-  "Bra arbete, Elin! ",
-  "Du visar god förståelse för grundläggande mekanik och vågrörelser. ",
-  "Dina lösningar på kastparabel och rörelsemängd är exemplariska med tydliga mellanled.\n\n",
-  "I uppgift 5 glömde du ange riktning på impulsen – ",
-  "kom ihåg att impuls är en vektorstorhet.\n\n",
-  "Uppgift 9 kräver att du inkluderar friktionsarbetet. ",
-  "Du identifierade friktionen men valde att ignorera den, ",
-  "vilket gav ett för högt svar.\n\n",
-  "Tips: Kontrollera alltid vilka krafter som verkar ",
-  "och om energi förloras i systemet.",
-];
 
 // ============================================================================
 // MAIN COMPONENT
@@ -116,7 +71,16 @@ export default function GradingPipeline({
       setClaudeFeedback({ text: "", isComplete: false });
       setAnalysisTime(0);
       setStartTime(null);
-      
+
+      // Fetch real data
+      const fetchResults = async () => {
+        const results = await fetchGradingResults();
+        setMathpixResults(results.mathpix.flat());
+        setWolframResults(results.wolfram.flat());
+        setClaudeFeedback({ text: results.claude, isComplete: true });
+      };
+      fetchResults();
+
       // Start pipeline after brief delay
       const timer = setTimeout(() => {
         setStage("mathpix");
@@ -129,12 +93,12 @@ export default function GradingPipeline({
   // Mathpix simulation
   useEffect(() => {
     if (stage !== "mathpix") return;
-    
+
     const interval = setInterval(() => {
       setMathpixProgress((prev) => {
         const next = prev + 1;
         if (next <= questionCount) {
-          setMathpixResults((r) => [...r, MATHPIX_DEMO[next - 1] || MATHPIX_DEMO[0]]);
+          setMathpixResults((r) => [...r, mathpixResults[next - 1] || mathpixResults[0]]);
         }
         if (next >= questionCount) {
           clearInterval(interval);
@@ -143,19 +107,19 @@ export default function GradingPipeline({
         return next;
       });
     }, 350);
-    
+
     return () => clearInterval(interval);
   }, [stage, questionCount]);
 
   // Wolfram simulation
   useEffect(() => {
     if (stage !== "wolfram") return;
-    
+
     const interval = setInterval(() => {
       setWolframProgress((prev) => {
         const next = prev + 1;
         if (next <= questionCount) {
-          setWolframResults((r) => [...r, WOLFRAM_DEMO[next - 1] || WOLFRAM_DEMO[0]]);
+          setWolframResults((r) => [...r, wolframResults[next - 1] || wolframResults[0]]);
         }
         if (next >= questionCount) {
           clearInterval(interval);
@@ -164,19 +128,19 @@ export default function GradingPipeline({
         return next;
       });
     }, 280);
-    
+
     return () => clearInterval(interval);
   }, [stage, questionCount]);
 
   // Claude simulation
   useEffect(() => {
     if (stage !== "claude") return;
-    
+
     let partIndex = 0;
     const interval = setInterval(() => {
-      if (partIndex < CLAUDE_FEEDBACK_PARTS.length) {
+      if (partIndex < claudeFeedback.text.length) {
         setClaudeFeedback((prev) => ({
-          text: prev.text + CLAUDE_FEEDBACK_PARTS[partIndex],
+          text: prev.text.substring(0, partIndex + 1),
           isComplete: false,
         }));
         partIndex++;
@@ -191,7 +155,7 @@ export default function GradingPipeline({
         }, 600);
       }
     }, 180);
-    
+
     return () => clearInterval(interval);
   }, [stage, startTime]);
 
@@ -199,7 +163,7 @@ export default function GradingPipeline({
     const order: PipelineStage[] = ["idle", "mathpix", "wolfram", "claude", "complete"];
     const currentIndex = order.indexOf(stage);
     const checkIndex = order.indexOf(checkStage);
-    
+
     if (checkIndex < currentIndex || stage === "complete") return "complete";
     if (checkIndex === currentIndex) return "active";
     return "pending";
@@ -221,8 +185,8 @@ export default function GradingPipeline({
         onClick={onClose}
       >
         {/* Backdrop */}
-        <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-xl" />
-        
+        <div className="absolute inset-0 bg-ink/60 backdrop-blur-xl" />
+
         {/* Main Card */}
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -233,12 +197,11 @@ export default function GradingPipeline({
           className="relative w-full max-w-5xl mx-4"
         >
           {/* Glassmorphism card */}
-          <div className="relative rounded-[32px] bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/20 ring-1 ring-white/50 overflow-hidden">
-            
+          <div className="relative rounded-[32px] bg-paper-raised/95 backdrop-blur-2xl shadow-card shadow-card ring-1 ring-paper-raised/50 overflow-hidden">
             {/* Ambient glow */}
-            <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-violet-400/30 to-fuchsia-400/20 rounded-full blur-3xl" />
+            <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-paper-secondary/30 to-paper-secondary/20 rounded-full blur-3xl" />
             <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl" />
-            
+
             {/* Header */}
             <div className="relative px-10 pt-10 pb-6">
               <motion.div
@@ -247,18 +210,18 @@ export default function GradingPipeline({
                 transition={{ delay: 0.1 }}
               >
                 <div className="flex items-center gap-3 mb-2">
-                  <div className="h-2 w-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
-                    WiseOS rättar provet
+                  <div className="h-2 w-2 rounded-full bg-state-success animate-pulse" />
+                  <span className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-secondary">
+                    WiseOS Grading Engine
                   </span>
                 </div>
-                <h1 className="text-3xl font-semibold tracking-tight text-slate-900">
+                <h1 className="text-3xl font-semibold tracking-tight text-ink">
                   {provTitle}
                 </h1>
-                <div className="mt-2 flex items-center gap-4 text-sm text-slate-500">
-                  <span>{questionCount} uppgifter identifierade</span>
-                  <span className="h-1 w-1 rounded-full bg-slate-300" />
-                  <span>Elev: {studentName}</span>
+                <div className="mt-2 flex items-center gap-4 text-sm text-ink-secondary">
+                  <span>{questionCount} questions identified</span>
+                  <span className="h-1 w-1 rounded-full bg-paper-secondary" />
+                  <span>Student: {studentName}</span>
                 </div>
               </motion.div>
             </div>
@@ -273,7 +236,7 @@ export default function GradingPipeline({
                   status={getStageStatus("mathpix")}
                   progress={mathpixProgress}
                   total={questionCount}
-                  accentColor="from-orange-500 to-amber-500"
+                  accentColor="from-ink to-paper-secondary"
                 >
                   {stage === "mathpix" && mathpixResults.length > 0 && (
                     <div className="mt-4 space-y-2">
@@ -284,10 +247,10 @@ export default function GradingPipeline({
                           animate={{ opacity: 1, x: 0 }}
                           className="flex items-center gap-3 text-xs"
                         >
-                          <span className="text-slate-400 w-4">#{result.questionNumber}</span>
-                          <span className="font-mono text-slate-500">{result.original}</span>
-                          <span className="text-slate-300">→</span>
-                          <span className="font-mono text-slate-900 font-medium">{result.converted}</span>
+                          <span className="text-ink-muted w-4">#{result.questionNumber}</span>
+                          <span className="font-mono text-ink-secondary">{result.original}</span>
+                          <span className="text-ink-muted">→</span>
+                          <span className="font-mono text-ink font-medium">{result.converted}</span>
                         </motion.div>
                       ))}
                     </div>
@@ -304,7 +267,7 @@ export default function GradingPipeline({
                   status={getStageStatus("wolfram")}
                   progress={wolframProgress}
                   total={questionCount}
-                  accentColor="from-red-500 to-orange-500"
+                  accentColor="from-paper-secondary to-paper-secondary"
                 >
                   {stage === "wolfram" && wolframResults.length > 0 && (
                     <div className="mt-4 space-y-2">
@@ -316,10 +279,10 @@ export default function GradingPipeline({
                           className="text-xs"
                         >
                           <div className="flex items-center gap-2">
-                            <span className="text-slate-400">Uppgift {result.questionNumber}</span>
+                            <span className="text-ink-muted">Uppgift {result.questionNumber}</span>
                             <StatusBadge status={result.status} />
                           </div>
-                          <div className="mt-1 text-[10px] text-slate-400 italic">
+                          <div className="mt-1 text-[10px] text-ink-muted italic">
                             {result.verification}
                           </div>
                         </motion.div>
@@ -332,9 +295,9 @@ export default function GradingPipeline({
                       animate={{ opacity: 1 }}
                       className="mt-4 flex items-center gap-3 text-xs"
                     >
-                      <span className="text-emerald-600 font-medium">{correctCount} korrekta</span>
-                      <span className="text-amber-600 font-medium">{partialCount} delvis</span>
-                      <span className="text-red-600 font-medium">{incorrectCount} fel</span>
+                      <span className="text-state-success font-medium">{correctCount} korrekta</span>
+                      <span className="text-state-warning font-medium">{partialCount} delvis</span>
+                      <span className="text-state-danger font-medium">{incorrectCount} fel</span>
                     </motion.div>
                   )}
                 </PipelineStageCard>
@@ -350,17 +313,17 @@ export default function GradingPipeline({
                   progress={claudeFeedback.isComplete ? 100 : claudeFeedback.text.length}
                   total={100}
                   showProgress={false}
-                  accentColor="from-violet-500 to-purple-500"
+                  accentColor="from-ink to-paper-raised"
                 >
                   {(stage === "claude" || stage === "complete") && claudeFeedback.text && (
                     <motion.div
                       initial={{ opacity: 0 }}
                       animate={{ opacity: 1 }}
-                      className="mt-4 text-xs text-slate-600 leading-relaxed max-h-32 overflow-hidden"
+                      className="mt-4 text-xs text-ink-secondary leading-relaxed max-h-32 overflow-hidden"
                     >
                       {claudeFeedback.text}
                       {!claudeFeedback.isComplete && (
-                        <span className="inline-block w-1.5 h-4 bg-violet-500 ml-0.5 animate-pulse" />
+                        <span className="inline-block w-1.5 h-4 bg-ink ml-0.5 animate-pulse" />
                       )}
                     </motion.div>
                   )}
@@ -375,36 +338,36 @@ export default function GradingPipeline({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-t border-slate-100"
+                  className="border-t border-ink-hairline"
                 >
                   <div className="px-10 py-8">
                     <div className="flex items-center justify-between">
                       {/* Score */}
                       <div className="flex items-center gap-8">
                         <div>
-                          <div className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
+                          <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
                             Poäng
                           </div>
-                          <div className="text-4xl font-semibold tracking-tight text-slate-900">
-                            33<span className="text-slate-300">/48</span>
+                          <div className="text-4xl font-semibold tracking-tight text-ink">
+                            33<span className="text-ink-muted">/48</span>
                           </div>
                         </div>
-                        <div className="h-12 w-px bg-slate-200" />
+                        <div className="h-12 w-px bg-paper-secondary" />
                         <div>
-                          <div className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
+                          <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
                             Bedömning
                           </div>
-                          <div className="text-4xl font-semibold tracking-tight text-amber-600">
+                          <div className="text-4xl font-semibold tracking-tight text-state-warning">
                             C
                           </div>
                         </div>
-                        <div className="h-12 w-px bg-slate-200" />
+                        <div className="h-12 w-px bg-paper-secondary" />
                         <div>
-                          <div className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
+                          <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
                             Analystid
                           </div>
-                          <div className="text-4xl font-semibold tracking-tight text-slate-900">
-                            {analysisTime}<span className="text-lg text-slate-400 ml-1">sek</span>
+                          <div className="text-4xl font-semibold tracking-tight text-ink">
+                            {analysisTime}<span className="text-lg text-ink-muted ml-1">sek</span>
                           </div>
                         </div>
                       </div>
@@ -413,13 +376,13 @@ export default function GradingPipeline({
                       <div className="flex items-center gap-3">
                         <button
                           onClick={onClose}
-                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-ink-secondary bg-paper-secondary hover:bg-paper-secondary transition-colors"
                         >
                           Publicera till elev
                         </button>
                         <button
                           onClick={onComplete}
-                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 shadow-lg shadow-slate-900/20 transition-all"
+                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-paper bg-gradient-to-r from-ink to-paper-secondary hover:from-paper-secondary hover:to-paper-secondary shadow-lg shadow-card transition-all"
                         >
                           Granska analys
                         </button>
@@ -468,46 +431,46 @@ function PipelineStageCard({
       transition={{ type: "spring", damping: 20, stiffness: 300 }}
       className={`relative flex-1 rounded-2xl p-5 transition-all ${
         status === "active"
-          ? "bg-white shadow-xl shadow-slate-200/50 ring-1 ring-slate-200"
+          ? "bg-paper-raised shadow-card shadow-soft ring-1 ring-ink-hairline"
           : status === "complete"
-          ? "bg-slate-50/80"
-          : "bg-slate-50/50"
+          ? "bg-paper-secondary/80"
+          : "bg-paper-secondary/50"
       }`}
     >
       {/* Active glow */}
       {status === "active" && (
         <div className={`absolute inset-0 rounded-2xl bg-gradient-to-br ${accentColor} opacity-5`} />
       )}
-      
+
       {/* Header */}
       <div className="relative flex items-start justify-between">
         <div>
           <div className="flex items-center gap-2">
-            <h3 className={`font-semibold ${status === "pending" ? "text-slate-400" : "text-slate-900"}`}>
+            <h3 className={`font-semibold ${status === "pending" ? "text-ink-muted" : "text-ink"}`}>
               {title}
             </h3>
             {status === "complete" && (
               <motion.div
                 initial={{ scale: 0 }}
                 animate={{ scale: 1 }}
-                className="h-5 w-5 rounded-full bg-emerald-500 flex items-center justify-center"
+                className="h-5 w-5 rounded-full bg-state-success flex items-center justify-center"
               >
-                <svg className="h-3 w-3 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                <svg className="h-3 w-3 text-paper" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                 </svg>
               </motion.div>
             )}
           </div>
-          <p className={`text-xs mt-0.5 ${status === "pending" ? "text-slate-300" : "text-slate-500"}`}>
+          <p className={`text-xs mt-0.5 ${status === "pending" ? "text-ink-muted" : "text-ink-secondary"}`}>
             {subtitle}
           </p>
         </div>
-        
+
         {/* Progress counter */}
         {showProgress && status === "active" && (
           <div className="text-right">
-            <div className="text-2xl font-semibold tabular-nums text-slate-900">
-              {progress}<span className="text-slate-300">/{total}</span>
+            <div className="text-2xl font-semibold tabular-nums text-ink">
+              {progress}<span className="text-ink-muted">/{total}</span>
             </div>
           </div>
         )}
@@ -515,7 +478,7 @@ function PipelineStageCard({
 
       {/* Progress bar */}
       {showProgress && status !== "pending" && (
-        <div className="relative mt-4 h-1.5 rounded-full bg-slate-200 overflow-hidden">
+        <div className="relative mt-4 h-1.5 rounded-full bg-paper-secondary overflow-hidden">
           <motion.div
             initial={{ width: 0 }}
             animate={{ width: `${(progress / total) * 100}%` }}
@@ -537,12 +500,12 @@ function ConnectionLine({ active }: { active: boolean }) {
   return (
     <div className="flex items-center justify-center w-8 shrink-0">
       <div className="relative h-0.5 w-full">
-        <div className="absolute inset-0 bg-slate-200 rounded-full" />
+        <div className="absolute inset-0 bg-paper-secondary rounded-full" />
         <motion.div
           initial={{ scaleX: 0 }}
           animate={{ scaleX: active ? 1 : 0 }}
           transition={{ duration: 0.5 }}
-          className="absolute inset-0 bg-gradient-to-r from-emerald-400 to-emerald-500 rounded-full origin-left"
+          className="absolute inset-0 bg-gradient-to-r from-state-success to-state-success rounded-full origin-left"
         />
         {active && (
           <motion.div
@@ -550,7 +513,7 @@ function ConnectionLine({ active }: { active: boolean }) {
             animate={{ opacity: 1, scale: 1 }}
             className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2"
           >
-            <div className="h-2 w-2 rounded-full bg-emerald-500 shadow-lg shadow-emerald-500/50" />
+            <div className="h-2 w-2 rounded-full bg-state-success shadow-lg shadow-state-success/50" />
           </motion.div>
         )}
       </div>
@@ -558,14 +521,15 @@ function ConnectionLine({ active }: { active: boolean }) {
   );
 }
 
-function StatusBadge({ status }: { status: "correct" | "partial" | "incorrect" }) {
+function StatusBadge({ status }: { status: "correct" | "partial" | "incorrect" | "error" }) {
   const config = {
-    correct: { label: "✓", bg: "bg-emerald-100", text: "text-emerald-700" },
-    partial: { label: "~", bg: "bg-amber-100", text: "text-amber-700" },
-    incorrect: { label: "✗", bg: "bg-red-100", text: "text-red-700" },
+    correct: { label: "✓", bg: "bg-state-success/10", text: "text-state-success" },
+    partial: { label: "~", bg: "bg-state-warning/10", text: "text-state-warning" },
+    incorrect: { label: "✗", bg: "bg-state-danger/10", text: "text-state-danger" },
+    error: { label: "!", bg: "bg-ink/10", text: "text-ink-muted" },
   };
   const c = config[status];
-  
+
   return (
     <span className={`inline-flex items-center justify-center h-4 w-4 rounded text-[10px] font-bold ${c.bg} ${c.text}`}>
       {c.label}

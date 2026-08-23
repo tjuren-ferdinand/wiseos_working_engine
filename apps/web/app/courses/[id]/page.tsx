@@ -33,7 +33,16 @@ export default function CoursePage() {
           items={[{ label: "Kurser", href: "/courses" }, { label: kurs.name }]}
           className="mb-6"
         />
-        <PageHeader eyebrow={kurs.code} title={kurs.name} subtitle={kurs.description} />
+        <PageHeader
+          eyebrow={kurs.code}
+          title={kurs.name}
+          subtitle={kurs.description}
+          action={
+            <Link href={`/classes/new?kursId=${kursId}`} className="btn-primary inline-flex items-center gap-1.5">
+              Skapa klass
+            </Link>
+          }
+        />
 
         {/* Stats — integrated row, not boxed widgets */}
         <div className="mt-8 flex items-center gap-12 border-t border-ink-hairline pt-6">
@@ -65,6 +74,11 @@ export default function CoursePage() {
             icon="graduation-cap"
             title="Inga klasser ännu"
             description={`Skapa en klass för ${kurs.name}.`}
+            action={
+              <Link href={`/classes/new?kursId=${kursId}`} className="btn-primary">
+                Skapa klass
+              </Link>
+            }
           />
         ) : (
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

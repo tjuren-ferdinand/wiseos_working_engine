@@ -73,25 +73,25 @@ export default function LevelAutocomplete({ value, onChange, placeholder = "Ange
           placeholder={placeholder}
         />
         <div className="absolute inset-y-0 right-0 flex items-center pr-3 pointer-events-none">
-          <LineIcon name="chevron-down" className="h-4 w-4 text-slate-400" />
+          <LineIcon name="chevron-down" className="h-4 w-4 text-ink-muted" />
         </div>
       </div>
 
       {isOpen && filteredSuggestions.length > 0 && (
-        <div className="absolute z-10 w-full mt-1 bg-white border border-slate-200 rounded-xl shadow-lg max-h-60 overflow-auto">
+        <div className="absolute z-10 w-full mt-1 bg-paper-raised border border-ink-hairline rounded-xl shadow-lg max-h-60 overflow-auto">
           {filteredSuggestions.map((suggestion, index) => (
             <button
               key={suggestion}
               type="button"
               onClick={() => handleSuggestionClick(suggestion)}
-              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-wise-50 transition-colors ${
+              className={`w-full px-4 py-2.5 text-left text-sm hover:bg-paper-secondary transition-colors ${
                 index === 0 ? "rounded-t-xl" : ""
               } ${index === filteredSuggestions.length - 1 ? "rounded-b-xl" : ""}`}
             >
               <div className="flex items-center justify-between">
-                <span className="text-slate-900">{suggestion}</span>
+                <span className="text-ink">{suggestion}</span>
                 {suggestion === value && (
-                  <LineIcon name="check" className="h-4 w-4 text-wise-600" />
+                  <LineIcon name="check" className="h-4 w-4 text-ink-secondary" />
                 )}
               </div>
             </button>

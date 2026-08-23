@@ -19,12 +19,12 @@ const MAP: Record<Status, { label: string; className: string; live?: boolean }> 
   },
   review: {
     label: "Granskning",
-    className: "text-accent bg-accent/[0.10] border-accent/20",
+    className: "text-ink bg-accent/15 border-accent/30",
     live: true,
   },
   published: {
     label: "Publicerad",
-    className: "text-accent bg-accent/[0.10] border-accent/20",
+    className: "text-ink bg-state-success/10 border-state-success/20",
   },
 };
 

@@ -1,0 +1,1480 @@
+================================================================================
+WISEOS RÄTTNINGSMOTOR – KOMPLETT GENOMGÅNG OCH KODKopia
+================================================================================
+
+Syfte med detta dokument:
+Samla hela kärnan i wiseOS rättningspipeline på ett ställe så att en annan AI
+eller utvecklare snabbt förstår EXAKT hur data flyter från uppladdad elevbild
+till färdigt steg i ReviewWorkbench.
+
+OVERVIEW / FLÖDE
+----------------
+1. Läraren laddar upp/lägger in facit i `GradingWizard.tsx`.
+   - Facit är en lista av `AnswerKeyItem` (från `lib/api.ts`).
+   - Varje item innehåller: question_number, question_text, final_answer,
+     derivation_steps, max_points.
+
+2. När "Starta rättning" klickas:
+   - `GradingWizard.tsx` anropar `actions.startProv(...)` för att skapa provet.
+   - Sedan monteras `BatchGradingPipeline.tsx`.
+
+3. `BatchGradingPipeline.tsx` skickar en multipart POST till backend:
+   - Endpoint: `POST /api/v1/batch/grade`
+   - Parametrar: prov_id, class_grading_parameters, test_specific_parameters,
+     answer_key_json (JSON-array av AnswerKeyItem), files (elev-filer).
+
+4. Backend `routers/batch.py`:
+   - Validerar `answer_key_json` mot Pydantic `schemas.AnswerKeyItem`.
+   - Validerar filstorlek, filtyp etc.
+   - Anropar `services.batch_pipeline.grade_batch(...)`.
+
+5. Backend `services/batch_pipeline.py`:
+   - För varje elev-fil kör den `_grade_one_step` för VARJE item i facit.
+   - `_grade_one_step` anropar `services/vision_ocr.grade_question(...)`.
+
+6. `services/vision_ocr.py` (kärnan i rättningsmotorn):
+   - Skickar originalbilden till Google Gemini (gemini-1.5-pro).
+   - Ber Gemini att:
+     a) Extrahera elevens svar på ENDAST en specifik uppgift.
+     b) Bedöma det mot facit.
+     c) Returnera JSON med: student_answer, status, points_awarded,
+        max_points, feedback, explanation.
+   - Rensar "thinking"-block och JSON-kodblock.
+
+7. `batch_pipeline.py` bygger ett `BatchGradingStep` per uppgift.
+   - Innehåller questionText, studentWork, correctAnswer, baseAnnotation,
+     aiVerdict, pointsMax, pointsBase, scanPages (originalbild som data-URL).
+
+8. Resultatet returneras som JSON. `BatchGradingPipeline.tsx` sparar resultatet
+   i Zustand-store via `lib/store.ts`.
+
+9. `lib/store.ts` mapper `BatchStudentResult` -> `StudentResult`:
+   - `mapBatchToStudentResult` kopierar över questionText, studentWork,
+     correctAnswer, scanPages, poäng och status.
+
+10. `ReviewWorkbench.tsx` ritar ut:
+    - Originalskanningen (`<img src={scanPage} />`).
+    - Frågetext, elevens svar, facit och AI-feedback per uppgift.
+
+VILKA FILER SOM INGÅR I RÄTTNINGSDELEN
+---------------------------------------
+Backend (FastAPI / Python):
+  - apps/api/app/routers/batch.py
+  - apps/api/app/services/batch_pipeline.py
+  - apps/api/app/services/vision_ocr.py
+  - apps/api/app/services/answer_key.py
+  - apps/api/app/services/gemini_client.py
+  - apps/api/app/schemas.py (relevanta delar)
+
+Frontend (Next.js / TypeScript / React / Zustand):
+  - apps/web/lib/api.ts (relevanta typer)
+  - apps/web/lib/store.ts (relevanta mappare)
+  - apps/web/components/GradingWizard.tsx (relevanta delar)
+  - apps/web/components/ReviewWorkbench.tsx (helt)
+
+FÖRKLARINGAR TILL VANLIGA BEGREPP
+----------------------------------
+- AnswerKeyItem: facit-rad. Definierar vad varje fråga heter, vad rätt svar är,
+  hur många poäng den ger.
+- BatchGradingStep: ett rättat steg för en elev och en fråga. Detta blir en
+  rad i Workbench.
+- BatchStudentResult: ett elevresultat med alla steg + originalskanning.
+- StudentResult / Step: frontendens interna representation.
+- aiVerdict: "correct", "partial", "incorrect" eller "error".
+- baseAnnotation: den pedagogiska feedbacken från Gemini.
+- studentWork: det Gemini extraherade att eleven skrev på uppgiften.
+- correctAnswer: facitets slutsvar.
+- questionText: själva frågan.
+- scanPages: data-URL av den uppladdade originalbilden.
+
+VIKTIGT OM GEMINI-ANROPET
+--------------------------
+`vision_ocr.grade_question` skickar bilden tillsammans med:
+  - uppgiftsnummer
+  - question_text (frågan)
+  - correct_answer (facit)
+  - derivation_steps
+  - en tydlig JSON-output-request.
+
+Modellnamnet i `.env.local` är `GEMINI_MODEL=gemini-1.5-pro`. Detta bygger
+URL:en `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-pro:generateContent`.
+Om Google returnerar 404 kan det bero på att modellnamnet är föråldrat,
+att nyckeln inte har tillgång till den, eller att kontot inte har aktiverat
+`generativelanguage`-API:et.
+
+INGEN AI-RESONEMANG TILL ANVÄNDAREN
+------------------------------------
+Alla svar från Gemini går igenom `_clean_text()` som tar bort `<thinking>`-
+block, ordet "thinking" och markdown-fencing. På detta sätt visas bara
+faktisk feedback/data i UI.
+
+INGEN "DEMO-TEXT" I BACKEND
+---------------------------
+Backend genererar inte texten "Elevens lösning är inte inskannad i denna demo".
+Om sådan text dyker upp i UI betyder det att Gemini extraherade den texten från
+den bild som rättades. Kontrollera att det är en riktig elevskanning, inte en
+demo-bild.
+
+================================================================================
+1. BACKEND SCHEMAN (apps/api/app/schemas.py – utdrag)
+================================================================================
+
+class AnswerKeyItem(BaseModel):
+    question_number: str
+    question_text: str = ""
+    final_answer: str
+    derivation_steps: list[str] = []
+    max_points: float = 1.0
+
+class BatchGradingStep(BaseModel):
+    id: str
+    label: str
+    questionText: str = ""
+    studentWork: str
+    correctAnswer: str = ""
+    baseAnnotation: str
+    appliedRules: list[str] = []
+    aiVerdict: str  # "correct" | "partial" | "incorrect" | "error"
+    pointsMax: float
+    pointsBase: float
+    pointsTeacher: float | None = None
+    status: str = "ai_suggested"
+    teacherComment: str | None = None
+    confidence: float = 0.0
+    wolframNotes: str | None = None
+
+class BatchStudentResult(BaseModel):
+    id: str
+    provId: str
+    studentName: str
+    scanPages: list[str] = []  # data-URLs
+    steps: list[BatchGradingStep]
+
+================================================================================
+2. BATCH-ROUTER (apps/api/app/routers/batch.py)
+================================================================================
+"""Batch-rättning: ett anrop, alla elever rättade.
+
+POST /api/v1/batch/grade  (multipart/form-data)
+- prov_id: str (frontend-genererad UUID som även frontend lagrar)
+- class_grading_parameters: str
+- test_specific_parameters: str
+- answer_key_json: str (JSON-serialiserad list[AnswerKeyItem])
+- files: list[UploadFile] – en fil per elev (filnamnet ger studentnamn)
+
+Returnerar BatchGradeResponse där varje BatchStudentResult.steps är
+färdig att stoppas in i frontendens lib/store.ts utan transformation.
+"""
+from __future__ import annotations
+
+import json
+
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from pydantic import ValidationError
+
+from .. import schemas
+from ..services.batch_pipeline import (
+    UploadedFile,
+    active_rules,
+    grade_batch,
+    integration_status,
+)
+
+router = APIRouter(prefix="/api/v1/batch", tags=["batch"])
+
+MAX_FILES = 60
+MAX_BYTES_PER_FILE = 15 * 1024 * 1024  # 15 MB
+ALLOWED_MIMES = {
+    "image/png",
+    "image/jpeg",
+    "image/jpg",
+    "image/webp",
+    "image/heic",
+    "application/pdf",
+}
+
+@router.post("/grade", response_model=schemas.BatchGradeResponse)
+async def batch_grade(
+    prov_id: str = Form(...),
+    class_grading_parameters: str = Form(""),
+    test_specific_parameters: str = Form(""),
+    answer_key_json: str = Form("[]"),
+    files: list[UploadFile] = File(...),
+):
+    # 1. Validera facit-JSON
+    try:
+        raw_items = json.loads(answer_key_json or "[]")
+        answer_key = [schemas.AnswerKeyItem.model_validate(it) for it in raw_items]
+    except (json.JSONDecodeError, ValidationError) as e:
+        raise HTTPException(400, f"answer_key_json är inte giltig: {e!s}") from e
+    if not answer_key:
+        raise HTTPException(400, "Facit saknas. Ladda upp eller ange ett facit innan rättning.")
+
+    # 2. Validera filer
+    if not files:
+        raise HTTPException(400, "Minst en fil måste laddas upp")
+    if len(files) > MAX_FILES:
+        raise HTTPException(413, f"Max {MAX_FILES} filer per batch")
+
+    uploads: list[UploadedFile] = []
+    for f in files:
+        if f.content_type and f.content_type not in ALLOWED_MIMES:
+            raise HTTPException(415, f"Filtyp {f.content_type} stöds inte ({f.filename})")
+        data = await f.read()
+        if len(data) > MAX_BYTES_PER_FILE:
+            raise HTTPException(413, f"{f.filename} är större än 15 MB")
+        uploads.append(
+            UploadedFile(
+                filename=f.filename or "okand.bin",
+                content=data,
+                content_type=f.content_type or "application/octet-stream",
+            )
+        )
+
+    # 3. Logga mottaget facit och kör pipelinen
+    print(f"RECEIVED_ANSWER_KEY: {answer_key}", flush=True)
+    results = await grade_batch(
+        prov_id=prov_id,
+        answer_key=answer_key,
+        class_grading_parameters=class_grading_parameters,
+        test_specific_parameters=test_specific_parameters,
+        files=uploads,
+    )
+
+    combined_params = f"{class_grading_parameters}\n{test_specific_parameters}"
+
+    return schemas.BatchGradeResponse(
+        provId=prov_id,
+        results=results,
+        activeRules=active_rules(combined_params),
+        totalStudents=len(results),
+        totalSteps=sum(len(r.steps) for r in results),
+        integrations=integration_status(),
+    )
+
+================================================================================
+3. BATCH PIPELINE (apps/api/app/services/batch_pipeline.py)
+================================================================================
+"""Batch-rättningspipeline.
+
+Tar emot ett facit, klassparametrar och en lista uppladdade elev-filer.
+Kör per fil:
+1. Per facit-uppgift anropar vision_ocr.grade_question med originalbilden.
+2. Bygger BatchGradingStep.
+3. Returnerar BatchStudentResult med originalscanningen som data-URL.
+"""
+from __future__ import annotations
+
+import asyncio
+import base64
+import re
+import uuid
+from dataclasses import dataclass
+
+from ..config import settings
+from ..schemas import AnswerKeyItem, BatchGradingStep, BatchStudentResult
+from . import vision_ocr
+
+RULE_DEFS: dict[str, dict] = {
+    "unit_penalty": {
+        "match": re.compile(r"enhet", re.IGNORECASE),
+        "penalty": 0.25,
+    },
+    "sigfig_strict": {
+        "match": re.compile(r"gällande siffror|sig\.?fig", re.IGNORECASE),
+        "penalty": 0.0,
+    },
+}
+
+def active_rules(params_text: str) -> list[str]:
+    """Vilka regler matchas av kombinerad parametertext."""
+    return [name for name, cfg in RULE_DEFS.items() if cfg["match"].search(params_text)]
+
+def derive_student_name(filename: str) -> str:
+    base = re.sub(r"\.[^.]+$", "", filename)
+    head = re.split(r"\s*[-–]\s*", base, maxsplit=1)[0]
+    parts = re.findall(r"[A-Za-zÅÄÖåäö]+", head)
+    if not parts:
+        return "Okänd elev"
+    return " ".join(p.capitalize() for p in parts[:3])
+
+@dataclass
+class UploadedFile:
+    filename: str
+    content: bytes
+    content_type: str
+
+async def _grade_one_step(*, item: AnswerKeyItem, upload: UploadedFile) -> BatchGradingStep:
+    points_max = float(item.max_points or max(1, len(item.derivation_steps) or 1))
+
+    try:
+        result = await vision_ocr.grade_question(
+            image_bytes=upload.content,
+            mime_type=upload.content_type or "image/png",
+            item=item,
+        )
+
+        verdict = result.get("status", "incorrect")
+        if verdict not in ("correct", "partial", "incorrect"):
+            verdict = "incorrect"
+
+        points_awarded = float(result.get("points_awarded", 0.0))
+        points_awarded = round(max(0.0, min(points_awarded, points_max)), 2)
+
+        feedback = result.get("feedback") or result.get("explanation") or ""
+
+        return BatchGradingStep(
+            id=str(uuid.uuid4()),
+            label=f"Uppgift {item.question_number}",
+            questionText=result.get("question_text") or item.question_text or f"Uppgift {item.question_number}",
+            studentWork=str(result.get("student_answer", "")).strip()[:400],
+            correctAnswer=item.final_answer,
+            baseAnnotation=feedback.strip(),
+            appliedRules=[],
+            aiVerdict=verdict,
+            pointsMax=points_max,
+            pointsBase=points_awarded,
+            pointsTeacher=None,
+            status="ai_suggested",
+            confidence=0.95 if verdict == "correct" else 0.5 if verdict == "partial" else 0.1,
+            wolframNotes=result.get("explanation", ""),
+        )
+    except Exception as e:
+        return BatchGradingStep(
+            id=str(uuid.uuid4()),
+            label=f"Uppgift {item.question_number} · Fel",
+            questionText=item.question_text or f"Uppgift {item.question_number}",
+            studentWork="",
+            correctAnswer=item.final_answer,
+            baseAnnotation=f"Rättningsfel: {e!s}",
+            appliedRules=[],
+            aiVerdict="error",
+            pointsMax=points_max,
+            pointsBase=0.0,
+            pointsTeacher=None,
+            status="ai_suggested",
+            confidence=0.0,
+            wolframNotes=str(e),
+        )
+
+async def grade_batch(
+    *,
+    prov_id: str,
+    answer_key: list[AnswerKeyItem],
+    class_grading_parameters: str,
+    test_specific_parameters: str,
+    files: list[UploadedFile],
+) -> list[BatchStudentResult]:
+    """Kör hela pipelinen för en uppsättning elever (en fil per elev)."""
+    semaphore = asyncio.Semaphore(2)
+
+    async def _process_one(upload: UploadedFile) -> BatchStudentResult:
+        async with semaphore:
+            step_tasks = [
+                _grade_one_step(item=item, upload=upload)
+                for item in answer_key
+            ]
+            steps = await asyncio.gather(*step_tasks)
+
+            # Bevara originalfilen som data-URL så frontenden kan visa den.
+            encoded = base64.b64encode(upload.content).decode("ascii")
+            mime = upload.content_type or "application/octet-stream"
+            scan_url = f"data:{mime};base64,{encoded}"
+
+            return BatchStudentResult(
+                id=str(uuid.uuid4()),
+                provId=prov_id,
+                studentName=derive_student_name(upload.filename),
+                scanPages=[scan_url],
+                steps=list(steps),
+            )
+
+    results = await asyncio.gather(*[_process_one(u) for u in files])
+    return list(results)
+
+def integration_status() -> dict[str, bool | str]:
+    mathpix = bool(settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY)
+    ocr_provider = vision_ocr.provider_name()
+    return {
+        "wolfram": bool(settings.WOLFRAM_APP_ID or settings.WOLFRAM_API_URL),
+        "gemini": bool(settings.GEMINI_API_KEY),
+        "groq": bool(settings.GROQ_API_KEY),
+        "anthropic": bool(settings.ANTHROPIC_API_KEY),
+        "mathpix": mathpix,
+        "ocr": ocr_provider != "mock",
+        "ocrProvider": ocr_provider,
+    }
+
+================================================================================
+4. VISION OCR / PER-FRÅGA-GRADERING (apps/api/app/services/vision_ocr.py)
+================================================================================
+"""Gratis vision-OCR-providers som tillfälligt ersätter Mathpix.
+
+Providers provas i ordning tills en svarar:
+1. Groq Vision
+2. Google Gemini
+3. OpenRouter
+
+För RÄTTNING används endast Gemini via grade_question().
+"""
+from __future__ import annotations
+
+import base64
+import json
+import re
+
+import httpx
+
+from ..config import settings
+from ..schemas import AnswerKeyItem
+
+PROMPT = (
+    "Du är en OCR-motor för handskrivna prov i matematik och fysik. "
+    "Läs av allt som eleven har skrivit på bilden, exakt som det står. "
+    "Behåll uppgiftsnummer, mellanled, enheter och slutsvar. "
+    "Svara enbart med den avlästa texten, utan kommentarer."
+)
+
+IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
+
+_GEMINI_TIMEOUT_SECONDS = 60.0
+
+def _normalize_mime(mime_type: str) -> str:
+    mime = mime_type.split(";")[0].strip().lower()
+    return "image/jpeg" if mime == "image/jpg" else mime
+
+def is_image(mime_type: str) -> bool:
+    return _normalize_mime(mime_type) in IMAGE_MIME_TYPES
+
+def available() -> bool:
+    return bool(settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENROUTER_API_KEY)
+
+def provider_name() -> str:
+    if settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY:
+        return "mathpix"
+    if settings.GEMINI_API_KEY:
+        return "gemini"
+    if settings.OPENROUTER_API_KEY:
+        return "openrouter"
+    if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL:
+        return "groq"
+    return "mock"
+
+async def _openai_style(
+    url: str, api_key: str, model: str, data_url: str, prompt: str
+) -> str:
+    async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
+        response = await client.post(
+            url,
+            headers={"Authorization": f"Bearer {api_key}"},
+            json={
+                "model": model,
+                "temperature": 0.0,
+                "max_tokens": 1200,
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": [
+                            {"type": "text", "text": prompt},
+                            {"type": "image_url", "image_url": {"url": data_url}},
+                        ],
+                    }
+                ],
+            },
+        )
+        response.raise_for_status()
+        return (response.json()["choices"][0]["message"]["content"] or "").strip()
+
+def _clean_text(text: str) -> str:
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
+    text = re.sub(r"\bthinking\b.*?(?=\b[^\s])", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = text.replace("```json", "").replace("```", "")
+    return text.strip()
+
+async def _gemini(
+    image_bytes: bytes,
+    mime_type: str,
+    prompt: str,
+    *,
+    system_instruction: str = "",
+    json_mode: bool = False,
+) -> str:
+    url = (
+        f"https://generativelanguage.googleapis.com/v1beta/models/"
+        f"{settings.GEMINI_MODEL}:generateContent"
+    )
+
+    generation_config: dict = {
+        "temperature": 0.0,
+        "maxOutputTokens": 3000,
+    }
+    if json_mode:
+        generation_config["responseMimeType"] = "application/json"
+
+    contents: list[dict] = []
+    if system_instruction:
+        contents.append({"role": "user", "parts": [{"text": system_instruction}]})
+    contents.append({
+        "role": "user",
+        "parts": [
+            {"text": prompt},
+            {
+                "inline_data": {
+                    "mime_type": _normalize_mime(mime_type),
+                    "data": base64.b64encode(image_bytes).decode("ascii"),
+                }
+            },
+        ],
+    })
+
+    async with httpx.AsyncClient(timeout=_GEMINI_TIMEOUT_SECONDS) as client:
+        response = await client.post(
+            url,
+            headers={"x-goog-api-key": settings.GEMINI_API_KEY},
+            json={
+                "contents": contents,
+                "generationConfig": generation_config,
+            },
+        )
+        response.raise_for_status()
+        candidates = response.json().get("candidates") or []
+        if not candidates:
+            return ""
+        parts = candidates[0].get("content", {}).get("parts", [])
+        text = "".join(p.get("text", "") for p in parts).strip()
+        return _clean_text(text)
+
+async def read_image(image_bytes: bytes, mime_type: str, prompt: str = PROMPT) -> str | None:
+    if not is_image(mime_type):
+        return None
+
+    data_url = f"data:{_normalize_mime(mime_type)};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+    errors = []
+
+    if settings.GEMINI_API_KEY:
+        try:
+            return await _gemini(image_bytes, mime_type, prompt)
+        except Exception as e:
+            errors.append(f"Gemini Error: {str(e)}")
+
+    if settings.OPENROUTER_API_KEY:
+        try:
+            return await _openai_style("https://openrouter.ai/api/v1/chat/completions", settings.OPENROUTER_API_KEY, settings.OPENROUTER_VISION_MODEL, data_url, prompt)
+        except Exception as e:
+            errors.append(f"OpenRouter Error: {str(e)}")
+
+    if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL:
+        try:
+            return await _openai_style("https://api.groq.com/openai/v1/chat/completions", settings.GROQ_API_KEY, settings.GROQ_VISION_MODEL, data_url, prompt)
+        except Exception as e:
+            errors.append(f"Groq Error: {str(e)}")
+
+    if errors:
+        raise RuntimeError(" | ".join(errors))
+
+    raise RuntimeError("Ingen Vision AI-nyckel är konfigurerad i .env-filen.")
+
+async def grade_question(image_bytes: bytes, mime_type: str, item: AnswerKeyItem) -> dict:
+    """Extraherar elevens svar för EN uppgift och bedömer det utifrån facit.
+
+    Returnerar ett dict med:
+      - student_answer: str
+      - status: "correct" | "partial" | "incorrect"
+      - points_awarded: float
+      - max_points: float
+      - feedback: str
+      - explanation: str
+    """
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY saknas – kan inte rätta med visuell AI.")
+
+    max_points = float(item.max_points or 1.0)
+    question_text = (item.question_text or f"uppgift {item.question_number}").strip()
+    correct_answer = (item.final_answer or "").strip()
+    derivation_steps = "\n".join(f"- {s}" for s in (item.derivation_steps or [])) or "(inga)"
+
+    system_instruction = (
+        "Du är en noggrann provrättare i wiseOS. "
+        "Titta på den uppladdade bilden och svara ENDAST med ett JSON-objekt. "
+        "Använd aldrig inre resonemang, aldrig ord som 'till_gemini', 'thinking' eller 'The user wants...'. "
+        "Inga kodblock, inga förklaringar utanför JSON."
+    )
+
+    prompt = (
+        f"Bilden visar en elevskannad provsida. Fokusera enbart på UPPGIFT {item.question_number}.\n\n"
+        f"Uppgiftstext: {question_text}\n"
+        f"Förväntat svar (facit): {correct_answer}\n"
+        f"Lösningssteg som ger full poäng:\n{derivation_steps}\n\n"
+        f"Gör följande:\n"
+        f"1. Extrahera endast elevens handskrivna svar på denna uppgift, exakt som det står.\n"
+        f"2. Jämför det med facit och bedöm om det är korrekt, delvis korrekt eller felaktigt.\n"
+        f"3. Ge kort, konstruktiv feedback riktad till eleven på svenska (max 120 ord).\n\n"
+        f"Returnera exakt detta JSON-objekt, inget annat:\n"
+        f'{{"student_answer": "...", "status": "correct|partial|incorrect", "points_awarded": 0.0, "max_points": {max_points}, "feedback": "...", "explanation": "..."}}'
+    )
+
+    raw = await _gemini(
+        image_bytes,
+        mime_type,
+        prompt,
+        system_instruction=system_instruction,
+        json_mode=True,
+    )
+    if not raw:
+        raise RuntimeError("Gemini gav tomt svar för uppgiften.")
+
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError as e:
+        start, end = raw.find("{"), raw.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            data = json.loads(raw[start : end + 1])
+        else:
+            raise RuntimeError(f"Kunde inte tolka Gemini-svaret som JSON: {e}") from e
+
+    if not isinstance(data, dict):
+        raise RuntimeError("Gemini-svaret är inte ett JSON-objekt.")
+
+    # Rensa textfält på eventuella läckta resonemang
+    for key in ("student_answer", "feedback", "explanation"):
+        if key in data and isinstance(data[key], str):
+            data[key] = _clean_text(data[key])
+
+    # Fyll i garanterade fält
+    data.setdefault("student_answer", "")
+    data.setdefault("status", "incorrect")
+    data.setdefault("points_awarded", 0.0)
+    data.setdefault("max_points", max_points)
+    data.setdefault("feedback", "")
+    data.setdefault("explanation", "")
+    data.setdefault("question_text", question_text)
+
+    return data
+
+================================================================================
+5. FACIT-EXTRAHERING (apps/api/app/services/answer_key.py)
+================================================================================
+"""Answer-key extraction for uploaded facit documents."""
+from __future__ import annotations
+
+import base64
+import json
+
+from ..config import settings
+from ..schemas import AnswerKeyItem
+from . import groq_client, vision_ocr
+
+SYSTEM_PROMPT = """Du är facit-extraheraren i wiseOS. Analysera det uppladdade facitdokumentet och extrahera varje uppgift som ett JSON-objekt. För varje uppgift, fång:
+1. Nummer (question_number).
+2. Själva frågan/uppdraget (question_text) – ordagrant eller en kort sammanfattning om texten är lång.
+3. Förväntat korrekt svar (final_answer).
+4. Eventuella lösningssteg (derivation_steps).
+5. Maxpoäng (max_points) – 1.0 om inget poängantal syns.
+
+Svara ENDAST med en giltig JSON-array. Inga förklaringar, inga kodblock, ingen annan text.
+
+[
+  {
+    "question_number": "1",
+    "question_text": "Hur många meter är 1 km?",
+    "final_answer": "1000 m",
+    "derivation_steps": [],
+    "max_points": 1
+  },
+  {
+    "question_number": "2",
+    "question_text": "Sveriges huvudstad?",
+    "final_answer": "Stockholm",
+    "derivation_steps": [],
+    "max_points": 1
+  }
+]"""
+
+def _mock_answer_key(size: int) -> list[AnswerKeyItem]:
+    """Vi använder aldrig ett statiskt demo-facit."""
+    raise RuntimeError("Inget facit tillgängligt. Kontrollera API-nycklar eller uppladdat facit.")
+
+def _extract_json_array(text: str) -> list[dict]:
+    raw = text.strip()
+    try:
+        data = json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("[")
+        end = raw.rfind("]")
+        if start == -1 or end == -1 or end <= start:
+            raise ValueError("Modellen returnerade ingen JSON-array")
+        data = json.loads(raw[start : end + 1])
+
+    if isinstance(data, dict):
+        for key in ("items", "answer_key", "questions", "facit"):
+            if isinstance(data.get(key), list):
+                data = data[key]
+                break
+
+    if not isinstance(data, list):
+        raise ValueError("JSON-svaret innehöll ingen lista med uppgifter")
+    return data
+
+GENERATE_PROMPT = (
+    "Du är wiseOS facitmotor för svenska prov i olika ämnen. "
+    "Konstruera ett rimligt facit utifrån provets beskrivning. "
+    "Varje uppgift ska innehålla frågan, det förväntade svaret, eventuella lösningssteg och maxpoäng. "
+    'Svara enbart med JSON på formen '
+    '{"items": [{"question_number": "1", "question_text": "Frågan", "final_answer": "Svar", '
+    '"derivation_steps": [], "max_points": 1}]}'
+)
+
+def _parse_items(text: str) -> list[AnswerKeyItem]:
+    return [AnswerKeyItem.model_validate(item) for item in _extract_json_array(text)]
+
+async def _extract_with_vision(file_bytes: bytes, mime_type: str) -> list[AnswerKeyItem] | None:
+    """Läser facit från bild via den gratis vision-providern som är konfigurerad."""
+    try:
+        text = await vision_ocr.read_image(
+            file_bytes,
+            mime_type,
+            prompt=f"{SYSTEM_PROMPT}\n\nExtrahera facit från den här bilden.",
+        )
+        if not text:
+            return None
+        items = _parse_items(text)
+        return items or None
+    except Exception:
+        return None
+
+async def generate_answer_key(description: str, question_count: int = 4) -> list[AnswerKeyItem]:
+    """Skapar ett facit från en textbeskrivning när läraren inte laddat upp något."""
+    if not groq_client.groq_enabled():
+        return _mock_answer_key(question_count)
+
+    prompt = (
+        f"Skapa ett facit med {question_count} uppgifter för följande prov.\n\n"
+        f"Provbeskrivning: {description.strip() or 'Fysik 1, blandade uppgifter.'}"
+    )
+    try:
+        text = await groq_client.complete_text(
+            GENERATE_PROMPT,
+            prompt,
+            max_tokens=1400,
+            temperature=0.3,
+            json_mode=True,
+        )
+        items = _parse_items(text)
+        return items or _mock_answer_key(question_count)
+    except Exception:
+        return _mock_answer_key(question_count)
+
+async def extract_answer_key(file_bytes: bytes, mime_type: str) -> list[AnswerKeyItem]:
+    if not settings.ANTHROPIC_API_KEY:
+        items = await _extract_with_vision(file_bytes, mime_type)
+        return items if items else _mock_answer_key(len(file_bytes))
+
+    try:
+        from anthropic import AsyncAnthropic
+
+        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+        encoded = base64.b64encode(file_bytes).decode("ascii")
+        if mime_type == "application/pdf":
+            media_block = {
+                "type": "document",
+                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
+            }
+        else:
+            media_block = {
+                "type": "image",
+                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
+            }
+
+        msg = await client.messages.create(
+            model=settings.ANTHROPIC_MODEL,
+            max_tokens=4000,
+            system=SYSTEM_PROMPT,
+            messages=[{"role": "user", "content": [media_block, {"type": "text", "text": "Extract this answer key."}]}],
+        )
+        text = "\n".join(block.text for block in msg.content if getattr(block, "type", None) == "text")
+        return _parse_items(text)
+    except Exception:
+        items = await _extract_with_vision(file_bytes, mime_type)
+        return items if items else _mock_answer_key(len(file_bytes))
+
+================================================================================
+6. GEMINI TEXTKLIENT (apps/api/app/services/gemini_client.py)
+================================================================================
+"""Gemini textgenerering – tillfällig provider tills Claude aktiveras.
+
+Speglar groq_client.complete_text() signaturmässigt så att feedback.py och
+routers/claude.py kan byta provider utan att ändra anropskod.
+"""
+from __future__ import annotations
+
+import asyncio
+import json
+import re
+
+import httpx
+
+from ..config import settings
+
+GENERATE_URL = (
+    "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
+)
+
+_MAX_ATTEMPTS = 2
+_RETRY_STATUS = {429, 500, 502, 503, 504}
+_GEMINI_TIMEOUT_SECONDS = 60.0
+
+def gemini_enabled() -> bool:
+    return bool(settings.GEMINI_API_KEY)
+
+async def complete_text(
+    system_prompt: str,
+    user_message: str,
+    *,
+    max_tokens: int = 1200,
+    temperature: float = 0.2,
+    json_mode: bool = False,
+) -> str:
+    if not settings.GEMINI_API_KEY:
+        raise RuntimeError("GEMINI_API_KEY är inte konfigurerad")
+
+    url = GENERATE_URL.format(model=settings.GEMINI_MODEL)
+    generation_config: dict = {
+        "temperature": temperature,
+        "maxOutputTokens": max_tokens,
+    }
+    if json_mode:
+        generation_config["responseMimeType"] = "application/json"
+
+    payload = {
+        "systemInstruction": {"parts": [{"text": system_prompt}]},
+        "contents": [{"role": "user", "parts": [{"text": user_message}]}],
+        "generationConfig": generation_config,
+    }
+
+    last_error: Exception | None = None
+    for attempt in range(_MAX_ATTEMPTS):
+        try:
+            async with httpx.AsyncClient(timeout=_GEMINI_TIMEOUT_SECONDS) as client:
+                response = await client.post(
+                    url,
+                    headers={"x-goog-api-key": settings.GEMINI_API_KEY, "Content-Type": "application/json"},
+                    json=payload,
+                )
+            if response.status_code in _RETRY_STATUS and attempt < _MAX_ATTEMPTS - 1:
+                await asyncio.sleep(1.5 * (attempt + 1))
+                continue
+            response.raise_for_status()
+            data = response.json()
+            break
+        except (httpx.TimeoutException, httpx.TransportError) as e:
+            last_error = e
+            if attempt < _MAX_ATTEMPTS - 1:
+                await asyncio.sleep(1.5 * (attempt + 1))
+                continue
+            raise
+    else:
+        raise last_error or RuntimeError("Gemini: alla försök misslyckades")
+
+    candidates = data.get("candidates") or []
+    if not candidates:
+        block_reason = data.get("promptFeedback", {}).get("blockReason")
+        raise RuntimeError(f"Gemini gav inget svar (blockReason={block_reason})")
+
+    parts = candidates[0].get("content", {}).get("parts", [])
+    text = "".join(p.get("text", "") for p in parts).strip()
+
+    text = re.sub(r"<thinking>.*?</thinking>", "", text, flags=re.DOTALL)
+    text = re.sub(r"\bthinking\b.*?(?=\b[^\s])", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = text.strip()
+
+    if not text:
+        raise RuntimeError("Gemini gav ett tomt svar")
+    return text
+
+async def complete_json(
+    system_prompt: str,
+    user_message: str,
+    *,
+    max_tokens: int = 800,
+    temperature: float = 0.2,
+) -> dict:
+    text = await complete_text(
+        system_prompt, user_message, max_tokens=max_tokens, temperature=temperature, json_mode=True
+    )
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        start, end = text.find("{"), text.rfind("}")
+        if start != -1 and end != -1 and end > start:
+            return json.loads(text[start : end + 1])
+        raise
+
+================================================================================
+7. FRONTEND-TYPER (apps/web/lib/api.ts – utdrag)
+================================================================================
+export type AnswerKeyItem = {
+  question_number: string;
+  question_text: string;
+  final_answer: string;
+  derivation_steps: string[];
+  max_points: number;
+};
+
+export type BatchGradingStep = {
+  id: string;
+  label: string;
+  questionText: string;
+  studentWork: string;
+  correctAnswer: string;
+  baseAnnotation: string;
+  appliedRules: string[];
+  aiVerdict: "correct" | "partial" | "incorrect" | "error";
+  pointsMax: number;
+  pointsBase: number;
+  pointsTeacher: number | null;
+  status: string;
+  teacherComment?: string | null;
+  confidence: number;
+  wolframNotes: string | null;
+};
+
+export type BatchStudentResult = {
+  id: string;
+  provId: string;
+  studentName: string;
+  scanPages: string[];
+  steps: BatchGradingStep[];
+};
+
+export type BatchGradeResponse = {
+  provId: string;
+  results: BatchStudentResult[];
+  activeRules: string[];
+  totalStudents: number;
+  totalSteps: number;
+  integrations: Record<string, boolean | string>;
+};
+
+export type BatchGradeRequest = {
+  provId: string;
+  classGradingParameters: string;
+  testSpecificParameters: string;
+  answerKey: AnswerKeyItem[];
+  files: File[];
+};
+
+================================================================================
+8. FRONTEND STORE MAPPING (apps/web/lib/store.ts – utdrag)
+================================================================================
+function mapBatchToStudentResult(
+  b: BatchStudentResult,
+  studentId: string,
+  identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id',
+): StudentResult {
+  const steps: Step[] = b.steps.map((bs) => {
+    const earned = bs.pointsTeacher ?? bs.pointsBase;
+    const qnMatch = bs.label.match(/Uppgift ([^·]+)/);
+    const questionId = (qnMatch?.[1] ?? bs.id).trim();
+    return {
+      id: bs.id,
+      questionId,
+      label: bs.label,
+      questionText: bs.questionText,
+      maxPoints: bs.pointsMax,
+      earnedPoints: earned,
+      status: verdictToStatus(bs.aiVerdict),
+      feedback: bs.baseAnnotation,
+      studentWork: bs.studentWork,
+      correctAnswer: bs.correctAnswer,
+    };
+  });
+  const totalScore = steps.reduce((s, x) => s + x.earnedPoints, 0);
+  const maxScore = steps.reduce((s, x) => s + x.maxPoints, 0);
+  const percentage = maxScore > 0 ? Math.round((totalScore / maxScore) * 100) : 0;
+  const now = new Date().toISOString();
+  return {
+    id: b.id,
+    provId: b.provId,
+    studentId,
+    studentName: b.studentName,
+    identificationMethod,
+    identificationConfidence: 0.95,
+    steps,
+    totalScore,
+    maxScore,
+    percentage,
+    scannedAt: now,
+    gradedAt: now,
+    scanPages: b.scanPages,
+  };
+}
+
+function mapBackendResult(r: import("@/lib/api").BackendGradingResult): StudentResult {
+  return {
+    id: r.id,
+    provId: r.provId,
+    studentId: r.studentId ?? `unknown-${r.id}`,
+    studentName: r.studentName,
+    identificationMethod: r.identificationMethod as StudentResult["identificationMethod"],
+    identificationConfidence: r.identificationConfidence,
+    steps: r.steps.map((s) => ({
+      id: s.id,
+      questionId: s.questionId ?? s.id,
+      label: s.label,
+      questionText: s.questionText ?? undefined,
+      maxPoints: s.maxPoints,
+      earnedPoints: s.earnedPoints,
+      status: s.status as Step["status"],
+      feedback: s.feedback ?? undefined,
+      studentWork: s.studentWork ?? undefined,
+      correctAnswer: s.correctAnswer ?? undefined,
+    })),
+    totalScore: r.totalScore,
+    maxScore: r.maxScore,
+    percentage: r.percentage,
+    grade: r.grade ?? undefined,
+    feedback: r.feedback ?? undefined,
+    scannedAt: r.scannedAt,
+    gradedAt: r.gradedAt ?? undefined,
+    scanPages: r.scanPages ?? [],
+  };
+}
+
+================================================================================
+9. GRADING WIZARD – FACIT-PARSING (apps/web/components/GradingWizard.tsx)
+================================================================================
+const parseManualFacit = (text: string): AnswerKeyItem[] => {
+  const items: AnswerKeyItem[] = [];
+  const re = /(?:^|\n)\s*(\d+[a-zA-Z]?)[\.:\)\-]\s*([^\n]*(?:\n(?!\s*\d+[a-zA-Z]?[\.:\)\-]\s*)[^\n]*)*)/g;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    const final = m[2].replace(/\n+/g, " ").trim();
+    if (final) items.push({ question_number: m[1], question_text: "", final_answer: final, derivation_steps: [], max_points: 1 });
+  }
+  if (items.length > 0) return items;
+  return text
+    .split(/\n{2,}/)
+    .map((block, i) => ({
+      question_number: String(i + 1),
+      question_text: "",
+      final_answer: block.trim(),
+      derivation_steps: [],
+      max_points: 1,
+    }))
+    .filter((it) => it.final_answer.length > 0);
+};
+
+const effectiveAnswerKey: AnswerKeyItem[] = useMemo(
+  () => (answerKeyItems.length > 0 ? answerKeyItems : parseManualFacit(facit)),
+  [answerKeyItems, facit],
+);
+
+const handleStart = async () => {
+  setStartError(null);
+  setStarting(true);
+  try {
+    let finalAnswerKey: AnswerKeyItem[] = effectiveAnswerKey;
+
+    // Generera facit i AI-läget innan vi går vidare.
+    if (facitMode === 'ai_generated') {
+      const generated = await api.answerKeyGenerate(aiDescription, aiQuestionCount);
+      setAnswerKeyItems(generated);
+      finalAnswerKey = generated;
+    }
+
+    if (finalAnswerKey.length === 0) {
+      throw new Error("Du måste ange, ladda upp eller generera ett facit först.");
+    }
+
+    const activeCustomParams = facitMode === 'ai_generated' ? aiDescription : customParams;
+
+    // Bygg frågelista från facit så att ReviewWorkbench vet rätt antal uppgifter.
+    const questions = finalAnswerKey.map((item) => ({
+      id: crypto.randomUUID(),
+      number: String(item.question_number),
+      maxPoints: Math.max(1, item.max_points ?? item.derivation_steps?.length ?? 1),
+    }));
+
+    // Skapa provet först
+    const prov = await actions.startProv({
+      klassId: klass.id,
+      title: title || "Prov utan namn",
+      date,
+      maxPoints,
+      facitMode,
+      facit: facitMode === 'uploaded' ? facit : undefined,
+      customParams: activeCustomParams,
+      questions,
+    });
+
+    setCreatedProvId(prov.id);
+
+    // Visa batch grading pipeline för hela klassen
+    setShowBatchPipeline(true);
+  } catch (e) {
+    const message = (e as Error).message;
+    setStartError(message === "Failed to fetch" ? "Kunde inte nå backend-servern." : message);
+  } finally {
+    setStarting(false);
+  }
+};
+
+================================================================================
+10. REVIEW WORKBENCH (apps/web/components/ReviewWorkbench.tsx)
+================================================================================
+"use client";
+
+import { useState } from "react";
+import { useStore, actions, type Prov, type StudentResult, type Klass, type Question } from "@/lib/store";
+import Surface from "./ui/Surface";
+import EmptyState from "./ui/EmptyState";
+import StatusBadge from "./ui/StatusBadge";
+import LineIcon from "./LineIcon";
+import PublishResultsModal from "./PublishResultsModal";
+
+export default function ReviewWorkbench() {
+  const prov = useStore((s) => s.prov);
+  const results = useStore((s) => s.results);
+  const klasser = useStore((s) => s.klasser);
+  const [selectedProv, setSelectedProv] = useState<Prov | null>(null);
+  const [showPublish, setShowPublish] = useState(false);
+  const [editingStep, setEditingStep] = useState<{ resultId: string; stepId: string } | null>(null);
+  const [editPoints, setEditPoints] = useState<string>("");
+
+  const completedProv = prov.filter((p) => p.status === "review" || p.status === "published");
+
+  const getKlass = (provId: string): Klass | undefined => {
+    const p = prov.find((pr) => pr.id === provId);
+    return p ? klasser.find((k) => k.id === p.klassId) : undefined;
+  };
+
+  const getProvResults = (provId: string): StudentResult[] =>
+    results.filter((r) => r.provId === provId);
+
+  const startEditStep = (result: StudentResult, stepId: string) => {
+    const step = result.steps.find((s) => s.id === stepId);
+    if (!step) return;
+    setEditingStep({ resultId: result.id, stepId });
+    setEditPoints(String(step.earnedPoints));
+  };
+
+  const saveStep = () => {
+    if (!editingStep) return;
+    const points = Number(editPoints);
+    if (Number.isNaN(points) || points < 0) return;
+    actions.updateStep(editingStep.resultId, editingStep.stepId, { earnedPoints: points });
+    setEditingStep(null);
+  };
+
+  if (completedProv.length === 0) {
+    return (
+      <EmptyState
+        icon="edit"
+        title="Inga rättade prov att granska"
+        description="När ett prov har rättats dyker det upp här för granskning och publicering."
+      />
+    );
+  }
+
+  return (
+    <div className="space-y-8">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {completedProv.map((p) => {
+          const klass = getKlass(p.id);
+          const provResults = getProvResults(p.id);
+          const published = p.status === "published";
+
+          return (
+            <Surface
+              key={p.id}
+              onClick={() => setSelectedProv(p)}
+              interactive
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-[15px] font-medium text-ink">{p.title}</h3>
+                  <p className="mt-0.5 text-[13px] text-ink-secondary">{klass?.name}</p>
+                </div>
+                <StatusBadge status={published ? "published" : "review"} />
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-[13px] text-ink-muted">
+                <LineIcon name="users" className="h-3.5 w-3.5" />
+                {provResults.length} elever
+              </div>
+            </Surface>
+          );
+        })}
+      </div>
+
+      {selectedProv && (
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-[20px] font-medium tracking-[-0.01em] text-ink">
+                {selectedProv.title}
+              </h3>
+              <p className="mt-1 text-[13.5px] text-ink-secondary">
+                {getProvResults(selectedProv.id).length} elever ·{" "}
+                {selectedProv.status === "published" ? "publicerat" : "redo för granskning"}
+              </p>
+            </div>
+            {selectedProv.status === "review" && (
+              <button onClick={() => setShowPublish(true)} className="btn-primary">
+                <LineIcon name="check" className="h-4 w-4" />
+                Publicera resultat
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            {(() => {
+              const provResults = getProvResults(selectedProv.id);
+              const questions = deriveQuestions(provResults);
+              return provResults.map((result) => (
+                <ResultCard
+                  key={result.id}
+                  result={result}
+                  questions={questions}
+                  klass={getKlass(selectedProv.id)}
+                  editingStep={editingStep}
+                  editPoints={editPoints}
+                  onEditStep={startEditStep}
+                  onPointsChange={setEditPoints}
+                  onSave={saveStep}
+                  onCancel={() => setEditingStep(null)}
+                />
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+
+      {selectedProv && (
+        <PublishResultsModal
+          isOpen={showPublish}
+          onClose={() => setShowPublish(false)}
+          prov={selectedProv}
+          results={getProvResults(selectedProv.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function deriveQuestions(results: StudentResult[]): Question[] {
+  const seen = new Map<string, Question>();
+  for (const result of results) {
+    for (const step of result.steps) {
+      if (!seen.has(step.questionId)) {
+        seen.set(step.questionId, {
+          id: `q-${step.questionId}`,
+          number: step.questionId,
+          maxPoints: step.maxPoints,
+        });
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
+function ResultCard({
+  result,
+  questions,
+  klass,
+  editingStep,
+  editPoints,
+  onEditStep,
+  onPointsChange,
+  onSave,
+  onCancel,
+}: {
+  result: StudentResult;
+  questions: Question[];
+  klass?: Klass;
+  editingStep: { resultId: string; stepId: string } | null;
+  editPoints: string;
+  onEditStep: (result: StudentResult, stepId: string) => void;
+  onPointsChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+}) {
+  const isImage = (url: string) => /^data:image\/(png|jpeg|jpg|webp|gif);/.test(url);
+  const scanPage = result.scanPages?.[0];
+
+  return (
+    <Surface padding="p-5">
+      <div className="flex items-center gap-4">
+        <div className="h-10 w-10 rounded-[12px] bg-ink/[0.04] border border-ink-hairline grid place-items-center text-[15px] font-medium text-ink">
+        {result.studentName.charAt(0)}
+        </div>
+        <div>
+          <h4 className="text-[15px] font-medium text-ink">{result.studentName}</h4>
+          <p className="text-[13px] text-ink-secondary">
+            {result.totalScore}/{result.maxScore} poäng · {result.percentage}%
+          </p>
+        </div>
+      </div>
+
+      {scanPage && (
+        <div className="mt-5 border-t border-ink-hairline pt-4">
+          <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-2">
+            Originalskanning
+          </div>
+          {isImage(scanPage) ? (
+            <img
+              src={scanPage}
+              alt="Elevens originalskanning"
+              className="max-h-96 rounded-xl border border-ink-hairline object-contain"
+            />
+          ) : (
+            <a
+              href={scanPage}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Visa originalfil
+            </a>
+          )}
+        </div>
+      )}
+
+      <div className="mt-5 border-t border-ink-hairline pt-4">
+        <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-3">
+          Uppgifter
+        </div>
+        <div className="space-y-3">
+          {questions.map((q) => {
+            const step = result.steps.find((s) => s.questionId === q.number);
+            const status = step?.status ?? "pending";
+            const label = step?.label ?? `Uppgift ${q.number}`;
+            const maxPoints = step?.maxPoints ?? q.maxPoints;
+            const earnedPoints = step?.earnedPoints ?? 0;
+            const isEditing =
+              step && editingStep?.resultId === result.id && editingStep?.stepId === step.id;
+            return (
+              <div
+                key={step ? step.id : `q-${q.id}`}
+                className="flex items-start justify-between gap-4 rounded-[10px] bg-paper-secondary border border-ink-hairline p-3"
+              >
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-medium text-ink">{label}</span>
+                    <span
+                      className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                        status === "correct"
+                          ? "bg-state-success/10 text-state-success border-state-success/20"
+                          : status === "partial"
+                            ? "bg-state-warning/10 text-state-warning border-state-warning/20"
+                            : status === "incorrect"
+                              ? "bg-state-danger/10 text-state-danger border-state-danger/20"
+                              : "bg-ink/[0.04] text-ink-muted border-ink-hairline"
+                      }`}
+                    >
+                      {status === "correct"
+                        ? "Rätt"
+                        : status === "partial"
+                          ? "Delvis"
+                          : status === "incorrect"
+                            ? "Fel"
+                            : "Väntar"}
+                    </span>
+                  </div>
+                  {step?.questionText && (
+                    <p className="mt-1.5 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">Fråga:</span> {step.questionText}
+                    </p>
+                  )}
+                  {step?.studentWork !== undefined && (
+                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">Elevens svar:</span> {step.studentWork || "(inte extraherat)"}
+                    </p>
+                  )}
+                  {step?.correctAnswer && (
+                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">Facit:</span> {step.correctAnswer}
+                    </p>
+                  )}
+                  {step?.feedback && (
+                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">AI-analys:</span> {step.feedback}
+                    </p>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-3">
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={editPoints}
+                        onChange={(e) => onPointsChange(e.target.value)}
+                        className="input w-20 h-8 py-1 text-center"
+                        min={0}
+                        max={maxPoints}
+                      />
+                      <span className="text-[13px] text-ink-muted">/ {maxPoints}</span>
+                      <button onClick={onSave} className="btn-primary h-8 px-2.5">
+                        <LineIcon name="check" className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={onCancel} className="btn-secondary h-8 px-2.5">
+                        <LineIcon name="x" className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : step ? (
+                    <button
+                      onClick={() => onEditStep(result, step.id)}
+                      className="flex items-center gap-2 text-[13px] text-ink-secondary hover:text-ink"
+                    >
+                      <LineIcon name="pen" className="h-3.5 w-3.5" />
+                      {earnedPoints} / {maxPoints}
+                    </button>
+                  ) : (
+                    <span className="text-[13px] text-ink-muted">— / {maxPoints}</span>
+                  )}
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </Surface>
+  );
+}
+
+================================================================================
+11. VANLIGA FELSÖKNINGSPUNKTER
+================================================================================
+1. 404 från Gemini
+   - Kontrollera att GEMINI_API_KEY är giltig och har fakturering/aktuell limit.
+   - Verifiera att kontot har tillgång till Gemini 1.5 Pro i AI Studio.
+   - Testa byta modellnamn till `gemini-1.5-pro-latest` eller `gemini-1.5-flash-latest`.
+
+2. "Elevens lösning är inte inskannad i denna demo"
+   - Detta kommer INTE från backendkoden ovan. Det är antingen texten på
+     bilden eller någon tidigare hårdkodad demo-bild. Använd en riktig
+     elevskanning.
+
+3. Tomma/bortklippta svar
+   - `studentWork` trunkeras till 400 tecken i batch_pipeline.py (rad 105).
+     Höj om det behövs.
+
+4. Rättning ger 0 poäng trots rätt svar
+   - Gemini har också problem med handskrift. Öka temperature eller byt till
+     en starkare modell. Eller lägg till formell Wolfram-verifiering.
+
+5. Originalbilden syns inte
+   - scanPages innehåller en data-URL. För icke-bild-filer visas en länk.
+   - Om data-URL:en är för stor kan React/Next vägra rita den.
+
+================================================================================
+12. RESUMÉ
+================================================================================
+Rättningsmotorn är nu strukturerad så att:
+- Originalbilden aldrig förändras – den skickas vidare som data-URL.
+- Varje uppgift rättas för sig med Gemini som ser bilden + facit.
+- Resultatet innehåller fråga, elevens svar, facit, poäng och feedback.
+- ReviewWorkbench visar allt strukturerat.
+
+Ingen generering av fake-poäng, inga interna AI-monologer, inga mock-svar.
+Om du vill bygga vidare eller felsöka är huvudpunkterna ovan.

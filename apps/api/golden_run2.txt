@@ -1,0 +1,417 @@
+﻿
+==============================================================================
+Test:              physics_handwritten_real   [FAIL]
+Beskrivning:       Test A/B/D/E ÔÇô handskrivet fysikprov, 3 uppgifter, diagram och formler
+Ursprung:          real
+Input image(s):    physics_prov.jpg
+Not:               Tv├Ñ ark fotograferade sida vid sida. Fr├Ñga 2 f├Ârekommer TV├à g├Ñnger (nedre v├ñnster + ├Âvre h├Âger) och m├Ñste sl├Ñs ihop till en uppgift.
+Questions expected: 3
+Questions detected: 0
+HTTP:              200   latency 134776 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=4 motor-latens=132263 ms
+MOTORFEL:          invalid_json: Kunde inte tolka JSON: Expecting ',' delimiter: line 16 column 10 (char 687)
+  question_detection   PASS
+  work_extraction      FAIL
+  question_mapping     PASS
+  scoring              FAIL
+  annotation           PASS
+  Avvikelser:
+    - Q1: found=False men f├Ârv├ñntade True
+    - Q1: studentWork saknar 'tr├Âghetslagen' (fick '')
+    - Q1: status='needs_review' utanf├Âr till├Ñtna ('correct',)
+    - Q1: po├ñng 0.0 < f├Ârv├ñntat minst 2.0
+    - Q2: found=False men f├Ârv├ñntade True
+    - Q2: studentWork saknar 'trycket' (fick '')
+    - Q2: status='needs_review' utanf├Âr till├Ñtna ('correct',)
+    - Q2: po├ñng 0.0 < f├Ârv├ñntat minst 2.0
+    - Q3: found=False men f├Ârv├ñntade True
+    - Q3: studentWork saknar 'hastighet' (fick '')
+    - Q3: status='needs_review' utanf├Âr till├Ñtna ('correct',)
+    - Q3: po├ñng 0.0 < f├Ârv├ñntat minst 2.0
+    Q1: found=False status=needs_review 0.0/2.0 conf=0.0
+      elev: ''
+      [!] error: invalid_json: Kunde inte tolka JSON: Expecting ',' delimiter: line 16 column 10 (char 687)
+    Q2: found=False status=needs_review 0.0/2.0 conf=0.0
+      elev: ''
+      [!] error: invalid_json: Kunde inte tolka JSON: Expecting ',' delimiter: line 16 column 10 (char 687)
+    Q3: found=False status=needs_review 0.0/2.0 conf=0.0
+      elev: ''
+      [!] error: invalid_json: Kunde inte tolka JSON: Expecting ',' delimiter: line 16 column 10 (char 687)
+
+==============================================================================
+Test:              math_derivative_correct_real   [PASS]
+Beskrivning:       Test A/I ÔÇô Anna, korrekt derivata med fullst├ñndigt mellanled
+Ursprung:          real
+Input image(s):    Anna_Andersson.png
+Not:               Oberoende verifierat: v(3) = 4*3+5 = 17. Anna har allt r├ñtt.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7866 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=5049 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: "s(t) = 2t┬▓ + 5t | v(t) = s'(t) = 4t + 5 | v(3) = 4*3 + 5 = 12 + 5 = 17 | Svar: v = 17 m/s"
+      [+] ['Korrekt derivering av s(t) till v(t) = 4t + 5', 'Korrekt ins├ñttning av t = 3', 'Korrekt ber├ñkning till 17 m/s']
+
+==============================================================================
+Test:              math_derivative_arithmetic_error_real   [PASS]
+Beskrivning:       Test I/J ÔÇô Erik, r├ñtt metod men r├ñknefel (4*3=16 -> svar 21)
+Ursprung:          real
+Input image(s):    Erik_Eriksson.png
+Not:               KRITISKT FALL. R├ñtt derivata v(t)=4t+5 men eleven skriver 4*3=16 och svarar 21 m/s. F├Ñr ALDRIG bli 'correct'. R├ñtt utfall ├ñr delpo├ñng.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 8308 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=5446 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=partial 2.0/3.0 conf=1.0
+      elev: 'L├Âsning: | s(t) = 2t┬▓ + 5t | v(t) = 4t + 5 | v(3) = 4*3 + 5 = 16 + 5 = 21 | Svar: v = 21 m/s'
+      [+] ['Korrekt derivering av s(t) till v(t) = 4t + 5', 'Korrekt metod med ins├ñttning av t = 3 i derivatan']
+      [-] ['R├ñknefel: 4 * 3 ber├ñknas till 16 ist├ñllet f├Âr 12']
+
+==============================================================================
+Test:              math_derivative_terse_real   [PASS]
+Beskrivning:       Test A ÔÇô Linnea, korrekt svar men hoppar ├Âver ett mellanled
+Ursprung:          real
+Input image(s):    Linnea_Svensson.png
+Not:               Oberoende verifierat: svaret 17 m/s ├ñr korrekt. Mellanledet 4*3=12 saknas.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7779 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=4915 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: 'L├Âsning: | s(t) = 2t┬▓ + 5t | v(t) = 4t + 5 | v(3) = 4*3 + 5 = 17 | Svar: v = 17 m/s'
+      [+] ['Korrekt derivering av s(t) till v(t) = 4t + 5', 'Korrekt ins├ñttning av t = 3', 'Korrekt ber├ñkning till 17 m/s']
+
+==============================================================================
+Test:              physics_multipage_derived   [PASS]
+Beskrivning:       Test G/H ÔÇô samma fysikprov delat i tv├Ñ sidor
+Ursprung:          derived
+Input image(s):    physics_multipage_page1.png, physics_multipage_page2.png
+Not:               V├ñnstra arket blir sida 1, h├Âgra arket sida 2. Fr├Ñga 2 sp├ñnner ├Âver b├Ñda sidorna och ska bli EN uppgift, inte tv├Ñ.
+Questions expected: 3
+Questions detected: 3
+HTTP:              200   latency 22015 ms
+Dokument:          sidor=2 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=19083 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 2.0/2.0 conf=0.98
+      elev: 'Newtons 1a lag. F = 0 => a = 0. | vo = kst (konstant hastighet) | R├Ârelsen sker i en rak linje. |  | Svar: Enligt tr├Âghetslagen forts├ñtter stenen att r├Âra sig m'
+      [+] ['N├ñmner Newtons 1:a lag / tr├Âghetslagen', 'Anger F = 0 => a = 0', 'Anger konstant hastighet i en rak linje']
+    Q2: found=True status=correct 2.0/2.0 conf=0.95
+      elev: "[Sida 1] | [figur: molekylmodell med tre atomer och pil m├ñrkt 'Molekylers r├Ârelse'] | [figur: graf med E_k p├Ñ y-axeln och T p├Ñ x-axeln, r├ñt linje upp├Ñt m├ñrkt 'E"
+      [+] ['Kopplar temperatur till molekylernas medelr├Ârelseenergi', 'Beskriver att molekylerna r├Âr sig snabbare', 'Beskriver att molekylerna krockar oftare och h├Ñrdare mot v├ñggarna']
+    Q3: found=True status=correct 2.0/2.0 conf=0.97
+      elev: "[figur: ett glas med vatten och en penna i, ljusstr├Ñlar som bryts vid vattenytan, text 'Ljus bryts', 'Luft (n=1)', 'Vatten (n=1.33)'] | n_1 * sin(theta_1) = n_2"
+      [+] ['N├ñmner hastighets├ñndring vid gr├ñns├Âverg├Ñngen', 'N├ñmner brytning/refraktion', 'F├Ârklarar att en virtuell bild skapas']
+
+==============================================================================
+Test:              math_rotated_derived   [PASS]
+Beskrivning:       Test O ÔÇô Annas l├Âsning roterad 90 grader
+Ursprung:          derived
+Input image(s):    math_rotated.png
+Not:               Samma inneh├Ñll som Anna. Rotation f├Ñr inte f├Ârst├Âra transkriptionen.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 9966 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=7134 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: "L├Âsning: | s(t) = 2t┬▓ + 5t | v(t) = s'(t) = 4t + 5 | v(3) = 4*3 + 5 = 12 + 5 = 17 | Svar: v = 17 m/s"
+      [+] ['Korrekt derivering av s(t) till v(t) = 4t + 5', 'Korrekt ins├ñttning av t = 3', 'Korrekt ber├ñkning till 17 m/s']
+
+==============================================================================
+Test:              math_low_quality_derived   [PASS]
+Beskrivning:       Test C/N ÔÇô Annas l├Âsning nedskalad, brusig och l├Ñgkontrast
+Ursprung:          derived
+Input image(s):    math_low_quality.png
+Not:               D├Ñlig bildkvalitet. Antingen l├ñser modellen r├ñtt, eller s├Ñ flaggar den needs_review. Den f├Ñr INTE hitta p├Ñ ett svar.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7704 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=4818 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=0.98
+      elev: "s(t) = 2t┬▓ + 5t | v(t) = s'(t) = 4t + 5 | v(3) = 4*3 + 5 = 12 + 5 = 17 | Svar: v = 17 m/s"
+      [+] ['Korrekt derivering av s(t) till v(t) = 4t + 5', 'Korrekt ins├ñttning av t = 3', 'Korrekt ber├ñkning till 17']
+
+==============================================================================
+Test:              blank_answer_synthetic   [PASS]
+Beskrivning:       Test K ÔÇô uppgiften finns men eleven har inte svarat
+Ursprung:          synthetic
+Input image(s):    blank_answer.png
+Not:               found=True men tomt studentWork. F├Ñr ALDRIG fyllas med facit.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7387 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=4532 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=incorrect 0.0/3.0 conf=1.0
+      elev: ''
+
+==============================================================================
+Test:              crossed_out_synthetic   [PASS]
+Beskrivning:       Test L ÔÇô eleven har strukit ├Âver ett felaktigt f├Ârs├Âk
+Ursprung:          synthetic
+Input image(s):    crossed_out.png
+Not:               ├ûverstruket: 'v = 4t' (fel). G├ñllande svar: v(3)=17. Bed├Âmningen ska utg├Ñ fr├Ñn det g├ñllande svaret.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 10741 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=7599 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: "[├Âverstruket: v(t) = 4t | v(3) = 12] |  | v(t) = s'(t) = 4t + 5 | v(3) = 4*3 + 5 = 12 + 5 = 17 | Svar: v = 17 m/s"
+      [+] ["Korrekt derivering: v(t) = s'(t) = 4t + 5", 'Korrekt ins├ñttning: v(3) = 4*3 + 5', 'Korrekt ber├ñkning och svar: v = 17 m/s']
+
+==============================================================================
+Test:              teacher_marks_synthetic   [PASS]
+Beskrivning:       Test M ÔÇô l├ñrarkommentarer och redan satta po├ñng p├Ñ sidan
+Ursprung:          synthetic
+Input image(s):    teacher_marks.png
+Not:               Sidan inneh├Ñller l├ñrartext 'Bra jobbat! 3/3 /L├ñraren'. Den f├Ñr inte hamna i studentWork och inte styra bed├Âmningen.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 8331 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=5398 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: "v(t) = s'(t) = 4t + 5 | v(3) = 4*3 + 5 = 17 | Svar: v = 17 m/s"
+      [+] ["Korrekt derivata v(t) = s'(t) = 4t + 5", 'Korrekt ins├ñttning v(3) = 4*3 + 5 = 17', 'Korrekt svar med enhet: v = 17 m/s']
+
+==============================================================================
+Test:              missing_question_synthetic   [PASS]
+Beskrivning:       Test ÔÇô facit har 2 uppgifter men bilden inneh├Ñller bara 1
+Ursprung:          synthetic
+Input image(s):    blank_answer.png
+Not:               Uppgift 2 finns inte i dokumentet -> found=False, needs_review.
+Questions expected: 2
+Questions detected: 1
+HTTP:              200   latency 8565 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=5720 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=incorrect 0.0/3.0 conf=1.0
+      elev: ''
+    Q2: found=False status=needs_review 0.0/2.0 conf=1.0
+      elev: ''
+
+==============================================================================
+Test:              unlisted_question_synthetic   [PASS]
+Beskrivning:       Test/krav 12 ÔÇô bilden har en uppgift 2 som saknas i facit
+Ursprung:          synthetic
+Input image(s):    extra_question.png
+Not:               Systemet ska uppt├ñcka uppgift 2 trots att facit bara har uppgift 1.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 9295 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=6424 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: 'v(t) = 4t + 5 | v(3) = 4*3 + 5 = 17 | Svar: v = 17 m/s'
+      [+] ['Korrekt derivata v(t) = 4t + 5', 'Korrekt ins├ñttning v(3) = 4*3 + 5', 'Korrekt ber├ñkning och svar 17 m/s']
+    Q2  (ej i facit): found=True status=needs_review 0.0/0.0 conf=1.0
+      elev: "a(t) = v'(t) = 4 | Svar: a = 4 m/s┬▓"
+
+==============================================================================
+Test:              math_notation_synthetic   [PASS]
+Beskrivning:       Test D ÔÇô br├Ñk, potenser och rottecken
+Ursprung:          synthetic
+Input image(s):    math_notation.png
+Not:               Oberoende verifierat: ÔêÜ16 = 4. Eleven svarar korrekt.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7470 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=4637 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 2.0/2.0 conf=1.0
+      elev: 'x┬▓ = 16 | x = ÔêÜ16 |  | x = 4 |  | Svar: x = 4'
+      [+] ['St├ñller upp ekvationen x┬▓ = 16', 'Visar mellanledet x = ÔêÜ16', 'Anger det korrekta svaret x = 4']
+
+==============================================================================
+Test:              wrong_answer_synthetic   [PASS]
+Beskrivning:       Test J ÔÇô helt felaktig l├Âsning
+Ursprung:          synthetic
+Input image(s):    wrong_answer.png
+Not:               Eleven deriverar fel: skriver v(t)=2t+5 och svarar 11 m/s. Korrekt ├ñr 17. Ska bli incorrect eller l├Ñg delpo├ñng.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 8670 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=5850 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=incorrect 0.0/3.0 conf=0.98
+      elev: 's(t) = 2t┬▓ + 5t | v(t) = 2t + 5 | v(3) = 2*3 + 5 = 11 | Svar: v = 11 m/s'
+      [+] ['Eleven visar f├Ârst├Ñelse f├Âr att hastigheten v(t) f├Ñs genom att derivera str├ñckan s(t).', 'Eleven s├ñtter korrekt in t = 3 i sin framtagna funktion och ber├ñknar v├ñrdet korrekt till 11.']
+      [-] ['Felaktig derivata: derivatan av 2t┬▓ har angetts till 2t ist├ñllet f├Âr 4t.']
+
+==============================================================================
+Test:              answer_between_lines_synthetic   [PASS]
+Beskrivning:       Test F ÔÇô svaret ├ñr inkl├ñmt mellan raderna, inte p├Ñ svarsraden
+Ursprung:          synthetic
+Input image(s):    between_lines.png
+Not:               Eleven har skrivit l├Âsningen i marginalen/mellan raderna.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 9758 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=6883 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=1.0
+      elev: "v(t) = s'(t) = 4t + 5 |  | v(3) = 4*3 + 5 |  | = 12 + 5 = 17 |  | Svar: 17 m/s"
+      [+] ["Korrekt derivata v(t) = s'(t) = 4t + 5", 'Korrekt ins├ñttning v(3) = 4*3 + 5', 'Korrekt aritmetik som leder till 17']
+
+==============================================================================
+Test:              multi_question_synthetic   [FAIL]
+Beskrivning:       Krav 12 ÔÇô 5 uppgifter i samma dokument ska alla hittas
+Ursprung:          synthetic
+Input image(s):    five_questions.png
+Not:               Oberoende verifierat: 12, 27, 12, 6, 32. Eleven svarar r├ñtt p├Ñ 1,2,3,5 och fel p├Ñ 4 (skriver 7).
+Questions expected: 5
+Questions detected: 5
+HTTP:              200   latency 12838 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=9827 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     FAIL
+  scoring              PASS
+  annotation           PASS
+  Avvikelser:
+    - Q3 har identisk transkription som Q1 ÔÇô elevsvar kopierat mellan uppgifter
+    Q1: found=True status=correct 1.0/1.0 conf=1.0
+      elev: 'Svar: 12'
+      [+] ['Svarat 12 vilket ├ñr korrekt.']
+    Q2: found=True status=correct 1.0/1.0 conf=1.0
+      elev: 'Svar: 27'
+      [+] ['Svarat 27 vilket ├ñr korrekt.']
+    Q3: found=True status=correct 1.0/1.0 conf=1.0
+      elev: 'Svar: 12'
+      [+] ['Svarat 12 vilket ├ñr korrekt.']
+    Q4: found=True status=incorrect 0.0/1.0 conf=1.0
+      elev: 'Svar: 7'
+      [-] ['Svarat 7 ist├ñllet f├Âr 6.']
+    Q5: found=True status=correct 1.0/1.0 conf=1.0
+      elev: 'Svar: 32'
+      [+] ['Svarat 32 vilket ├ñr korrekt.']
+
+==============================================================================
+Test:              messy_handwriting_synthetic   [PASS]
+Beskrivning:       Test C ÔÇô oj├ñmn, lutande och skakig handstil
+Ursprung:          synthetic
+Input image(s):    messy_handwriting.png
+Not:               Sv├Ñrl├ñst men l├ñsbar. Antingen korrekt l├ñsning eller needs_review.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7940 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=5010 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 3.0/3.0 conf=0.98
+      elev: "v(t) = s'(t) = 4t + 5 |  | v(3) = 4*3 + 5 |  | = 12 + 5 |  | Svar: v = 17 m/s"
+      [+] ['Korrekt derivering av s(t) till v(t) = 4t + 5', 'Korrekt ins├ñttning av t = 3', 'Korrekt ber├ñkning till 17 m/s']
+
+==============================================================================
+Test:              diagram_answer_synthetic   [PASS]
+Beskrivning:       Test E ÔÇô svaret ges som ett diagram med etiketter
+Ursprung:          synthetic
+Input image(s):    diagram_answer.png
+Not:               Eleven har ritat ett korrekt s-t-diagram med r├ñt linje genom origo.
+Questions expected: 1
+Questions detected: 1
+HTTP:              200   latency 7246 ms
+Dokument:          sidor=1 modell=gemini-3.5-flash f├Ârs├Âk=1 motor-latens=4346 ms
+  question_detection   PASS
+  work_extraction      PASS
+  question_mapping     PASS
+  scoring              PASS
+  annotation           PASS
+    Q1: found=True status=correct 2.0/2.0 conf=0.95
+      elev: '[figur: koordinatsystem med s (m) p├Ñ y-axeln och t (s) p├Ñ x-axeln, origo markerat med 0. En r├ñt linje g├Ñr snett upp├Ñt fr├Ñn origo, markerad med texten "r├ñt linje'
+      [+] ['R├ñtt storhet s (m) p├Ñ y-axeln', 'R├ñtt storhet t (s) p├Ñ x-axeln', 'En r├ñt linje som utg├Ñr fr├Ñn origo']
+
+==============================================================================
+SAMMANFATTNING
+==============================================================================
+Tests executed: 18
+Passed:         16
+Failed:         2
+  question_detection   18/18  (100%)
+  work_extraction      17/18  (94%)
+  question_mapping     17/18  (94%)
+  scoring              17/18  (94%)
+  annotation           18/18  (100%)
+
+Latens: min 7246 ms | median 8565 ms | max 134776 ms
+
+Misslyckade fall:
+  - physics_handwritten_real
+      Q1: found=False men f├Ârv├ñntade True
+      Q1: studentWork saknar 'tr├Âghetslagen' (fick '')
+      Q1: status='needs_review' utanf├Âr till├Ñtna ('correct',)
+      Q1: po├ñng 0.0 < f├Ârv├ñntat minst 2.0
+      Q2: found=False men f├Ârv├ñntade True
+      Q2: studentWork saknar 'trycket' (fick '')
+      Q2: status='needs_review' utanf├Âr till├Ñtna ('correct',)
+      Q2: po├ñng 0.0 < f├Ârv├ñntat minst 2.0
+      Q3: found=False men f├Ârv├ñntade True
+      Q3: studentWork saknar 'hastighet' (fick '')
+      Q3: status='needs_review' utanf├Âr till├Ñtna ('correct',)
+      Q3: po├ñng 0.0 < f├Ârv├ñntat minst 2.0
+  - multi_question_synthetic
+      Q3 har identisk transkription som Q1 ÔÇô elevsvar kopierat mellan uppgifter

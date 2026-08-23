@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import { useStore, actions, type Prov, type StudentResult, type Klass } from "@/lib/store";
+import { useStore, actions, type Prov, type StudentResult, type Klass, type Question } from "@/lib/store";
 import Surface from "./ui/Surface";
 import EmptyState from "./ui/EmptyState";
 import StatusBadge from "./ui/StatusBadge";
@@ -104,19 +104,24 @@ export default function ReviewWorkbench() {
           </div>
 
           <div className="space-y-4">
-            {getProvResults(selectedProv.id).map((result) => (
-              <ResultCard
-                key={result.id}
-                result={result}
-                klass={getKlass(selectedProv.id)}
-                editingStep={editingStep}
-                editPoints={editPoints}
-                onEditStep={startEditStep}
-                onPointsChange={setEditPoints}
-                onSave={saveStep}
-                onCancel={() => setEditingStep(null)}
-              />
-            ))}
+            {(() => {
+              const provResults = getProvResults(selectedProv.id);
+              const questions = deriveQuestions(provResults);
+              return provResults.map((result) => (
+                <ResultCard
+                  key={result.id}
+                  result={result}
+                  questions={questions}
+                  klass={getKlass(selectedProv.id)}
+                  editingStep={editingStep}
+                  editPoints={editPoints}
+                  onEditStep={startEditStep}
+                  onPointsChange={setEditPoints}
+                  onSave={saveStep}
+                  onCancel={() => setEditingStep(null)}
+                />
+              ));
+            })()}
           </div>
         </div>
       )}
@@ -133,8 +138,25 @@ export default function ReviewWorkbench() {
   );
 }
 
+function deriveQuestions(results: StudentResult[]): Question[] {
+  const seen = new Map<string, Question>();
+  for (const result of results) {
+    for (const step of result.steps) {
+      if (!seen.has(step.questionId)) {
+        seen.set(step.questionId, {
+          id: `q-${step.questionId}`,
+          number: step.questionId,
+          maxPoints: step.maxPoints,
+        });
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
 function ResultCard({
   result,
+  questions,
   klass,
   editingStep,
   editPoints,
@@ -144,6 +166,7 @@ function ResultCard({
   onCancel,
 }: {
   result: StudentResult;
+  questions: Question[];
   klass?: Klass;
   editingStep: { resultId: string; stepId: string } | null;
   editPoints: string;
@@ -152,6 +175,9 @@ function ResultCard({
   onSave: () => void;
   onCancel: () => void;
 }) {
+  const isImage = (url: string) => /^data:image\/(png|jpeg|jpg|webp|gif);/.test(url);
+  const scanPage = result.scanPages?.[0];
+
   return (
     <Surface padding="p-5">
       <div className="flex items-center gap-4">
@@ -166,45 +192,94 @@ function ResultCard({
         </div>
       </div>
 
+      <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
+      {scanPage && (
+        <div className="border-t border-ink-hairline pt-4">
+          <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-2">
+            Originalskanning
+          </div>
+          {isImage(scanPage) ? (
+            <img
+              src={scanPage}
+              alt="Elevens originalskanning"
+              className="max-h-96 rounded-xl border border-ink-hairline object-contain"
+            />
+          ) : (
+            <a
+              href={scanPage}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-sm text-blue-600 hover:underline"
+            >
+              Visa originalfil
+            </a>
+          )}
+        </div>
+      )}
+
       <div className="mt-5 border-t border-ink-hairline pt-4">
         <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-3">
           Uppgifter
         </div>
         <div className="space-y-3">
-          {result.steps.map((step) => {
+          {questions.map((q) => {
+            const step = result.steps.find((s) => s.questionId === q.number);
+            const status = step?.status ?? "pending";
+            const label = step?.label ?? `Uppgift ${q.number}`;
+            const maxPoints = step?.maxPoints ?? q.maxPoints;
+            const earnedPoints = step?.earnedPoints ?? 0;
             const isEditing =
-              editingStep?.resultId === result.id && editingStep?.stepId === step.id;
+              step && editingStep?.resultId === result.id && editingStep?.stepId === step.id;
             return (
               <div
-                key={step.id}
+                key={step ? step.id : `q-${q.id}`}
                 className="flex items-start justify-between gap-4 rounded-[10px] bg-paper-secondary border border-ink-hairline p-3"
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
-                    <span className="text-[13px] font-medium text-ink">{step.label}</span>
+                    <span className="text-[13px] font-medium text-ink">{label}</span>
                     <span
                       className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${
-                        step.status === "correct"
-                          ? "bg-emerald-50 text-emerald-700 border-emerald-100"
-                          : step.status === "partial"
-                            ? "bg-amber-50 text-amber-700 border-amber-100"
-                            : step.status === "incorrect"
-                              ? "bg-red-50 text-red-700 border-red-100"
-                              : "bg-ink/[0.04] text-ink-muted border-ink-hairline"
+                        status === "correct"
+                          ? "bg-state-success/10 text-state-success border-state-success/20"
+                          : status === "partial"
+                            ? "bg-state-warning/10 text-state-warning border-state-warning/20"
+                            : status === "incorrect"
+                              ? "bg-state-danger/10 text-state-danger border-state-danger/20"
+                              : status === "needs_review"
+                                ? "bg-state-warning/10 text-state-warning border-state-warning/20"
+                                : "bg-ink/[0.04] text-ink-muted border-ink-hairline"
                       }`}
                     >
-                      {step.status === "correct"
+                      {status === "correct"
                         ? "Rätt"
-                        : step.status === "partial"
+                        : status === "partial"
                           ? "Delvis"
-                          : step.status === "incorrect"
+                          : status === "incorrect"
                             ? "Fel"
-                            : "Väntar"}
+                            : status === "needs_review"
+                              ? "Behöver granskas"
+                              : "Väntar"}
                     </span>
                   </div>
-                  {step.feedback && (
+                  {step?.questionText && (
                     <p className="mt-1.5 text-[12.5px] text-ink-secondary leading-relaxed">
-                      {step.feedback}
+                      <span className="font-medium text-ink">Fråga:</span> {step.questionText}
+                    </p>
+                  )}
+                  {step?.studentWork !== undefined && (
+                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">Elevens svar:</span> {step.studentWork || "(inte extraherat)"}
+                    </p>
+                  )}
+                  {step?.correctAnswer && (
+                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">Facit:</span> {step.correctAnswer}
+                    </p>
+                  )}
+                  {step?.feedback && (
+                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                      <span className="font-medium text-ink">AI-analys:</span> {step.feedback}
                     </p>
                   )}
                 </div>
@@ -218,9 +293,9 @@ function ResultCard({
                         onChange={(e) => onPointsChange(e.target.value)}
                         className="input w-20 h-8 py-1 text-center"
                         min={0}
-                        max={step.maxPoints}
+                        max={maxPoints}
                       />
-                      <span className="text-[13px] text-ink-muted">/ {step.maxPoints}</span>
+                      <span className="text-[13px] text-ink-muted">/ {maxPoints}</span>
                       <button onClick={onSave} className="btn-primary h-8 px-2.5">
                         <LineIcon name="check" className="h-3.5 w-3.5" />
                       </button>
@@ -228,14 +303,16 @@ function ResultCard({
                         <LineIcon name="x" className="h-3.5 w-3.5" />
                       </button>
                     </div>
-                  ) : (
+                  ) : step ? (
                     <button
                       onClick={() => onEditStep(result, step.id)}
                       className="flex items-center gap-2 text-[13px] text-ink-secondary hover:text-ink"
                     >
                       <LineIcon name="pen" className="h-3.5 w-3.5" />
-                      {step.earnedPoints} / {step.maxPoints}
+                      {earnedPoints} / {maxPoints}
                     </button>
+                  ) : (
+                    <span className="text-[13px] text-ink-muted">— / {maxPoints}</span>
                   )}
                 </div>
               </div>
@@ -243,6 +320,7 @@ function ResultCard({
           })}
         </div>
       </div>
+    </div>
     </Surface>
   );
 }

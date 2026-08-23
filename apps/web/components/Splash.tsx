@@ -1,14 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import WiseOSIcon from "@/experimental-ui/components/WiseOSIcon";
 
 const SESSION_KEY = "wiseos_arc_splash_shown";
 
-/**
- * Arc intro splash — first-load only per browser session.
- * Mirrors the NobleArc splash storyboard (gradient wordmark -> fade -> reveal),
- * re-themed to WiseOS's light/beige "Arc" palette.
- */
 export default function Splash({ children }: { children: React.ReactNode }) {
   const [show, setShow] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
@@ -28,11 +24,11 @@ export default function Splash({ children }: { children: React.ReactNode }) {
       setFadeOut(true);
       document.body.style.overflow = "auto";
       sessionStorage.setItem(SESSION_KEY, "1");
-    }, 1800);
+    }, 2600);
 
     const revealTimer = setTimeout(() => {
       setMainReveal(true);
-    }, 2150);
+    }, 2700);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -41,11 +37,26 @@ export default function Splash({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
+  const logoText = "WISEOS";
+
   return (
     <>
       {show && (
         <div className={`arc-splash ${fadeOut ? "arc-fade-out" : ""}`}>
-          <h1 className="arc-splash-text">WiseOS</h1>
+          <div className="flex flex-col items-center justify-center gap-5">
+            <WiseOSIcon className="w-36 h-36" />
+            <h1 className="wise-splash-title">
+              {logoText.split("").map((char, i) => (
+                <span
+                  key={i}
+                  className="wise-splash-letter"
+                  style={{ animationDelay: `${1.0 + i * 0.08}s` }}
+                >
+                  {char}
+                </span>
+              ))}
+            </h1>
+          </div>
         </div>
       )}
       <div className={`arc-main ${mainReveal ? "arc-reveal" : ""}`}>

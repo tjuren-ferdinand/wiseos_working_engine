@@ -137,9 +137,11 @@ export default function BatchGradingPipeline({
       }
     })();
 
-    return () => {
-      abortRef.current?.abort();
-    };
+    // Ingen cleanup-abort här: `open` går till false innan unmount i alla
+    // riktiga stängningsflöden (hanteras av !open-grenen ovan). En cleanup
+    // som avbryter vid varje effect-körning skulle även avbryta det korrekta
+    // anropet under React 18 Strict Modes avsiktliga mount→cleanup→mount i
+    // dev, vilket gjorde att rättningen avbröts direkt vid start.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -158,7 +160,7 @@ export default function BatchGradingPipeline({
         exit={{ opacity: 0 }}
         className="fixed inset-0 z-50 flex items-center justify-center"
       >
-        <div className="absolute inset-0 bg-slate-900/70 backdrop-blur-xl" />
+        <div className="absolute inset-0 bg-ink/70 backdrop-blur-xl" />
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
@@ -167,38 +169,38 @@ export default function BatchGradingPipeline({
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
           className="relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
         >
-          <div className="relative rounded-[32px] bg-white/95 backdrop-blur-2xl shadow-2xl shadow-slate-900/30 ring-1 ring-white/50">
-            <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-violet-400/30 to-fuchsia-400/20 rounded-full blur-3xl" />
+          <div className="relative rounded-[32px] bg-paper-raised/95 backdrop-blur-2xl shadow-card shadow-ink/[0.08] ring-1 ring-paper-raised/50">
+            <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-paper-secondary/30 to-paper-secondary/20 rounded-full blur-3xl" />
             <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl" />
 
             {/* Header */}
-            <div className="relative px-10 pt-10 pb-6 border-b border-slate-100">
+            <div className="relative px-10 pt-10 pb-6 border-b border-ink-hairline">
               <div className="flex items-center gap-3 mb-2">
                 <div className={`h-2.5 w-2.5 rounded-full ${
-                  phase === "error" ? "bg-rose-500" : phase === "complete" ? "bg-emerald-500" : "bg-emerald-500 animate-pulse"
+                  phase === "error" ? "bg-rose-500" : phase === "complete" ? "bg-state-success" : "bg-state-success animate-pulse"
                 }`} />
-                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-slate-500">
+                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-secondary">
                   {phase === "error"
                     ? "Kontakt med backend misslyckades"
                     : "wiseOS rättar hela klassen"}
                 </span>
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-slate-900">{provTitle}</h1>
-              <div className="mt-2 flex items-center gap-4 text-sm text-slate-500">
+              <h1 className="text-3xl font-semibold tracking-tight text-ink">{provTitle}</h1>
+              <div className="mt-2 flex items-center gap-4 text-sm text-ink-secondary">
                 <span>{files.length} fil{files.length !== 1 ? "er" : ""}</span>
-                <span className="h-1 w-1 rounded-full bg-slate-300" />
+                <span className="h-1 w-1 rounded-full bg-paper-secondary" />
                 <span>
                   {completedCount} / {expectedStudents || files.length} klara
                 </span>
                 {phase !== "idle" && phase !== "complete" && phase !== "error" && (
                   <>
-                    <span className="h-1 w-1 rounded-full bg-slate-300" />
-                    <span className="text-wise-600 font-medium">{PHASE_LABEL[phase]}</span>
+                    <span className="h-1 w-1 rounded-full bg-paper-secondary" />
+                    <span className="text-ink-secondary font-medium">{PHASE_LABEL[phase]}</span>
                   </>
                 )}
               </div>
 
-              <div className="mt-4 h-2 rounded-full bg-slate-100 overflow-hidden">
+              <div className="mt-4 h-2 rounded-full bg-paper-secondary overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{
@@ -219,14 +221,14 @@ export default function BatchGradingPipeline({
                   className={`h-full rounded-full ${
                     phase === "error"
                       ? "bg-rose-500"
-                      : "bg-gradient-to-r from-violet-500 to-purple-500"
+                      : "bg-gradient-to-r from-ink to-paper-raised"
                   }`}
                 />
               </div>
             </div>
 
             {/* Pipeline visualization */}
-            <div className="relative px-10 py-6 border-b border-slate-100">
+            <div className="relative px-10 py-6 border-b border-ink-hairline">
               <div className="flex items-center justify-between">
                 {[
                   {
@@ -238,9 +240,9 @@ export default function BatchGradingPipeline({
                   { id: "wolfram", label: "Wolfram", desc: "Verifierar matematik", live: Boolean(integrations.wolfram) },
                   {
                     id: "generative-ai",
-                    label: integrations.groq ? "Groq AI" : integrations.anthropic ? "Claude AI" : "Generativ AI",
+                    label: integrations.gemini ? "Gemini AI" : integrations.groq ? "Groq AI" : integrations.anthropic ? "Claude AI" : "Generativ AI",
                     desc: "Genererar feedback",
-                    live: Boolean(integrations.groq || integrations.anthropic),
+                    live: Boolean(integrations.gemini || integrations.groq || integrations.anthropic),
                   },
                 ].map((step, i) => {
                   const done = phase === "complete";
@@ -254,8 +256,8 @@ export default function BatchGradingPipeline({
                         <div
                           className={`h-12 w-12 mx-auto rounded-2xl flex items-center justify-center transition-all ${
                             done || activeStage
-                              ? "bg-gradient-to-br from-violet-500 to-purple-600 text-white shadow-lg shadow-violet-500/30"
-                              : "bg-slate-100 text-slate-400"
+                              ? "bg-gradient-to-br from-ink to-ink text-paper shadow-lg shadow-ink/[0.12]"
+                              : "bg-paper-secondary text-ink-muted"
                           }`}
                         >
                           {done ? (
@@ -266,23 +268,21 @@ export default function BatchGradingPipeline({
                             <span className="text-lg font-bold">{i + 1}</span>
                           )}
                         </div>
-                        <div className="mt-2 text-sm font-semibold text-slate-900">{step.label}</div>
-                        <div className="text-xs text-slate-500">{step.desc}</div>
-                        {phase !== "idle" && phase !== "error" && (
-                          <div className={`mt-1 text-[10px] uppercase tracking-wider font-semibold ${
-                            step.live ? "text-emerald-600" : "text-amber-600"
-                          }`}>
-                            {step.live ? "LIVE API" : "mock fallback"}
+                        <div className="mt-2 text-sm font-semibold text-ink">{step.label}</div>
+                        <div className="text-xs text-ink-secondary">{step.desc}</div>
+                        {phase !== "idle" && phase !== "error" && step.live && (
+                          <div className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-state-success">
+                            Live
                           </div>
                         )}
                       </div>
                       {i < 2 && (
-                        <div className="w-20 h-0.5 mx-4 rounded-full bg-slate-200 relative overflow-hidden">
+                        <div className="w-20 h-0.5 mx-4 rounded-full bg-paper-secondary relative overflow-hidden">
                           <motion.div
                             initial={{ scaleX: 0 }}
                             animate={{ scaleX: done ? 1 : 0 }}
                             transition={{ duration: 0.5 }}
-                            className="absolute inset-0 bg-gradient-to-r from-violet-500 to-purple-500 origin-left"
+                            className="absolute inset-0 bg-gradient-to-r from-ink to-paper-raised origin-left"
                           />
                         </div>
                       )}
@@ -305,7 +305,7 @@ export default function BatchGradingPipeline({
               )}
 
               {phase !== "error" && results.length === 0 && (
-                <div className="text-sm text-slate-500">
+                <div className="text-sm text-ink-secondary">
                   wiseOS analyserar {files.length} inskannade prov. Detta tar normalt 4–8 sekunder per elev.
                 </div>
               )}
@@ -318,17 +318,17 @@ export default function BatchGradingPipeline({
                       initial={{ opacity: 0, x: -20 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.03 }}
-                      className="flex items-center justify-between p-4 rounded-2xl bg-emerald-50 ring-1 ring-emerald-200"
+                      className="flex items-center justify-between p-4 rounded-2xl bg-state-success/10 ring-1 ring-state-success/20"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold bg-emerald-500 text-white">
+                        <div className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold bg-state-success text-paper">
                           <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
                             <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
                           </svg>
                         </div>
                         <div>
-                          <div className="font-semibold text-slate-900">{r.studentName}</div>
-                          <div className="text-xs text-slate-500">
+                          <div className="font-semibold text-ink">{r.studentName}</div>
+                          <div className="text-xs text-ink-secondary">
                             {r.totalScore.toFixed(1)} / {r.maxScore.toFixed(0)} poäng · {r.steps.length} uppgifter
                           </div>
                         </div>
@@ -336,10 +336,10 @@ export default function BatchGradingPipeline({
                       <div
                         className={`px-3 py-1 rounded-full text-sm font-semibold ${
                           r.percentage >= 70
-                            ? "bg-emerald-100 text-emerald-700"
+                            ? "bg-state-success/10 text-state-success"
                             : r.percentage >= 50
-                            ? "bg-amber-100 text-amber-700"
-                            : "bg-red-100 text-red-700"
+                            ? "bg-state-warning/10 text-state-warning"
+                            : "bg-state-danger/10 text-state-danger"
                         }`}
                       >
                         {r.percentage}%
@@ -357,38 +357,38 @@ export default function BatchGradingPipeline({
                   initial={{ opacity: 0, height: 0 }}
                   animate={{ opacity: 1, height: "auto" }}
                   exit={{ opacity: 0, height: 0 }}
-                  className="border-t border-slate-100"
+                  className="border-t border-ink-hairline"
                 >
                   <div className="px-10 py-8">
                     <div className="flex items-center justify-between gap-6 flex-wrap">
                       {phase === "complete" && (
                         <div className="flex items-center gap-8">
                           <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
+                            <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
                               Elever rättade
                             </div>
-                            <div className="text-4xl font-semibold tracking-tight text-slate-900">
+                            <div className="text-4xl font-semibold tracking-tight text-ink">
                               {completedCount}
-                              <span className="text-slate-300">/{expectedStudents || files.length}</span>
+                              <span className="text-ink-muted">/{expectedStudents || files.length}</span>
                             </div>
                           </div>
-                          <div className="h-12 w-px bg-slate-200" />
+                          <div className="h-12 w-px bg-paper-secondary" />
                           <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
+                            <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
                               Klassmedel
                             </div>
-                            <div className="text-4xl font-semibold tracking-tight text-emerald-600">
+                            <div className="text-4xl font-semibold tracking-tight text-state-success">
                               {percent}%
                             </div>
                           </div>
-                          <div className="h-12 w-px bg-slate-200" />
+                          <div className="h-12 w-px bg-paper-secondary" />
                           <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-slate-400 mb-1">
+                            <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
                               Total tid
                             </div>
-                            <div className="text-4xl font-semibold tracking-tight text-slate-900">
+                            <div className="text-4xl font-semibold tracking-tight text-ink">
                               {analysisTime}
-                              <span className="text-lg text-slate-400 ml-1">sek</span>
+                              <span className="text-lg text-ink-muted ml-1">sek</span>
                             </div>
                           </div>
                         </div>
@@ -397,14 +397,14 @@ export default function BatchGradingPipeline({
                       <div className="flex items-center gap-3">
                         <button
                           onClick={onClose}
-                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-slate-600 bg-slate-100 hover:bg-slate-200 transition-colors"
+                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-ink-secondary bg-paper-secondary hover:bg-paper-secondary transition-colors"
                         >
                           Stäng
                         </button>
                         {phase === "complete" && (
                           <button
                             onClick={() => onComplete(results)}
-                            className="px-6 py-3 rounded-2xl text-sm font-semibold text-white bg-gradient-to-r from-slate-900 to-slate-800 hover:from-slate-800 hover:to-slate-700 shadow-lg shadow-slate-900/20 transition-all"
+                            className="px-6 py-3 rounded-2xl text-sm font-semibold text-paper bg-gradient-to-r from-ink to-paper-secondary hover:from-paper-secondary hover:to-paper-secondary shadow-lg shadow-card transition-all"
                           >
                             Granska resultat
                           </button>
@@ -413,7 +413,7 @@ export default function BatchGradingPipeline({
                     </div>
 
                     {phase === "complete" && activeRules.length > 0 && (
-                      <div className="mt-6 text-xs text-slate-500">
+                      <div className="mt-6 text-xs text-ink-secondary">
                         Aktiva klassregler: {activeRules.join(", ")}
                       </div>
                     )}

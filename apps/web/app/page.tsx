@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
+import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Reveal from "@/components/Reveal";
-import PageHeader from "@/components/ui/PageHeader";
+import WiseOSIcon from "../experimental-ui/components/WiseOSIcon";
 
 export default function DashboardPage() {
   const klasser = useStore((s) => s.klasser);
@@ -25,6 +26,12 @@ export default function DashboardPage() {
   // Get recent activity
   const recentResults = results.slice(-3).reverse();
 
+  const [showSplash, setShowSplash] = useState(true);
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 2800);
+    return () => clearTimeout(t);
+  }, []);
+
   const ink = "text-ink";
   const inkSecondary = "text-ink-secondary";
   const inkMuted = "text-ink-muted";
@@ -32,13 +39,25 @@ export default function DashboardPage() {
 
   return (
     <div>
-        {/* Hero — calm, quiet, restrained. Hierarchy from type/weight/opacity, not size. */}
-        <PageHeader
-          eyebrow="Översikt"
-          title="God eftermiddag."
-          subtitle="Här är statusen för din undervisning."
-          className="mb-10"
-        />
+        {/* Splash overlay — folds up and reveals dashboard */}
+        <div
+          className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-paper transition-transform duration-1000 ease-out ${
+            showSplash ? "translate-y-0" : "-translate-y-full"
+          }`}
+        >
+          <WiseOSIcon className="h-20 w-auto" />
+          <div className="wise-splash-title">
+            {"WiseOS".split("").map((c, i) => (
+              <span
+                key={i}
+                className="wise-splash-letter"
+                style={{ animationDelay: `${0.4 + i * 0.08}s` }}
+              >
+                {c}
+              </span>
+            ))}
+          </div>
+        </div>
 
         {/* Metrics — integrated information row, not boxed widgets */}
         <Reveal>

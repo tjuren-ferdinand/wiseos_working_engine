@@ -24,21 +24,6 @@ SYSTEM_PROMPT = (
 )
 
 
-def _mock_feedback(problem: str, student: str, correct: str, w: WolframResult) -> str:
-    if w.is_correct:
-        return (
-            f"Snyggt jobbat! Ditt svar **{student}** stämmer. "
-            f"Du har visat att du behärskar metoden. "
-            f"Försök gärna en liknande uppgift för att befästa kunskapen."
-        )
-    return (
-        f"Inte riktigt rätt – du svarade **{student}** men korrekt svar är **{correct}**. "
-        f"Gå tillbaka och kontrollera varje steg, särskilt teckenhantering och förenklingar. "
-        f"Tips: skriv om uppgiften steg för steg och verifiera varje led. "
-        f"Du är på god väg – fortsätt öva!"
-    )
-
-
 def _feedback_message(problem: str, student: str, correct: str, wolfram: WolframResult) -> str:
     return (
         f"Uppgift: {problem}\n"
@@ -88,14 +73,6 @@ async def generate_feedback_detailed(
     correct_answer: str,
     wolfram: WolframResult,
 ) -> tuple[str, str]:
-    """Returnerar (feedback_text, provider_used).
-
-    provider_used är den FAKTISKA källan: 'groq' | 'gemini' | 'anthropic' | 'mock'.
-    Detta är avsiktligt ärligt — om AI_PROVIDER=gemini men anropet misslyckas
-    (t.ex. transient 503) rapporteras 'mock', inte 'gemini', så att ingen
-    nedströms konsument kan påstå att en AI-provider genererade svaret när den
-    inte gjorde det (se krav om ärliga provider-svar).
-    """
     safe_problem = scrub_pii(problem)
     safe_student = scrub_pii(student_answer)
     safe_correct = scrub_pii(correct_answer)
@@ -115,12 +92,11 @@ async def generate_feedback_detailed(
             text = await _generate_with_anthropic(user_msg)
             if text:
                 return text, "anthropic"
-    except (httpx.HTTPError, KeyError, IndexError, TypeError):
-        logger.exception("AI-provider %r misslyckades, faller tillbaka på mock-feedback", provider)
-    except Exception:
-        logger.exception("Oväntat fel i generate_feedback (provider=%r), faller tillbaka på mock-feedback", provider)
+    except Exception as e:
+        logger.exception("AI-provider %r misslyckades", provider)
+        raise RuntimeError(f"Kunde inte generera AI-feedback. Provider ({provider}) returnerade ett fel: {str(e)}") from e
 
-    return _mock_feedback(problem, student_answer, correct_answer, wolfram), "mock"
+    raise RuntimeError("Ingen AI-provider för feedback är konfigurerad eller aktiverad.")
 
 
 async def generate_feedback(

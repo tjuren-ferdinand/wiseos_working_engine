@@ -1,5 +1,5 @@
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 from pydantic import BaseModel, Field, ConfigDict
 
 
@@ -102,8 +102,15 @@ class OcrResponse(BaseModel):
 
 class AnswerKeyItem(BaseModel):
     question_number: str
+    question_text: str = ""
     final_answer: str
     derivation_steps: list[str] = []
+    max_points: float = 1.0
+    # Valfri poängmatris, t.ex. {"2": "Fullständig härledning + rätt svar",
+    # "1": "Rätt metod men räknefel", "0": "Fel metod"}.
+    # Saknas den bedömer modellen mot final_answer/derivation_steps och
+    # sänker sin confidence.
+    rubric: dict[str, str] = {}
 
 
 # ---------------------------------------------------------------------------
@@ -111,43 +118,99 @@ class AnswerKeyItem(BaseModel):
 # ---------------------------------------------------------------------------
 
 
-class BatchGradingStep(BaseModel):
-    """En rättningsruta i Workbench. Innehåller både AI-bedömning och
-    metadata för att frontenden ska kunna re-derivera poäng dynamiskt när
-    klassparametrarna ändras."""
+class SourceRegion(BaseModel):
+    """Normaliserat område [0,1] i en specifik sida som elevens svar kommer ifrån.
 
-    id: str
-    label: str
-    studentWork: str
-    baseAnnotation: str
-    appliedRules: list[str] = []  # frontend-kompatibel: "unit_penalty" | "sigfig_strict"
-    aiVerdict: str  # "correct" | "partial" | "incorrect"
-    pointsMax: float
-    pointsBase: float
-    pointsTeacher: float | None = None
-    status: str = "ai_suggested"
-    teacherComment: str | None = None
-    # Diagnostik – syns inte i UI per default men låter pitch-demo lägga upp den vid behov
+    En uppgift kan ha flera regioner: dels när svaret fortsätter på nästa sida,
+    dels när eleven skrivit på flera ställen på samma sida.
+    """
+
+    page: int = 1
+    x: float = 0.0
+    y: float = 0.0
+    width: float = 0.0
+    height: float = 0.0
+
+
+# Bedömningsstatus. "needs_review" = AI:n har otillräckligt underlag och
+# överlämnar till människa. Aldrig ett sätt att dölja ett tekniskt fel.
+GradingStatus = Literal["correct", "partial", "incorrect", "needs_review"]
+
+
+class Annotation(BaseModel):
+    """Strukturerad AI-annotering som UI:t renderar som ✓/✗-punkter.
+
+    Varje punkt ska referera till något som faktiskt syns i elevens arbete.
+    """
+
+    summary: str = ""
+    evidence: list[str] = []      # ✓ det eleven bevisligen gjort rätt
+    issues: list[str] = []        # ✗ konkreta fel i elevens arbete
+    suggestions: list[str] = []   # nästa steg för eleven
+
+
+class Assessment(BaseModel):
+    status: GradingStatus = "needs_review"
+    points: float = 0.0
+    maxPoints: float = 1.0
     confidence: float = 0.0
-    wolframNotes: str | None = None
 
 
-class BatchStudentResult(BaseModel):
+class QuestionResult(BaseModel):
+    """Kanoniskt per-uppgift-resultat. Ämnesagnostiskt."""
+
+    questionNumber: str
+    # found=False betyder att uppgiften inte finns i dokumentet.
+    # Oläslig handstil ger found=True + låg transcriptionConfidence + needs_review.
+    found: bool = False
+    # False när uppgiften hittades i bilden men saknas i facit.
+    inAnswerKey: bool = True
+    questionText: str = ""
+    studentWork: str = ""
+    transcriptionConfidence: float = 0.0
+    correctAnswer: str = ""
+    assessment: Assessment = Assessment()
+    feedback: str = ""
+    annotation: Annotation = Annotation()
+    sourceRegions: list[SourceRegion] = []
+    # Sätts när ett tekniskt fel hindrade bedömning (aldrig maskerat som "fel svar").
+    error: str | None = None
+
+    # --- Lärarens override, bevaras genom hela kedjan ---
+    pointsTeacher: float | None = None
+    teacherComment: str | None = None
+    reviewStatus: str = "ai_suggested"
+
+
+class DocumentMeta(BaseModel):
+    """Diagnostik per elevdokument – driver logging och UI:ts osäkerhetsmarkörer."""
+
+    pageCount: int = 0
+    model: str = ""
+    latencyMs: int = 0
+    attempts: int = 1
+    questionsExpected: int = 0
+    questionsFound: int = 0
+    needsReviewCount: int = 0
+    # Sätts om HELA dokumentanalysen fallerade tekniskt.
+    error: str | None = None
+
+
+class StudentDocumentResult(BaseModel):
     id: str
     provId: str
     studentName: str
-    scanPages: list[str] = []  # data-URLs fylls på av frontenden, backend lämnar tom
-    steps: list[BatchGradingStep]
+    scanPages: list[str] = []   # data-URL per sida, i sidordning
+    document: DocumentMeta = DocumentMeta()
+    questions: list[QuestionResult] = []
 
 
 class BatchGradeResponse(BaseModel):
     provId: str
-    results: list[BatchStudentResult]
-    # Vilka klassregler som matchade parametertexten — för transparens i UI:t
+    results: list[StudentDocumentResult]
     activeRules: list[str] = []
-    # Snabb summering för pitch/loggning
     totalStudents: int
-    totalSteps: int
+    totalQuestions: int
     integrations: dict[str, bool | str] = {}
 
 
@@ -243,6 +306,7 @@ class GradingStepSchema(BaseModel):
     id: str
     questionId: str | None = None
     label: str
+    questionText: str | None = None
     maxPoints: float
     earnedPoints: float
     status: str

@@ -105,17 +105,17 @@ export default function Onboarding() {
       {/* Backdrop */}
       <div 
         className={`absolute inset-0 transition-opacity duration-500 ${
-          isDark ? "bg-black/80" : "bg-slate-900/60"
+          isDark ? "bg-black/80" : "bg-ink/60"
         } backdrop-blur-sm`}
         onClick={handleSkip}
       />
 
       {/* Modal */}
       <div 
-        className={`relative w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl transform transition-all duration-500 ${
+        className={`relative w-full max-w-lg rounded-2xl overflow-hidden shadow-card transform transition-all duration-500 ${
           isDark 
-            ? "bg-[#1a1a1a] border border-white/10" 
-            : "bg-white"
+            ? "bg-[#1a1a1a] border border-paper-raised/10" 
+            : "bg-paper-raised"
         }`}
         style={{
           animation: "modalSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
@@ -136,7 +136,7 @@ export default function Onboarding() {
               />
               <span 
                 className={`text-[22px] font-semibold tracking-tight ${
-                  isDark ? "text-white" : "text-slate-800"
+                  isDark ? "text-paper" : "text-ink"
                 }`}
                 style={{
                   background: isDark 
@@ -153,13 +153,13 @@ export default function Onboarding() {
             </div>
 
             <h1 className={`text-3xl font-bold tracking-tight mb-3 ${
-              isDark ? "text-white" : "text-slate-900"
+              isDark ? "text-paper" : "text-ink"
             }`}>
               Välkommen till WiseOS
             </h1>
             
             <p className={`text-lg mb-10 ${
-              isDark ? "text-white/60" : "text-slate-500"
+              isDark ? "text-ink-secondary" : "text-ink-secondary"
             }`}>
               Din AI-assistent för snabbare och smartare rättning.
             </p>
@@ -170,7 +170,7 @@ export default function Onboarding() {
                 className={`w-full py-4 px-6 rounded-2xl text-base font-semibold transition-all duration-200 ${
                   isDark
                     ? "bg-[#e8b0e4] text-[#1a1a1a] hover:bg-[#d9a0d5]"
-                    : "bg-slate-900 text-white hover:bg-slate-800"
+                    : "bg-ink text-paper hover:bg-paper-secondary"
                 }`}
               >
                 Utforska WiseOS
@@ -180,8 +180,8 @@ export default function Onboarding() {
                 onClick={handleSkip}
                 className={`w-full py-4 px-6 rounded-2xl text-base font-medium transition-all duration-200 ${
                   isDark
-                    ? "text-white/50 hover:text-white hover:bg-white/5"
-                    : "text-slate-500 hover:text-slate-900 hover:bg-slate-100"
+                    ? "text-paper/50 hover:text-paper hover:bg-paper-raised/5"
+                    : "text-ink-secondary hover:text-ink hover:bg-paper-secondary"
                 }`}
               >
                 Hoppa över
@@ -198,8 +198,8 @@ export default function Onboarding() {
                   key={index}
                   className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
                     index <= currentStep
-                      ? isDark ? "bg-[#e8b0e4]" : "bg-slate-900"
-                      : isDark ? "bg-white/10" : "bg-slate-200"
+                      ? isDark ? "bg-[#e8b0e4]" : "bg-ink"
+                      : isDark ? "bg-paper-raised/10" : "bg-paper-secondary"
                   }`}
                 />
               ))}
@@ -207,30 +207,30 @@ export default function Onboarding() {
 
             {/* Step indicator */}
             <p className={`text-xs font-semibold tracking-widest uppercase mb-4 ${
-              isDark ? "text-[#e8b0e4]" : "text-slate-400"
+              isDark ? "text-[#e8b0e4]" : "text-ink-muted"
             }`}>
               Steg {currentStep + 1} av {steps.length}
             </p>
 
             {/* Icon */}
             <div className={`w-16 h-16 rounded-2xl mb-6 flex items-center justify-center ${
-              isDark ? "bg-[#e8b0e4]/15" : "bg-slate-100"
+              isDark ? "bg-[#e8b0e4]/15" : "bg-paper-secondary"
             }`}>
               <LineIcon 
                 name={steps[currentStep].icon} 
-                className={`h-8 w-8 ${isDark ? "text-[#e8b0e4]" : "text-slate-700"}`} 
+                className={`h-8 w-8 ${isDark ? "text-[#e8b0e4]" : "text-ink"}`} 
               />
             </div>
 
             {/* Content */}
             <h2 className={`text-2xl font-bold tracking-tight mb-3 ${
-              isDark ? "text-white" : "text-slate-900"
+              isDark ? "text-paper" : "text-ink"
             }`}>
               {steps[currentStep].title}
             </h2>
             
             <p className={`text-base leading-relaxed mb-10 ${
-              isDark ? "text-white/60" : "text-slate-500"
+              isDark ? "text-ink-secondary" : "text-ink-secondary"
             }`}>
               {steps[currentStep].description}
             </p>
@@ -242,8 +242,8 @@ export default function Onboarding() {
                   onClick={handleBack}
                   className={`flex-1 py-4 px-6 rounded-2xl text-base font-medium transition-all duration-200 ${
                     isDark
-                      ? "bg-white/5 text-white hover:bg-white/10"
-                      : "bg-slate-100 text-slate-700 hover:bg-slate-200"
+                      ? "bg-paper-raised/5 text-paper hover:bg-paper-raised/10"
+                      : "bg-paper-secondary text-ink hover:bg-paper-secondary"
                   }`}
                 >
                   Tillbaka
@@ -255,7 +255,7 @@ export default function Onboarding() {
                 className={`flex-1 py-4 px-6 rounded-2xl text-base font-semibold transition-all duration-200 ${
                   isDark
                     ? "bg-[#e8b0e4] text-[#1a1a1a] hover:bg-[#d9a0d5]"
-                    : "bg-slate-900 text-white hover:bg-slate-800"
+                    : "bg-ink text-paper hover:bg-paper-secondary"
                 }`}
               >
                 {currentStep < steps.length - 1 ? "Nästa" : "Kom igång"}
@@ -266,7 +266,7 @@ export default function Onboarding() {
             <button
               onClick={handleSkip}
               className={`w-full mt-4 py-2 text-sm transition-colors ${
-                isDark ? "text-white/40 hover:text-white/60" : "text-slate-400 hover:text-slate-600"
+                isDark ? "text-ink-muted hover:text-ink-secondary" : "text-ink-muted hover:text-ink-secondary"
               }`}
             >
               Hoppa över introduktionen

@@ -3,7 +3,7 @@ import { GeminiProvider } from "@/lib/ai/gemini-provider";
 import type { ChatMessage } from "@/lib/ai/ai-provider";
 
 const apiKey = process.env.GEMINI_API_KEY ?? "";
-const model = process.env.GEMINI_MODEL || "gemini-flash-latest";
+const model = process.env.GEMINI_MODEL || "gemini-1.5-pro";
 
 export async function POST(request: Request) {
   try {

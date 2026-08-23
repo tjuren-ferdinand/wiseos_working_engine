@@ -22,7 +22,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
   return (
     <form
       onSubmit={handleSubmit}
-      className="flex items-end gap-2 rounded-3xl border border-equi-300/50 bg-equi-50 p-2 shadow-card dark:border-equi-800/50 dark:bg-equi-950"
+      className="flex items-end gap-2 rounded-2xl border border-equi-300/50 bg-equi-50 p-2 shadow-card dark:border-equi-800/50 dark:bg-equi-950"
     >
       <input
         value={value}

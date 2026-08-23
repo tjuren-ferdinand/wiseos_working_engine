@@ -145,20 +145,20 @@ export default function BulkUploadZone({
         onDrop={onDrop}
         onClick={() => fileInputRef.current?.click()}
         className={`cursor-pointer rounded-2xl border-2 border-dashed p-6 sm:p-8 text-center transition ${
-          dragging ? "border-wise-600 bg-wise-50" : "border-slate-300 bg-white hover:border-wise-400 hover:bg-slate-50"
+          dragging ? "border-ink-hairline bg-paper-secondary" : "border-ink-hairline bg-paper-raised hover:border-ink-hairline hover:bg-paper-secondary"
         }`}
       >
-        <div className="mx-auto mb-3 h-11 w-11 rounded-xl bg-wise-50 text-wise-600 grid place-items-center">
+        <div className="mx-auto mb-3 h-11 w-11 rounded-xl bg-paper-secondary text-ink-secondary grid place-items-center">
           <LineIcon name="stack" className="h-5 w-5" />
         </div>
-        <div className="font-semibold text-slate-900">
+        <div className="font-semibold text-ink">
           Släpp alla prov från klassen här
         </div>
-        <div className="text-sm text-slate-500 mt-1">
+        <div className="text-sm text-ink-secondary mt-1">
           Eller klicka för att välja flera filer • PNG, JPG, HEIC, PDF
         </div>
-        <div className="text-xs text-slate-400 mt-2">
-          💡 Tips: Namnge filerna t.ex. <code className="font-mono bg-slate-100 px-1.5 py-0.5 rounded">Anna_Andersson.jpg</code> så
+        <div className="text-xs text-ink-muted mt-2">
+          💡 Tips: Namnge filerna t.ex. <code className="font-mono bg-paper-secondary px-1.5 py-0.5 rounded">Anna_Andersson.jpg</code> så
           fylls elevnamnet automatiskt.
         </div>
         <input
@@ -176,29 +176,29 @@ export default function BulkUploadZone({
 
       {/* Status-rad + Action */}
       {rows.length > 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-slate-200 bg-white px-4 py-3">
-          <div className="text-sm text-slate-700">
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-ink-hairline bg-paper-raised px-4 py-3">
+          <div className="text-sm text-ink">
             <span className="font-semibold">{stats.total} prov</span>
             {stats.done > 0 && (
-              <span className="ml-3 inline-flex items-center gap-1 text-emerald-700">
+              <span className="ml-3 inline-flex items-center gap-1 text-state-success">
                 <LineIcon name="check" className="h-3.5 w-3.5" /> {stats.done} rättade
               </span>
             )}
-            {stats.error > 0 && <span className="ml-3 text-red-700">⚠ {stats.error} fel</span>}
-            {stats.pending > 0 && <span className="ml-3 text-amber-700">⏳ {stats.pending} väntar</span>}
+            {stats.error > 0 && <span className="ml-3 text-state-danger">⚠ {stats.error} fel</span>}
+            {stats.pending > 0 && <span className="ml-3 text-state-warning">⏳ {stats.pending} väntar</span>}
           </div>
           <div className="flex gap-2">
             {!running && stats.pending > 0 && (
               <button
                 onClick={runAll}
-                className="rounded-lg bg-wise-600 px-4 py-2 text-sm font-semibold text-white hover:bg-wise-700 active:scale-[0.98]"
+                className="rounded-lg bg-ink px-4 py-2 text-sm font-semibold text-paper hover:bg-ink active:scale-[0.98]"
               >
                 <span className="inline-flex items-center gap-1.5"><LineIcon name="play" className="h-3.5 w-3.5" /> Rätta alla ({stats.pending})</span>
               </button>
             )}
             {running && (
-              <div className="flex items-center gap-2 text-sm text-slate-600">
-                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-wise-600 border-t-transparent" />
+              <div className="flex items-center gap-2 text-sm text-ink-secondary">
+                <span className="inline-block h-4 w-4 animate-spin rounded-full border-2 border-ink-hairline border-t-transparent" />
                 Bearbetar…
               </div>
             )}
@@ -208,7 +208,7 @@ export default function BulkUploadZone({
                   rows.forEach((r) => URL.revokeObjectURL(r.previewUrl));
                   setRows([]);
                 }}
-                className="rounded-lg border border-slate-300 px-3 py-2 text-sm text-slate-600 hover:bg-slate-50"
+                className="rounded-lg border border-ink-hairline px-3 py-2 text-sm text-ink-secondary hover:bg-paper-secondary"
               >
                 Rensa
               </button>
@@ -239,21 +239,21 @@ function RowCard({
   disabled: boolean;
 }) {
   const statusInfo: Record<RowStatus, { label: string; cls: string }> = {
-    queued: { label: "väntar", cls: "bg-slate-100 text-slate-700" },
+    queued: { label: "väntar", cls: "bg-paper-secondary text-ink" },
     ocr: { label: "läser text…", cls: "bg-blue-100 text-blue-800 animate-pulse" },
-    grading: { label: "rättar…", cls: "bg-amber-100 text-amber-800 animate-pulse" },
-    done: { label: "klar", cls: "bg-emerald-100 text-emerald-800" },
-    error: { label: "fel", cls: "bg-red-100 text-red-800" },
+    grading: { label: "rättar…", cls: "bg-state-warning/10 text-state-warning animate-pulse" },
+    done: { label: "klar", cls: "bg-state-success/10 text-state-success" },
+    error: { label: "fel", cls: "bg-state-danger/10 text-state-danger" },
   };
   const info = statusInfo[row.status];
 
   return (
-    <div className="flex gap-3 rounded-xl border border-slate-200 bg-white p-3">
+    <div className="flex gap-3 rounded-xl border border-ink-hairline bg-paper-raised p-3">
       {/* Thumbnail */}
       <img
         src={row.previewUrl}
         alt={row.file.name}
-        className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 rounded-lg object-cover bg-slate-100"
+        className="h-16 w-16 sm:h-20 sm:w-20 flex-shrink-0 rounded-lg object-cover bg-paper-secondary"
       />
 
       <div className="flex-1 min-w-0">
@@ -263,7 +263,7 @@ function RowCard({
             onChange={(e) => onPatch({ studentName: e.target.value })}
             disabled={disabled || row.status === "done"}
             placeholder="Elevens namn"
-            className="flex-1 min-w-[140px] rounded-lg border border-slate-300 px-2.5 py-1.5 text-sm font-medium disabled:bg-slate-50"
+            className="flex-1 min-w-[140px] rounded-lg border border-ink-hairline px-2.5 py-1.5 text-sm font-medium disabled:bg-paper-secondary"
           />
           <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${info.cls}`}>
             {info.label}
@@ -271,7 +271,7 @@ function RowCard({
           {row.status === "done" && row.score != null && (
             <span
               className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                row.score >= 100 ? "bg-emerald-100 text-emerald-800" : row.score >= 50 ? "bg-amber-100 text-amber-800" : "bg-red-100 text-red-800"
+                row.score >= 100 ? "bg-state-success/10 text-state-success" : row.score >= 50 ? "bg-state-warning/10 text-state-warning" : "bg-state-danger/10 text-state-danger"
               }`}
             >
               {row.score} p
@@ -279,21 +279,21 @@ function RowCard({
           )}
         </div>
 
-        <div className="mt-1 text-xs text-slate-500 truncate" title={row.file.name}>
+        <div className="mt-1 text-xs text-ink-secondary truncate" title={row.file.name}>
           {row.file.name}
         </div>
 
         {row.ocrText && (
-          <div className="mt-2 font-mono text-xs text-slate-700 bg-slate-50 rounded px-2 py-1 truncate">
+          <div className="mt-2 font-mono text-xs text-ink bg-paper-secondary rounded px-2 py-1 truncate">
             {row.ocrText}
             {row.ocrConfidence != null && (
-              <span className="ml-2 text-slate-400">({Math.round(row.ocrConfidence * 100)}%)</span>
+              <span className="ml-2 text-ink-muted">({Math.round(row.ocrConfidence * 100)}%)</span>
             )}
           </div>
         )}
 
         {row.error && (
-          <div className="mt-2 text-xs text-red-600">⚠ {row.error}</div>
+          <div className="mt-2 text-xs text-state-danger">⚠ {row.error}</div>
         )}
       </div>
 
@@ -301,7 +301,7 @@ function RowCard({
         <button
           onClick={onRemove}
           aria-label="Ta bort"
-          className="flex-shrink-0 h-8 w-8 grid place-items-center rounded-lg text-slate-400 hover:bg-slate-100 hover:text-red-600"
+          className="flex-shrink-0 h-8 w-8 grid place-items-center rounded-lg text-ink-muted hover:bg-paper-secondary hover:text-state-danger"
         >
           ✕
         </button>
