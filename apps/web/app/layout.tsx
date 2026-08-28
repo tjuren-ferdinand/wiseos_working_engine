@@ -37,13 +37,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <StoreHydrator />
           <Splash>
-            <Onboarding />
             <Header />
             <main className="mx-auto min-h-screen w-full max-w-5xl px-5 pt-24 pb-28">
               {children}
             </main>
             <BottomNav />
           </Splash>
+          <Onboarding />
         </ThemeProvider>
       </body>
     </html>

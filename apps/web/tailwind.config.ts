@@ -64,6 +64,7 @@ const config: Config = {
           DEFAULT: "rgb(var(--accent))",
           soft: "rgb(var(--accent-soft))",
           tint: "rgb(var(--accent) / 0.12)",
+          fg: "rgb(var(--accent-fg))",
         },
         state: {
           success: "rgb(var(--state-success))",

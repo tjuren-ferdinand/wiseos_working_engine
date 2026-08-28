@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
-from .routers import assignments, submissions, ocr, wolfram_test, batch, auth, classes, results, claude
+from .routers import assignments, submissions, ocr, wolfram_test, batch, auth, classes, results, claude, supabase_auth
 from .services.batch_pipeline import integration_status
 
 app = FastAPI(
@@ -51,6 +51,7 @@ app.include_router(batch.router)
 app.include_router(classes.router)
 app.include_router(results.router)
 app.include_router(claude.router)
+app.include_router(supabase_auth.router)
 
 
 # Alias enligt mega-prompten: stateless rättning på /api/v1/grade

@@ -59,6 +59,7 @@ html.dark {
   --hairline: 245 243 240;     /* used with .07 alpha for subtle borders */
   --accent: 185 175 162;       /* #b9afa2 brand */
   --accent-soft: 209 204 196;  /* #d1ccc4 */
+  --accent-fg: 28 29 32;       /* dark ink text guaranteed to read on any accent chip */
   --state-success: 125 168 127;/* #7da87f */
   --state-warning: 214 185 106;/* #d6b96a */
   --state-danger: 201 126 126; /* #c97e7e */
@@ -80,6 +81,58 @@ html.dark {
   --arc-subtle: 245 243 240;
   --arc-gold: 168 161 153;
   --arc-copper: 209 204 196;
+}
+
+/* ============================================================ */
+/*  Accent color themes — swap only the brand/accent hue.        */
+/*  Backgrounds & text stay on the neutral Equi scale so every   */
+/*  theme guarantees the same proven contrast in light & dark.   */
+/*  --accent-fg is intentionally left constant (dark ink) since  */
+/*  every accent below is a pale/mid tone chip, never near-black.*/
+/* ============================================================ */
+html[data-theme="alabaster"] {
+  --accent: 176 138 78;      /* #B08A4E warm champagne gold */
+  --accent-soft: 199 168 118;/* #C7A876 */
+}
+html.dark[data-theme="alabaster"] {
+  --accent: 216 190 138;     /* #D8BE8A */
+  --accent-soft: 230 211 174;/* #E6D3AE */
+}
+
+html[data-theme="slate"] {
+  --accent: 100 116 139;     /* #64748B cool blue-gray */
+  --accent-soft: 133 146 166;/* #8592A6 */
+}
+html.dark[data-theme="slate"] {
+  --accent: 154 170 194;     /* #9AAAC2 */
+  --accent-soft: 183 196 214;/* #B7C4D6 */
+}
+
+html[data-theme="violet"] {
+  --accent: 139 111 176;     /* #8B6FB0 */
+  --accent-soft: 168 143 199;/* #A88FC7 */
+}
+html.dark[data-theme="violet"] {
+  --accent: 195 174 222;     /* #C3AEDE */
+  --accent-soft: 214 198 234;/* #D6C6EA */
+}
+
+html[data-theme="mint"] {
+  --accent: 79 158 130;      /* #4F9E82 */
+  --accent-soft: 124 187 164;/* #7CBBA4 */
+}
+html.dark[data-theme="mint"] {
+  --accent: 143 203 179;     /* #8FCBB3 */
+  --accent-soft: 181 222 205;/* #B5DECD */
+}
+
+html[data-theme="ice"] {
+  --accent: 78 146 168;      /* #4E92A8 */
+  --accent-soft: 122 178 196;/* #7AB2C4 */
+}
+html.dark[data-theme="ice"] {
+  --accent: 154 208 224;     /* #9AD0E0 */
+  --accent-soft: 195 228 236;/* #C3E4EC */
 }
 
 * {
@@ -619,3 +672,24 @@ html.dark {
     transform: none;
   }
 }
+
+.wiseos-logo-label {
+  background: linear-gradient(90deg, #FFFFFF 0%, #E8ECF0 50%, #D1D5DB 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+html:not(.dark) .wiseos-logo-label {
+  background: linear-gradient(90deg, #1C1A1E 0%, #57525A 50%, #8A858D 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.dark .wiseos-logo-label {
+  background: linear-gradient(90deg, #FFFFFF 0%, #E8ECF0 50%, #D1D5DB 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+

@@ -13,14 +13,14 @@ export default function Card({
 }: CardProps) {
   const paddings = {
     none: "",
-    sm: "p-4",
-    md: "p-5",
-    lg: "p-6",
+    sm: "p-3.5",
+    md: "p-4",
+    lg: "p-5",
   };
 
   return (
     <div
-      className={`rounded-2xl border border-equi-300/50 bg-equi-50 shadow-card dark:border-equi-800/50 dark:bg-equi-950 ${paddings[padding]} ${className}`}
+      className={`rounded-2xl border border-ink-hairline bg-paper-raised text-ink shadow-card ${paddings[padding]} ${className}`}
       {...props}
     >
       {children}

@@ -1,3 +1,5 @@
+import { LOGO_MARK } from "@/lib/logo";
+
 type Props = {
   className?: string;
   animate?: boolean;
@@ -6,7 +8,7 @@ type Props = {
 export default function WiseOSIcon({ className }: Props) {
   return (
     <img
-      src="/dashboard_logo.jpg"
+      src={LOGO_MARK}
       alt="WiseOS"
       className={className}
     />

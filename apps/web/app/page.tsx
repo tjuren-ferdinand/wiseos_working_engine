@@ -1,10 +1,10 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
 import { useStore } from "@/lib/store";
 import Reveal from "@/components/Reveal";
-import WiseOSIcon from "../experimental-ui/components/WiseOSIcon";
+import { createClient } from "@/lib/supabase/client";
 
 export default function DashboardPage() {
   const klasser = useStore((s) => s.klasser);
@@ -26,42 +26,53 @@ export default function DashboardPage() {
   // Get recent activity
   const recentResults = results.slice(-3).reverse();
 
-  const [showSplash, setShowSplash] = useState(true);
-  useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 2800);
-    return () => clearTimeout(t);
-  }, []);
-
   const ink = "text-ink";
   const inkSecondary = "text-ink-secondary";
   const inkMuted = "text-ink-muted";
   const hairline = "border-ink-hairline";
 
+  const [userName, setUserName] = useState("lärare");
+  const [today, setToday] = useState("");
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        const u = data.user;
+        const name = (u?.user_metadata as Record<string, string> | undefined)?.name;
+        const email = u?.email;
+        setUserName(name || email?.split("@")[0] || "lärare");
+      });
+
+    const formatter = new Intl.DateTimeFormat("sv-SE", {
+      weekday: "long",
+      day: "numeric",
+      month: "long",
+    });
+    setToday(formatter.format(new Date()));
+  }, []);
+
   return (
-    <div>
-        {/* Splash overlay — folds up and reveals dashboard */}
-        <div
-          className={`fixed inset-0 z-50 flex flex-col items-center justify-center gap-8 bg-paper transition-transform duration-1000 ease-out ${
-            showSplash ? "translate-y-0" : "-translate-y-full"
-          }`}
-        >
-          <WiseOSIcon className="h-20 w-auto" />
-          <div className="wise-splash-title">
-            {"WiseOS".split("").map((c, i) => (
-              <span
-                key={i}
-                className="wise-splash-letter"
-                style={{ animationDelay: `${0.4 + i * 0.08}s` }}
-              >
-                {c}
-              </span>
-            ))}
+    <div className="pt-4">
+        {/* Greeting */}
+        <Reveal>
+          <div className="mb-16">
+            <h1 className="text-[26px] font-medium tracking-[-0.02em] text-ink">
+              Välkommen tillbaka, {userName}
+            </h1>
+            <p className="mt-2 text-[13.5px] text-ink-secondary">
+              {today && <span className="capitalize">{today}</span>}
+              {today && " · "}
+              {pendingReviews > 0
+                ? `${pendingReviews} prov väntar på granskning`
+                : "Inga prov att granska just nu"}
+            </p>
           </div>
-        </div>
+        </Reveal>
 
         {/* Metrics — integrated information row, not boxed widgets */}
         <Reveal>
-          <div className="flex items-start gap-14 pb-8 mb-8 border-b border-ink-hairline">
+          <div className="grid grid-cols-3 gap-12 pb-6 mb-6 border-b border-ink-hairline">
             <div>
               <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                 Tid sparad
@@ -106,7 +117,7 @@ export default function DashboardPage() {
         {/* Intelligent system notification — elevated surface, subtle accent, not an alert box */}
         {pendingReviews > 0 && (
           <Reveal delay={60}>
-            <div className="mb-10 flex items-center justify-between gap-6 rounded-[16px] bg-paper-elevated border border-ink-hairline shadow-card px-6 py-5">
+            <div className="mb-8 flex items-center justify-between gap-6 rounded-[16px] bg-paper-elevated border border-ink-hairline shadow-card px-5 py-4">
               <div className="flex items-start gap-3.5">
                 <span className="mt-1.5 h-[6px] w-[6px] rounded-full bg-accent shrink-0" />
                 <div>
@@ -135,11 +146,11 @@ export default function DashboardPage() {
         )}
 
         {/* Two column layout — quiet lists, generous spacing, hairline separators only */}
-        <div className="grid grid-cols-5 gap-16">
+        <div className="grid grid-cols-5 gap-12">
 
           {/* Classes */}
           <Reveal className="col-span-3" delay={120}>
-            <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center justify-between mb-3">
               <h2 className={`text-[12px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                 Klasser
               </h2>
@@ -149,7 +160,7 @@ export default function DashboardPage() {
             </div>
 
             {klasser.length === 0 ? (
-              <div className={`py-10 text-center border-t ${hairline}`}>
+              <div className={`py-8 text-center border-t ${hairline}`}>
                 <div className={`text-[14px] ${inkSecondary}`}>Inga klasser ännu</div>
                 <Link
                   href="/classes/new"
@@ -169,7 +180,7 @@ export default function DashboardPage() {
                     <Link
                       key={k.id}
                       href={`/classes/${k.id}`}
-                      className={`group flex items-center justify-between py-4 border-b ${hairline} transition-colors hover:bg-ink/[0.02] -mx-1 px-1`}
+                      className={`group flex items-center justify-between py-3.5 border-b ${hairline} transition-colors hover:bg-ink/[0.02] -mx-1 px-1`}
                     >
                       <div className="flex items-center gap-3.5">
                         <span className={`text-[12.5px] font-medium w-8 tabular-nums ${inkMuted}`}>
@@ -196,12 +207,12 @@ export default function DashboardPage() {
 
           {/* Recent activity */}
           <Reveal className="col-span-2" delay={180}>
-            <h2 className={`text-[12px] font-medium uppercase tracking-[0.1em] mb-4 ${inkMuted}`}>
+            <h2 className={`text-[12px] font-medium uppercase tracking-[0.1em] mb-3 ${inkMuted}`}>
               Senaste aktivitet
             </h2>
 
             {recentResults.length === 0 ? (
-              <div className={`py-6 text-[13.5px] border-t ${hairline} ${inkSecondary}`}>
+              <div className={`py-5 text-[13.5px] border-t ${hairline} ${inkSecondary}`}>
                 Ingen aktivitet ännu
               </div>
             ) : (
@@ -213,7 +224,7 @@ export default function DashboardPage() {
                   const percentage = Math.round((totalPoints / maxPoints) * 100);
 
                   return (
-                    <div key={result.id} className={`py-3.5 border-b ${hairline}`}>
+                    <div key={result.id} className={`py-3 border-b ${hairline}`}>
                       <div className="flex items-center justify-between">
                         <span className={`text-[13.5px] font-medium ${ink}`}>{result.studentName}</span>
                         <span className={`text-[12.5px] font-medium tabular-nums ${
@@ -231,7 +242,7 @@ export default function DashboardPage() {
               </div>
             )}
 
-            <div className={`mt-5 flex items-center gap-6 text-[13px] ${inkSecondary}`}>
+            <div className={`mt-4 flex items-center gap-6 text-[13px] ${inkSecondary}`}>
               <span><span className={`font-medium ${ink}`}>{klasser.length}</span> klasser</span>
               <span><span className={`font-medium ${ink}`}>{prov.length}</span> prov</span>
             </div>

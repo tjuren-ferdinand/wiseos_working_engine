@@ -75,7 +75,7 @@ export default function PublishResultsModal({
       />
 
       <div className="relative w-full max-w-2xl rounded-[20px] bg-paper-raised border border-ink-hairline shadow-elevated overflow-hidden">
-        <div className="px-6 py-5 border-b border-ink-hairline">
+        <div className="px-6 py-4 border-b border-ink-hairline">
           <div className="flex items-center justify-between">
             <div>
               <h2 className="text-[18px] font-medium text-ink">Publicera resultat</h2>
@@ -92,7 +92,7 @@ export default function PublishResultsModal({
           </div>
         </div>
 
-        <div className="px-6 py-5 max-h-[60vh] overflow-y-auto">
+        <div className="px-6 py-4 max-h-[60vh] overflow-y-auto">
           <p className="text-[13.5px] text-ink-secondary mb-4">
             Publiceringen gör alla {results.length} resultat synliga för klassen. Du kan
             fortfarande ändra resultat efter publicering.
@@ -103,10 +103,10 @@ export default function PublishResultsModal({
               return (
                 <div
                   key={result.id}
-                  className="flex items-center justify-between p-4 rounded-[12px] bg-paper-secondary border border-ink-hairline"
+                  className="flex items-center justify-between p-3.5 rounded-xl bg-paper-secondary border border-ink-hairline"
                 >
-                  <div className="flex items-center gap-3">
-                    <div className="h-9 w-9 rounded-[10px] bg-ink/[0.04] border border-ink-hairline grid place-items-center text-[14px] font-medium text-ink">
+                  <div className="flex items-center gap-2.5">
+                    <div className="h-8 w-8 rounded-lg bg-ink/[0.04] border border-ink-hairline grid place-items-center text-[14px] font-medium text-ink">
                       {result.studentName.charAt(0)}
                     </div>
                     <div>
@@ -116,7 +116,7 @@ export default function PublishResultsModal({
                       </div>
                     </div>
                   </div>
-                  <span className={`px-3 py-1 rounded-lg text-[13px] font-medium ${gradeClass(grade)}`}>
+                  <span className={`px-2.5 py-0.5 rounded-lg text-[13px] font-medium ${gradeClass(grade)}`}>
                     {grade}
                   </span>
                 </div>
@@ -125,7 +125,7 @@ export default function PublishResultsModal({
           </div>
         </div>
 
-        <div className="px-6 py-5 border-t border-ink-hairline bg-paper-secondary">
+        <div className="px-6 py-4 border-t border-ink-hairline bg-paper-secondary">
           <div className="flex items-center justify-between gap-4">
             <div className="text-[13px] text-ink-secondary">
               {publishError ? (
@@ -145,7 +145,7 @@ export default function PublishResultsModal({
               >
                 {isPublishing ? (
                   <span className="flex items-center gap-2">
-                    <span className="h-4 w-4 border-2 border-ink-hairline border-t-white rounded-full animate-spin" />
+                    <span className="h-4 w-4 border-2 border-ink-hairline border-t-ink rounded-full animate-spin" />
                     Publicerar...
                   </span>
                 ) : showSuccess ? (

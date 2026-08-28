@@ -1,4 +1,19 @@
+import { createClient } from "@/lib/supabase/client";
+
 export const API_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
+/** Hämtar Supabase-sessionens access token (JWT) om användaren är inloggad. */
+async function getAuthHeader(): Promise<Record<string, string>> {
+  try {
+    const supabase = createClient();
+    const { data } = await supabase.auth.getSession();
+    const token = data.session?.access_token;
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  } catch {
+    // Ingen Supabase-session tillgänglig (t.ex. server-rendering) — skicka utan token.
+    return {};
+  }
+}
 
 export type Assignment = {
   id: string;
@@ -47,9 +62,10 @@ export type ReviewAction = {
 
 async function jsonFetch<T>(path: string, init?: RequestInit, fallbackKey?: string): Promise<T> {
   try {
+    const authHeader = await getAuthHeader();
     const res = await fetch(`${API_URL}${path}`, {
       ...init,
-      headers: { "Content-Type": "application/json", ...(init?.headers || {}) },
+      headers: { "Content-Type": "application/json", ...authHeader, ...(init?.headers || {}) },
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
@@ -355,14 +371,16 @@ export const api = {
   ocrUpload: async (file: File): Promise<OcrResult> => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${API_URL}/api/v1/ocr/upload`, { method: "POST", body: fd });
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/v1/ocr/upload`, { method: "POST", body: fd, headers: authHeader });
     if (!res.ok) throw new Error(`OCR ${res.status}: ${await res.text()}`);
     return res.json();
   },
   answerKeyUpload: async (file: File): Promise<AnswerKeyItem[]> => {
     const fd = new FormData();
     fd.append("file", file);
-    const res = await fetch(`${API_URL}/api/v1/ocr/answer-key/upload`, { method: "POST", body: fd });
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/v1/ocr/answer-key/upload`, { method: "POST", body: fd, headers: authHeader });
     if (!res.ok) throw new Error(`Facit ${res.status}: ${await res.text()}`);
     return res.json();
   },
@@ -370,7 +388,8 @@ export const api = {
     const fd = new FormData();
     fd.append("description", description);
     fd.append("question_count", String(questionCount));
-    const res = await fetch(`${API_URL}/api/v1/ocr/answer-key/generate`, { method: "POST", body: fd });
+    const authHeader = await getAuthHeader();
+    const res = await fetch(`${API_URL}/api/v1/ocr/answer-key/generate`, { method: "POST", body: fd, headers: authHeader });
     if (!res.ok) throw new Error(`Facit ${res.status}: ${await res.text()}`);
     return res.json();
   },
@@ -387,9 +406,11 @@ export const api = {
     const onAbort = () => controller.abort();
     signal?.addEventListener("abort", onAbort);
     try {
+      const authHeader = await getAuthHeader();
       const res = await fetch(`${API_URL}/api/v1/batch/grade`, {
         method: "POST",
         body: fd,
+        headers: authHeader,
         signal: controller.signal,
       });
       if (!res.ok) throw new Error(`Batch ${res.status}: ${await res.text()}`);

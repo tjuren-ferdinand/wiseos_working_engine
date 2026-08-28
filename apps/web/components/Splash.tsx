@@ -1,7 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import WiseOSIcon from "@/experimental-ui/components/WiseOSIcon";
+import { AnimatePresence, motion } from "framer-motion";
+import { LOGO_MARK } from "@/lib/logo";
 
 const SESSION_KEY = "wiseos_arc_splash_shown";
 
@@ -9,10 +10,12 @@ export default function Splash({ children }: { children: React.ReactNode }) {
   const [show, setShow] = useState(false);
   const [fadeOut, setFadeOut] = useState(false);
   const [mainReveal, setMainReveal] = useState(false);
+  const [skip, setSkip] = useState(false);
 
   useEffect(() => {
     const alreadyShown = sessionStorage.getItem(SESSION_KEY);
     if (alreadyShown) {
+      setSkip(true);
       setMainReveal(true);
       return;
     }
@@ -24,11 +27,11 @@ export default function Splash({ children }: { children: React.ReactNode }) {
       setFadeOut(true);
       document.body.style.overflow = "auto";
       sessionStorage.setItem(SESSION_KEY, "1");
-    }, 2600);
+    }, 2400);
 
     const revealTimer = setTimeout(() => {
       setMainReveal(true);
-    }, 2700);
+    }, 2750);
 
     return () => {
       clearTimeout(fadeTimer);
@@ -37,29 +40,78 @@ export default function Splash({ children }: { children: React.ReactNode }) {
     };
   }, []);
 
-  const logoText = "WISEOS";
+  const logoText = "WiseOS";
 
   return (
     <>
-      {show && (
-        <div className={`arc-splash ${fadeOut ? "arc-fade-out" : ""}`}>
-          <div className="flex flex-col items-center justify-center gap-5">
-            <WiseOSIcon className="w-36 h-36" />
-            <h1 className="wise-splash-title">
-              {logoText.split("").map((char, i) => (
-                <span
-                  key={i}
-                  className="wise-splash-letter"
-                  style={{ animationDelay: `${1.0 + i * 0.08}s` }}
-                >
-                  {char}
-                </span>
-              ))}
-            </h1>
-          </div>
-        </div>
-      )}
-      <div className={`arc-main ${mainReveal ? "arc-reveal" : ""}`}>
+      <AnimatePresence>
+        {show && !fadeOut && (
+          <motion.div
+            className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
+            style={{ background: "radial-gradient(120% 120% at 50% 30%, #23262b 0%, #17181b 60%, #101113 100%)" }}
+            exit={{ opacity: 0, scale: 1.06, filter: "blur(6px)" }}
+            transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
+          >
+            {/* Ambient glow behind mark */}
+            <motion.div
+              className="absolute h-[420px] w-[420px] rounded-full"
+              style={{
+                background: "radial-gradient(circle, rgba(226,229,233,0.16) 0%, rgba(226,229,233,0) 70%)",
+              }}
+              initial={{ opacity: 0, scale: 0.6 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ duration: 1.2, ease: "easeOut" }}
+            />
+
+            <div className="relative flex flex-col items-center gap-6">
+              {/* Mark: spins in from a sliver, settles with a soft overshoot */}
+              <motion.img
+                src={LOGO_MARK}
+                alt="WiseOS"
+                className="h-24 w-auto max-w-[220px] object-contain select-none"
+                style={{ filter: "drop-shadow(0 0 26px rgba(226,229,233,0.35))" }}
+                initial={{ opacity: 0, scale: 0.35, rotate: -130 }}
+                animate={{ opacity: 1, scale: 1, rotate: 0 }}
+                transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
+              />
+
+              {/* Hairline that draws under the wordmark */}
+              <motion.div
+                className="h-px bg-gradient-to-r from-transparent via-[#E2E5E9]/70 to-transparent"
+                initial={{ width: 0, opacity: 0 }}
+                animate={{ width: 220, opacity: 1 }}
+                transition={{ delay: 0.55, duration: 0.6, ease: "easeOut" }}
+              />
+
+              {/* Wordmark — staggered letter reveal */}
+              <h1 className="flex text-[28px] font-semibold tracking-[0.24em] uppercase">
+                {logoText.split("").map((char, i) => (
+                  <motion.span
+                    key={i}
+                    className="inline-block"
+                    style={{ color: "#E2E5E9", minWidth: char === " " ? "0.4em" : undefined }}
+                    initial={{ opacity: 0, y: 16 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.65 + i * 0.055, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
+                  >
+                    {char}
+                  </motion.span>
+                ))}
+              </h1>
+
+              <motion.p
+                className="text-[12px] tracking-[0.18em] uppercase text-[#8a8f96]"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 1.15, duration: 0.5 }}
+              >
+                AI-driven rättning
+              </motion.p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+      <div className={skip ? "" : `arc-main ${mainReveal ? "arc-reveal" : ""}`}>
         {children}
       </div>
     </>

@@ -1,48 +1,136 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useTheme } from "@/lib/theme";
+import { useRouter } from "next/navigation";
+import { LOGO_MARK } from "@/lib/logo";
 import LineIcon from "./LineIcon";
 
 const ONBOARDING_KEY = "wiseos_onboarding_completed";
+const ACCENT = "#ea580c";
 
-interface OnboardingStep {
+interface TourStep {
   title: string;
   description: string;
-  icon: "upload" | "sparkles" | "edit" | "check";
 }
 
-const steps: OnboardingStep[] = [
+const steps: TourStep[] = [
   {
-    title: "Ladda upp elevprov",
-    description: "Ladda upp skannade prov som PDF eller bilder. WiseOS hanterar flera format och sidor automatiskt.",
-    icon: "upload",
+    title: "Din överblick",
+    description:
+      "Dashboard samlar det du behöver se först: senaste prov, snabbstatistik och tidsbesparingar.",
   },
   {
-    title: "AI analyserar",
-    description: "Vår AI läser av elevens lösningar, verifierar matematiken och genererar personlig feedback på svenska.",
-    icon: "sparkles",
+    title: "Kurser & klasser",
+    description:
+      "Skapa klasser, lägg till elever och håll ordning på varje kurs — allt på ett ställe.",
   },
   {
-    title: "Se elevens tanke",
-    description: "Granska originalprovet sida vid sida med AI:ns analys. Se exakt var eleven behöver stöd.",
-    icon: "edit",
+    title: "Rätta prov",
+    description:
+      "Ladda upp skannade prov, välj facit och låt WiseOS AI rätta under din kontroll.",
   },
   {
-    title: "Godkänn och exportera",
-    description: "Du har alltid sista ordet. Justera betyg, redigera feedback och exportera till ditt skolsystem.",
-    icon: "check",
+    title: "Granska & publicera",
+    description:
+      "Gå igenom AI:ns analys, justera poäng och feedback, och publicera när du är nöjd.",
   },
 ];
+
+function StepVisual({ step }: { step: number }) {
+  if (step === 0) {
+    return (
+      <div className="mb-6 overflow-hidden rounded-2xl border border-[#E2E5E9]/10 bg-[#0f1114] p-4">
+        <div className="mb-3 flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-[#ea580c]" />
+          <div className="h-2 w-20 rounded bg-[#E2E5E9]/10" />
+        </div>
+        <div className="grid grid-cols-3 gap-2">
+          <div className="h-14 rounded-xl bg-[#E2E5E9]/5 p-2">
+            <div className="text-[9px] text-[#8a8f96]">Prov</div>
+            <div className="text-sm font-semibold text-[#E2E5E9]">12</div>
+          </div>
+          <div className="h-14 rounded-xl bg-[#E2E5E9]/5 p-2">
+            <div className="text-[9px] text-[#8a8f96]">Tid sparad</div>
+            <div className="text-sm font-semibold text-[#E2E5E9]">4h</div>
+          </div>
+          <div className="h-14 rounded-xl bg-[#ea580c]/10 p-2">
+            <div className="text-[9px] text-[#ea580c]">AI-rättat</div>
+            <div className="text-sm font-semibold text-[#E2E5E9]">89</div>
+          </div>
+        </div>
+        <div className="mt-3 h-2 w-full rounded bg-[#E2E5E9]/5" />
+        <div className="mt-2 h-2 w-5/6 rounded bg-[#E2E5E9]/5" />
+      </div>
+    );
+  }
+
+  if (step === 1) {
+    return (
+      <div className="mb-6 space-y-2">
+        {[
+          { name: "NA22B", count: "28 elever" },
+          { name: "TE21A", count: "24 elever" },
+        ].map((c) => (
+          <div
+            key={c.name}
+            className="flex items-center gap-3 rounded-2xl border border-[#E2E5E9]/10 bg-[#0f1114] p-3"
+          >
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#E2E5E9]/5 text-[#E2E5E9]">
+              <LineIcon name="graduation-cap" className="h-4 w-4" />
+            </div>
+            <div>
+              <div className="text-sm font-medium text-[#E2E5E9]">{c.name}</div>
+              <div className="text-[11px] text-[#8a8f96]">{c.count}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  }
+
+  if (step === 2) {
+    return (
+      <div className="mb-6 rounded-2xl border border-dashed border-[#E2E5E9]/15 bg-[#0f1114] p-5 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ea580c]/10 text-[#ea580c]">
+          <LineIcon name="upload" className="h-6 w-6" />
+        </div>
+        <div className="mt-3 text-sm font-medium text-[#E2E5E9]">Dra hit elevprov</div>
+        <div className="mt-1 text-[11px] text-[#8a8f96]">PDF eller bilder</div>
+        <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#ea580c] px-4 py-1.5 text-[11px] font-semibold text-white">
+          <LineIcon name="play" className="h-3 w-3" />
+          Starta rättning
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="mb-6 rounded-2xl border border-[#E2E5E9]/10 bg-[#0f1114] p-4">
+      <div className="mb-3 flex items-center justify-between">
+        <div className="text-sm font-medium text-[#E2E5E9]">Elev: Erik Svensson</div>
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ea580c]/10 text-[#ea580c]">
+          <LineIcon name="check" className="h-3.5 w-3.5" />
+        </div>
+      </div>
+      <div className="space-y-2">
+        <div className="h-2 w-full rounded bg-[#E2E5E9]/5" />
+        <div className="h-2 w-5/6 rounded bg-[#E2E5E9]/5" />
+        <div className="h-2 w-4/6 rounded bg-[#E2E5E9]/5" />
+      </div>
+      <div className="mt-3 flex items-center justify-between rounded-xl bg-[#E2E5E9]/5 p-2">
+        <span className="text-[11px] text-[#8a8f96]">Poäng</span>
+        <span className="text-sm font-bold text-[#E2E5E9]">18/20</span>
+      </div>
+    </div>
+  );
+}
 
 export function useOnboarding() {
   const [shouldShow, setShouldShow] = useState(false);
 
   useEffect(() => {
-    const completed = localStorage.getItem(ONBOARDING_KEY);
-    if (!completed) {
-      setShouldShow(true);
-    }
+    const completed = typeof window !== "undefined" ? localStorage.getItem(ONBOARDING_KEY) : null;
+    if (!completed) setShouldShow(true);
   }, []);
 
   const completeOnboarding = () => {
@@ -53,6 +141,9 @@ export function useOnboarding() {
   const resetOnboarding = () => {
     localStorage.removeItem(ONBOARDING_KEY);
     setShouldShow(true);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new CustomEvent("onboarding:reset"));
+    }
   };
 
   return { shouldShow, completeOnboarding, resetOnboarding };
@@ -60,11 +151,10 @@ export function useOnboarding() {
 
 export default function Onboarding() {
   const { shouldShow, completeOnboarding } = useOnboarding();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const router = useRouter();
 
   const [isOpen, setIsOpen] = useState(false);
-  const [showSteps, setShowSteps] = useState(false);
+  const [showTour, setShowTour] = useState(false);
   const [currentStep, setCurrentStep] = useState(0);
 
   useEffect(() => {
@@ -74,232 +164,169 @@ export default function Onboarding() {
     }
   }, [shouldShow]);
 
+  useEffect(() => {
+    const handle = () => {
+      setIsOpen(true);
+      setShowTour(false);
+      setCurrentStep(0);
+    };
+    window.addEventListener("onboarding:reset", handle);
+    return () => window.removeEventListener("onboarding:reset", handle);
+  }, []);
+
   const handleSkip = () => {
     setIsOpen(false);
     completeOnboarding();
   };
 
-  const handleExplore = () => {
-    setShowSteps(true);
+  const startTour = () => {
+    setShowTour(true);
+    setCurrentStep(0);
   };
 
-  const handleNext = () => {
+  const goNext = () => {
     if (currentStep < steps.length - 1) {
-      setCurrentStep(currentStep + 1);
-    } else {
-      setIsOpen(false);
-      completeOnboarding();
+      setCurrentStep((s) => s + 1);
     }
   };
 
-  const handleBack = () => {
-    if (currentStep > 0) {
-      setCurrentStep(currentStep - 1);
+  const goPrev = () => {
+    if (currentStep > 0) setCurrentStep((s) => s - 1);
+  };
+
+  const finish = () => {
+    setIsOpen(false);
+    completeOnboarding();
+    if (typeof window !== "undefined") {
+      window.location.href = "/";
+    } else {
+      router.push("/");
     }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
-      {/* Backdrop */}
-      <div 
-        className={`absolute inset-0 transition-opacity duration-500 ${
-          isDark ? "bg-black/80" : "bg-ink/60"
-        } backdrop-blur-sm`}
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+      <div
+        className="absolute inset-0 bg-black/95 backdrop-blur-md transition-opacity duration-300"
         onClick={handleSkip}
       />
 
-      {/* Modal */}
-      <div 
-        className={`relative w-full max-w-lg rounded-2xl overflow-hidden shadow-card transform transition-all duration-500 ${
-          isDark 
-            ? "bg-[#1a1a1a] border border-paper-raised/10" 
-            : "bg-paper-raised"
-        }`}
-        style={{
-          animation: "modalSlideUp 0.5s cubic-bezier(0.34, 1.56, 0.64, 1)",
-        }}
+      <div
+        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#E2E5E9]/10 bg-[#14151a] p-8 shadow-2xl"
+        style={{ animation: "modalIn 0.35s cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
-        {!showSteps ? (
-          /* Welcome Screen */
-          <div className="p-10 text-center">
-            {/* Logo */}
-            <div className="mb-8 flex items-center justify-center gap-3">
-              <img 
-                src="/logotype_new.png" 
-                alt="WiseOS" 
-                className="h-10 w-auto"
-                style={{
-                  animation: "logoFadeIn 0.6s cubic-bezier(0.34, 1.56, 0.64, 1)",
-                }}
-              />
-              <span 
-                className={`text-[22px] font-semibold tracking-tight ${
-                  isDark ? "text-paper" : "text-ink"
-                }`}
-                style={{
-                  background: isDark 
-                    ? "linear-gradient(135deg, #ffffff 0%, #e8b0e4 100%)"
-                    : "linear-gradient(135deg, #1e293b 0%, #9B5A97 100%)",
-                  WebkitBackgroundClip: "text",
-                  WebkitTextFillColor: "transparent",
-                  backgroundClip: "text",
-                  animation: "textSlideIn 0.7s cubic-bezier(0.34, 1.56, 0.64, 1) 0.15s both",
-                }}
-              >
-                WiseOS
-              </span>
+        {!showTour ? (
+          <div className="text-center">
+            <div className="mb-6 flex items-center justify-center gap-3">
+              <img src={LOGO_MARK} alt="WiseOS" className="h-12 w-auto object-contain" />
+              <span className="text-2xl font-semibold tracking-tight text-[#E2E5E9]">WiseOS</span>
             </div>
 
-            <h1 className={`text-3xl font-bold tracking-tight mb-3 ${
-              isDark ? "text-paper" : "text-ink"
-            }`}>
+            <h1 className="text-3xl font-bold tracking-tight text-[#E2E5E9]">
               Välkommen till WiseOS
             </h1>
-            
-            <p className={`text-lg mb-10 ${
-              isDark ? "text-ink-secondary" : "text-ink-secondary"
-            }`}>
-              Din AI-assistent för snabbare och smartare rättning.
+            <p className="mx-auto mt-4 max-w-xs text-[15px] leading-relaxed text-[#8a8f96]">
+              En AI-driven rättningsassistent byggd för svenska lärare. Här är en snabb rundtur.
             </p>
 
-            <div className="space-y-3">
+            <div className="mt-10 flex flex-col gap-3">
               <button
-                onClick={handleExplore}
-                className={`w-full py-4 px-6 rounded-2xl text-base font-semibold transition-all duration-200 ${
-                  isDark
-                    ? "bg-[#e8b0e4] text-[#1a1a1a] hover:bg-[#d9a0d5]"
-                    : "bg-ink text-paper hover:bg-paper-secondary"
-                }`}
+                onClick={startTour}
+                className="w-full rounded-full bg-[#ea580c] px-6 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_24px_-4px_rgba(234,88,12,0.45)] hover:scale-[1.02] active:scale-[0.98]"
               >
-                Utforska WiseOS
+                Starta rundturen
               </button>
-              
               <button
                 onClick={handleSkip}
-                className={`w-full py-4 px-6 rounded-2xl text-base font-medium transition-all duration-200 ${
-                  isDark
-                    ? "text-paper/50 hover:text-paper hover:bg-paper-raised/5"
-                    : "text-ink-secondary hover:text-ink hover:bg-paper-secondary"
-                }`}
+                className="w-full rounded-full border border-[#E2E5E9]/10 bg-transparent px-6 py-3 text-sm font-medium text-[#8a8f96] transition-all hover:bg-[#E2E5E9]/5 hover:text-[#E2E5E9]"
               >
                 Hoppa över
               </button>
             </div>
           </div>
         ) : (
-          /* Steps Screen */
-          <div className="p-8">
-            {/* Progress */}
-            <div className="flex gap-2 mb-8">
-              {steps.map((_, index) => (
-                <div 
-                  key={index}
-                  className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                    index <= currentStep
-                      ? isDark ? "bg-[#e8b0e4]" : "bg-ink"
-                      : isDark ? "bg-paper-raised/10" : "bg-paper-secondary"
+          <div className="flex flex-col" style={{ animation: "stepIn 0.3s ease-out" }}>
+            <div className="mb-5 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-[#8a8f96]">
+              <span className="text-[#ea580c]">Rundtur</span>
+              <span>
+                Steg {currentStep + 1} av {steps.length}
+              </span>
+            </div>
+
+            <div className="mb-6 flex justify-center gap-2">
+              {steps.map((_, i) => (
+                <div
+                  key={i}
+                  className={`h-1.5 rounded-full transition-all duration-300 ${
+                    i === currentStep ? "w-8 bg-[#ea580c]" : "w-2 bg-[#E2E5E9]/15"
                   }`}
                 />
               ))}
             </div>
 
-            {/* Step indicator */}
-            <p className={`text-xs font-semibold tracking-widest uppercase mb-4 ${
-              isDark ? "text-[#e8b0e4]" : "text-ink-muted"
-            }`}>
-              Steg {currentStep + 1} av {steps.length}
-            </p>
+            <StepVisual step={currentStep} />
 
-            {/* Icon */}
-            <div className={`w-16 h-16 rounded-2xl mb-6 flex items-center justify-center ${
-              isDark ? "bg-[#e8b0e4]/15" : "bg-paper-secondary"
-            }`}>
-              <LineIcon 
-                name={steps[currentStep].icon} 
-                className={`h-8 w-8 ${isDark ? "text-[#e8b0e4]" : "text-ink"}`} 
-              />
-            </div>
-
-            {/* Content */}
-            <h2 className={`text-2xl font-bold tracking-tight mb-3 ${
-              isDark ? "text-paper" : "text-ink"
-            }`}>
+            <h2 className="text-2xl font-bold tracking-tight text-[#E2E5E9]">
               {steps[currentStep].title}
             </h2>
-            
-            <p className={`text-base leading-relaxed mb-10 ${
-              isDark ? "text-ink-secondary" : "text-ink-secondary"
-            }`}>
+            <p className="mx-auto mt-3 max-w-[360px] text-[15px] leading-relaxed text-[#8a8f96]">
               {steps[currentStep].description}
             </p>
 
-            {/* Navigation */}
-            <div className="flex gap-3">
-              {currentStep > 0 && (
-                <button
-                  onClick={handleBack}
-                  className={`flex-1 py-4 px-6 rounded-2xl text-base font-medium transition-all duration-200 ${
-                    isDark
-                      ? "bg-paper-raised/5 text-paper hover:bg-paper-raised/10"
-                      : "bg-paper-secondary text-ink hover:bg-paper-secondary"
-                  }`}
-                >
-                  Tillbaka
-                </button>
-              )}
-              
+            <div className="mt-8 flex flex-col gap-3">
+              <div className="flex gap-3">
+                {currentStep > 0 && (
+                  <button
+                    onClick={goPrev}
+                    className="flex-1 rounded-full border border-[#E2E5E9]/10 bg-transparent px-4 py-3 text-sm font-medium text-[#8a8f96] transition-all hover:bg-[#E2E5E9]/5 hover:text-[#E2E5E9]"
+                  >
+                    Föregående
+                  </button>
+                )}
+                {currentStep < steps.length - 1 ? (
+                  <button
+                    onClick={goNext}
+                    className="flex-1 rounded-full bg-[#ea580c] px-4 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_24px_-4px_rgba(234,88,12,0.45)] active:scale-[0.98]"
+                  >
+                    Nästa
+                  </button>
+                ) : (
+                  <button
+                    onClick={finish}
+                    className="flex-1 rounded-full bg-[#ea580c] px-4 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_24px_-4px_rgba(234,88,12,0.45)] hover:scale-[1.02] active:scale-[0.98]"
+                  >
+                    Gå till dashboarden
+                  </button>
+                )}
+              </div>
               <button
-                onClick={handleNext}
-                className={`flex-1 py-4 px-6 rounded-2xl text-base font-semibold transition-all duration-200 ${
-                  isDark
-                    ? "bg-[#e8b0e4] text-[#1a1a1a] hover:bg-[#d9a0d5]"
-                    : "bg-ink text-paper hover:bg-paper-secondary"
-                }`}
+                onClick={handleSkip}
+                className="w-full py-2 text-[12.5px] text-[#8a8f96] transition-colors hover:text-[#E2E5E9]"
               >
-                {currentStep < steps.length - 1 ? "Nästa" : "Kom igång"}
+                Hoppa över introduktionen
               </button>
             </div>
-
-            {/* Skip link */}
-            <button
-              onClick={handleSkip}
-              className={`w-full mt-4 py-2 text-sm transition-colors ${
-                isDark ? "text-ink-muted hover:text-ink-secondary" : "text-ink-muted hover:text-ink-secondary"
-              }`}
-            >
-              Hoppa över introduktionen
-            </button>
           </div>
         )}
       </div>
 
       <style jsx>{`
-        @keyframes modalSlideUp {
+        @keyframes modalIn {
           from {
             opacity: 0;
-            transform: translateY(20px) scale(0.96);
+            transform: translateY(16px) scale(0.98);
           }
           to {
             opacity: 1;
             transform: translateY(0) scale(1);
           }
         }
-        @keyframes logoFadeIn {
+        @keyframes stepIn {
           from {
             opacity: 0;
-            transform: scale(0.8) rotate(-8deg);
-          }
-          to {
-            opacity: 1;
-            transform: scale(1) rotate(0deg);
-          }
-        }
-        @keyframes textSlideIn {
-          from {
-            opacity: 0;
-            transform: translateX(-12px);
+            transform: translateX(12px);
           }
           to {
             opacity: 1;

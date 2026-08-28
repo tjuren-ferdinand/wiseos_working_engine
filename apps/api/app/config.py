@@ -38,10 +38,15 @@ class Settings(BaseSettings):
     # Villkorad Automatisering: under denna tröskel flaggas inlämning för manuell granskning.
     REVIEW_CONFIDENCE_THRESHOLD: float = 0.95
 
-    # JWT Authentication
+    # JWT Authentication (legacy – befintligt eget system, orört)
     JWT_SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION_use_openssl_rand_hex_32"
     JWT_ALGORITHM: str = "HS256"
     JWT_EXPIRATION_MINUTES: int = 60
+
+    # --- Supabase (Fas 2: Auth / DB / Storage) ---
+    SUPABASE_URL: str = ""
+    SUPABASE_ANON_KEY: str = ""
+    SUPABASE_SERVICE_ROLE_KEY: str = ""
 
     @property
     def cors_list(self) -> list[str]:

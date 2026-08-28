@@ -1,10 +1,18 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import LineIcon from "@/components/LineIcon";
-import { useTheme } from "@/lib/theme";
+import {
+  DETAIL_ACCENT_THEMES,
+  PRIMARY_ACCENT_THEMES,
+  REVIEW_LAYOUTS,
+  useTheme,
+} from "@/lib/theme";
 import { useOnboarding } from "@/components/Onboarding";
+import { createClient } from "@/lib/supabase/client";
 import PageHeader from "@/components/ui/PageHeader";
 import Surface from "@/components/ui/Surface";
+import ReviewLayoutPreview from "@/components/ui/ReviewLayoutPreview";
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
   return (
@@ -15,9 +23,28 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
 }
 
 export default function SettingsPage() {
-  const { theme, setTheme } = useTheme();
+  const { theme, setTheme, accentTheme, setAccentTheme, reviewLayout, setReviewLayout } = useTheme();
   const { resetOnboarding } = useOnboarding();
   const isDark = theme === "dark";
+  const [showMoreAccents, setShowMoreAccents] = useState(false);
+  const [userName, setUserName] = useState<string | null>(null);
+  const [userEmail, setUserEmail] = useState<string | null>(null);
+
+  useEffect(() => {
+    createClient()
+      .auth.getUser()
+      .then(({ data }) => {
+        const u = data.user;
+        const name = (u?.user_metadata as Record<string, string> | undefined)?.name;
+        const email = u?.email;
+        setUserName(name || email?.split("@")[0] || null);
+        setUserEmail(email || null);
+      });
+  }, []);
+
+  const displayName = userName || "lärare";
+  const email = userEmail || "—";
+  const initial = (displayName[0] || "?").toUpperCase();
 
   return (
     <div className="space-y-10 max-w-2xl">
@@ -64,7 +91,92 @@ export default function SettingsPage() {
               </button>
             </div>
           </div>
+
+          <div className="mt-5 border-t border-ink-hairline pt-5">
+            <div className="text-[14px] font-medium text-ink mb-3">Färgtema</div>
+            <div className="grid grid-cols-3 gap-2">
+              {PRIMARY_ACCENT_THEMES.map((t) => (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setAccentTheme(t.id)}
+                  className={`flex items-center gap-2 rounded-[10px] border-2 px-3 py-2.5 text-left transition-all ${
+                    accentTheme === t.id
+                      ? "border-accent bg-accent-tint ring-1 ring-accent"
+                      : "border-ink-hairline hover:bg-paper-secondary"
+                  }`}
+                >
+                  <span
+                    className="h-4 w-4 shrink-0 rounded-full border border-ink-hairline shadow-sm"
+                    style={{ backgroundColor: t.swatch }}
+                  />
+                  <span className="text-[12.5px] font-medium text-ink">{t.label}</span>
+                </button>
+              ))}
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setShowMoreAccents((v) => !v)}
+              className="mt-3 flex items-center gap-1 text-[12px] font-medium text-ink-muted hover:text-ink transition-colors"
+            >
+              <LineIcon name="chevron-down" className={`h-3 w-3 transition-transform ${showMoreAccents ? "rotate-180" : ""}`} />
+              {showMoreAccents ? "Färre nyanser" : "Fler nyanser"}
+            </button>
+
+            {showMoreAccents && (
+              <div className="mt-3 flex flex-wrap gap-2">
+                {DETAIL_ACCENT_THEMES.map((t) => (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setAccentTheme(t.id)}
+                    title={t.label}
+                    className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
+                      accentTheme === t.id ? "border-accent" : "border-transparent hover:border-ink-hairline"
+                    }`}
+                  >
+                    <span
+                      className="h-5 w-5 rounded-full border border-ink-hairline shadow-sm"
+                      style={{ backgroundColor: t.swatch }}
+                    />
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
         </Surface>
+      </section>
+
+      {/* Review layout */}
+      <section>
+        <SectionTitle>Granskningsvy</SectionTitle>
+        <p className="mb-4 text-[13px] leading-relaxed text-ink-secondary">
+          Välj hur elevernas rättade prov ska visas när du granskar dem på{" "}
+          <span className="font-medium text-ink">Granska</span>-sidan.
+        </p>
+        <div className="grid gap-3 sm:grid-cols-3">
+          {REVIEW_LAYOUTS.map((layout) => (
+            <button
+              key={layout.id}
+              type="button"
+              onClick={() => setReviewLayout(layout.id)}
+              className={`group flex flex-col overflow-hidden rounded-[14px] border-2 text-left transition-all ${
+                reviewLayout === layout.id
+                  ? "border-accent ring-1 ring-accent"
+                  : "border-ink-hairline hover:bg-paper-secondary"
+              }`}
+            >
+              <ReviewLayoutPreview layout={layout.id} active={reviewLayout === layout.id} />
+              <div className="p-3">
+                <div className="text-[13px] font-medium text-ink">{layout.label}</div>
+                <div className="mt-0.5 text-[11.5px] leading-snug text-ink-muted">
+                  {layout.description}
+                </div>
+              </div>
+            </button>
+          ))}
+        </div>
       </section>
 
       {/* Account */}
@@ -73,11 +185,11 @@ export default function SettingsPage() {
         <Surface padding="p-5">
           <div className="flex items-center gap-4">
             <div className="h-11 w-11 rounded-full grid place-items-center text-[15px] font-medium bg-ink/[0.05] border border-ink-hairline text-ink">
-              A
+              {initial}
             </div>
             <div>
-              <div className="text-[14px] font-medium text-ink">Alexander</div>
-              <div className="text-[12.5px] text-ink-muted">alexander@wiseos.se</div>
+              <div className="text-[14px] font-medium text-ink">{displayName}</div>
+              <div className="text-[12.5px] text-ink-muted">{email}</div>
             </div>
           </div>
         </Surface>

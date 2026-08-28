@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import { useStore, actions, type Prov, type StudentResult, type Klass, type Question } from "@/lib/store";
+import { useTheme, type ReviewLayout } from "@/lib/theme";
 import Surface from "./ui/Surface";
 import EmptyState from "./ui/EmptyState";
 import StatusBadge from "./ui/StatusBadge";
@@ -9,6 +10,7 @@ import LineIcon from "./LineIcon";
 import PublishResultsModal from "./PublishResultsModal";
 
 export default function ReviewWorkbench() {
+  const { reviewLayout } = useTheme();
   const prov = useStore((s) => s.prov);
   const results = useStore((s) => s.results);
   const klasser = useStore((s) => s.klasser);
@@ -119,6 +121,7 @@ export default function ReviewWorkbench() {
                   onPointsChange={setEditPoints}
                   onSave={saveStep}
                   onCancel={() => setEditingStep(null)}
+                  layout={reviewLayout}
                 />
               ));
             })()}
@@ -164,6 +167,7 @@ function ResultCard({
   onPointsChange,
   onSave,
   onCancel,
+  layout = "split",
 }: {
   result: StudentResult;
   questions: Question[];
@@ -174,9 +178,37 @@ function ResultCard({
   onPointsChange: (v: string) => void;
   onSave: () => void;
   onCancel: () => void;
+  layout?: ReviewLayout;
 }) {
   const isImage = (url: string) => /^data:image\/(png|jpeg|jpg|webp|gif);/.test(url);
   const scanPage = result.scanPages?.[0];
+  const showScan = layout !== "compact" && !!scanPage;
+
+  const scanBlock = scanPage ? (
+    <div className={layout === "stacked" ? "border-t border-ink-hairline pt-4" : "border-t border-ink-hairline pt-4"}>
+      <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-2">
+        Originalskanning
+      </div>
+      {isImage(scanPage) ? (
+        <img
+          src={scanPage}
+          alt="Elevens originalskanning"
+          className={`rounded-xl border border-ink-hairline object-contain ${
+            layout === "stacked" ? "max-h-64 w-full" : "max-h-96"
+          }`}
+        />
+      ) : (
+        <a
+          href={scanPage}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Visa originalfil
+        </a>
+      )}
+    </div>
+  ) : null;
 
   return (
     <Surface padding="p-5">
@@ -192,36 +224,16 @@ function ResultCard({
         </div>
       </div>
 
-      <div className="mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5">
-      {scanPage && (
-        <div className="border-t border-ink-hairline pt-4">
-          <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-2">
-            Originalskanning
-          </div>
-          {isImage(scanPage) ? (
-            <img
-              src={scanPage}
-              alt="Elevens originalskanning"
-              className="max-h-96 rounded-xl border border-ink-hairline object-contain"
-            />
-          ) : (
-            <a
-              href={scanPage}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-sm text-blue-600 hover:underline"
-            >
-              Visa originalfil
-            </a>
-          )}
-        </div>
-      )}
+      {layout === "stacked" && showScan && <div className="mt-5">{scanBlock}</div>}
+
+      <div className={layout === "split" ? "mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5" : "mt-0"}>
+      {layout === "split" && showScan && scanBlock}
 
       <div className="mt-5 border-t border-ink-hairline pt-4">
         <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-3">
           Uppgifter
         </div>
-        <div className="space-y-3">
+        <div className={layout === "compact" ? "space-y-2" : "space-y-3"}>
           {questions.map((q) => {
             const step = result.steps.find((s) => s.questionId === q.number);
             const status = step?.status ?? "pending";
@@ -233,7 +245,9 @@ function ResultCard({
             return (
               <div
                 key={step ? step.id : `q-${q.id}`}
-                className="flex items-start justify-between gap-4 rounded-[10px] bg-paper-secondary border border-ink-hairline p-3"
+                className={`flex items-start justify-between gap-4 rounded-[10px] bg-paper-secondary border border-ink-hairline ${
+                  layout === "compact" ? "p-2.5" : "p-3"
+                }`}
               >
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2">
@@ -262,25 +276,29 @@ function ResultCard({
                               : "Väntar"}
                     </span>
                   </div>
-                  {step?.questionText && (
-                    <p className="mt-1.5 text-[12.5px] text-ink-secondary leading-relaxed">
-                      <span className="font-medium text-ink">Fråga:</span> {step.questionText}
-                    </p>
-                  )}
-                  {step?.studentWork !== undefined && (
-                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                      <span className="font-medium text-ink">Elevens svar:</span> {step.studentWork || "(inte extraherat)"}
-                    </p>
-                  )}
-                  {step?.correctAnswer && (
-                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                      <span className="font-medium text-ink">Facit:</span> {step.correctAnswer}
-                    </p>
-                  )}
-                  {step?.feedback && (
-                    <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                      <span className="font-medium text-ink">AI-analys:</span> {step.feedback}
-                    </p>
+                  {layout !== "compact" && (
+                    <>
+                      {step?.questionText && (
+                        <p className="mt-1.5 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">Fråga:</span> {step.questionText}
+                        </p>
+                      )}
+                      {step?.studentWork !== undefined && (
+                        <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">Elevens svar:</span> {step.studentWork || "(inte extraherat)"}
+                        </p>
+                      )}
+                      {step?.correctAnswer && (
+                        <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">Facit:</span> {step.correctAnswer}
+                        </p>
+                      )}
+                      {step?.feedback && (
+                        <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">AI-analys:</span> {step.feedback}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
 

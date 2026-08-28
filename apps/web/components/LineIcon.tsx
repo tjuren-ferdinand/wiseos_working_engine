@@ -1,4 +1,6 @@
-type IconName =
+"use client";
+
+export type IconName =
   | "folder"
   | "file"
   | "stack"

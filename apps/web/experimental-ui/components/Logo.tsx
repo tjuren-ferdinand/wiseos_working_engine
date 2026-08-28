@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { tokens } from '../tokens';
+import { LOGO_MARK } from '@/lib/logo';
 
 interface LogoProps {
   size?: 'sm' | 'md' | 'lg';
@@ -60,9 +61,8 @@ export function Logo({ size = 'md', showText = true, className = '' }: LogoProps
 function LogoIcon({ size }: { size: number }) {
   return (
     <img
-      src="/dashboard_logo.jpg"
+      src={LOGO_MARK}
       alt="WiseOS"
-      width={size * 4}
       height={size}
       style={{ height: size, width: 'auto', objectFit: 'contain' }}
     />
