@@ -87,7 +87,7 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
 
       <header className={`rounded-2xl border p-6 flex flex-wrap items-center justify-between gap-4 ${isDark ? "border-paper-raised/10 bg-paper-raised/5" : "border-ink-hairline bg-paper-raised shadow-sm"}`}>
         <div>
-          <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${isDark ? "text-ink-muted" : "text-ink-muted"}`}>
+          <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${"text-ink-muted"}`}>
             {klass.name} · {prov.title}
           </div>
           <h1 className={`mt-1 text-2xl font-semibold tracking-tight ${isDark ? "text-paper" : "text-ink"}`}>{result.studentName}</h1>
@@ -159,10 +159,10 @@ function ScanPanel({
   return (
     <div className={`rounded-[24px] overflow-hidden shadow-lg shadow-ink/5 ${isDark ? "bg-ink/[0.03]" : "bg-paper-raised"}`}>
       <div className={`px-5 py-3 flex items-center justify-between ${isDark ? "bg-ink/[0.02]" : "bg-paper-secondary/50"}`}>
-        <div className={`text-xs font-medium uppercase tracking-wider ${isDark ? "text-ink-secondary" : "text-ink-secondary"}`}>Originaldokument · skannat</div>
-        <div className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>{totalPages} sida{totalPages !== 1 ? "or" : ""}</div>
+        <div className={`text-xs font-medium uppercase tracking-wider ${"text-ink-secondary"}`}>Originaldokument · skannat</div>
+        <div className={`text-xs ${"text-ink-muted"}`}>{totalPages} sida{totalPages !== 1 ? "or" : ""}</div>
       </div>
-      <div className={`p-4 space-y-4 ${isDark ? "" : "bg-[radial-gradient(circle_at_50%_0%,rgba(124,58,237,0.04),transparent_60%)]"}`}>
+      <div className={`p-4 space-y-4 ${isDark ? "" : "bg-[radial-gradient(circle_at_50%_0%,rgb(var(--accent) / 0.04),transparent_60%)]"}`}>
         {mockPages && mockPages.length > 0 ? (
           mockPages.map((text, i) => (
             <MockScanPage
@@ -209,7 +209,7 @@ function MockScanPage({
   return (
     <div
       className={`relative rounded-2xl p-6 overflow-hidden shadow-md ${
-        isDark ? "bg-ink/[0.03] text-ink" : "bg-[#fdfcf8] text-ink"
+        "bg-paper-raised text-ink"
       }`}
     >
       {/* Handskrivna linjer bakom text */}
@@ -217,21 +217,21 @@ function MockScanPage({
         aria-hidden
         className={`absolute inset-0 pointer-events-none ${
           isDark ? "opacity-[0.04]" : "opacity-[0.08]"
-        } bg-[linear-gradient(transparent_27px,#94a3b8_28px)] bg-[size:100%_28px]`}
+        } bg-[linear-gradient(transparent_27px,rgb(var(--hairline)_/_0.12)_28px)] bg-[size:100%_28px]`}
       />
       {/* Sido-marginallinje som riktiga rutade block */}
       <div
         aria-hidden
-        className={`absolute top-0 bottom-0 left-10 w-px ${isDark ? "bg-rose-400/20" : "bg-rose-300/40"}`}
+        className={`absolute top-0 bottom-0 left-10 w-px ${"bg-ink-hairline"}`}
       />
       <div className="relative">
-        <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest font-sans ${isDark ? "text-ink-muted" : "text-ink-muted"}`}>
+        <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest font-sans ${"text-ink-muted"}`}>
           <span>Sida {pageIndex + 1} av {totalPages}</span>
           <span>SKANNAT · 300 DPI</span>
         </div>
         <pre
           className={`mt-3 whitespace-pre-wrap text-[19px] leading-[28px] tracking-wide ${
-            isDark ? "text-paper/85" : "text-ink"
+            "text-ink"
           }`}
           style={{ fontFamily: "'Caveat', cursive", fontWeight: 500 }}
         >
@@ -245,10 +245,10 @@ function MockScanPage({
 function MockScan({ studentName, steps, isDark }: { studentName: string; steps: Step[]; isDark: boolean }) {
   // Handskrivet-liknande elevsvar
   return (
-    <div className={`relative rounded-2xl p-6 font-serif overflow-hidden shadow-md ${isDark ? "bg-ink/[0.03] text-ink" : "bg-[#fdfcf8] text-ink"}`} style={{ fontFamily: "'Caveat', cursive, serif" }}>
-      <div className={`absolute inset-0 opacity-[0.02] bg-[linear-gradient(transparent_23px,#94a3b8_24px)] bg-[size:100%_24px]`} />
+    <div className={`relative rounded-2xl p-6 font-serif overflow-hidden shadow-md ${"bg-paper-raised text-ink"}`} style={{ fontFamily: "'Caveat', cursive, serif" }}>
+      <div className={`absolute inset-0 opacity-[0.02] bg-[linear-gradient(transparent_23px,rgb(var(--hairline)_/_0.12)_24px)] bg-[size:100%_24px]`} />
       <div className="relative">
-        <div className={`text-[10px] uppercase tracking-widest font-sans ${isDark ? "text-ink-muted" : "text-ink-muted"}`}>Elev</div>
+        <div className={`text-[10px] uppercase tracking-widest font-sans ${"text-ink-muted"}`}>Elev</div>
         <div className="text-xl italic mt-1" style={{ fontFamily: "'Caveat', cursive" }}>{studentName}</div>
         <hr className={`my-3 ${isDark ? "border-paper-raised/10" : "border-ink-hairline"}`} />
         <div className="space-y-4 text-base leading-relaxed">
@@ -381,7 +381,7 @@ function StepCard({
         <div className="flex-1 min-w-0">
           <div
             className={`text-[11px] uppercase tracking-wider font-semibold ${
-              isDark ? "text-ink-muted" : "text-ink-muted"
+              "text-ink-muted"
             }`}
           >
             {step.label}
@@ -406,7 +406,7 @@ function StepCard({
         <div className="shrink-0 text-right">
           <div
             className={`text-xs uppercase tracking-wider ${
-              isDark ? "text-ink-muted" : "text-ink-muted"
+              "text-ink-muted"
             }`}
           >
             Poäng
@@ -438,7 +438,7 @@ function StepCard({
       >
         <span
           className={
-            isDark ? "text-ink-muted" : "text-ink-muted"
+            "text-ink-muted"
           }
         >
           Elev:
@@ -477,13 +477,13 @@ function StepCard({
         <div
           className={`mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed ${
             isDark
-              ? "bg-[#e8b0e4]/10 ring-[#e8b0e4]/20 text-[#e8b0e4]"
-              : "bg-rose-50/40 ring-rose-100/60 text-rose-900"
+              ? "bg-accent/10 ring-accent/20 text-accent"
+              : "bg-accent/10 ring-accent/20 text-accent"
           }`}
         >
           <span
             className={`inline-flex items-center gap-1 font-semibold mb-1 align-[-2px] ${
-              isDark ? "text-[#e8b0e4]" : "text-rose-500"
+              "text-accent"
             }`}
           >
             <LineIcon name="pen" className="h-3.5 w-3.5" />
@@ -496,7 +496,7 @@ function StepCard({
             <ul className="mt-1.5 space-y-0.5">
               {annotation.evidence.map((item, i) => (
                 <li key={`ev-${i}`} className="flex gap-1.5">
-                  <span className={isDark ? "text-emerald-300" : "text-emerald-600"}>✓</span>
+                  <span className={"text-state-success"}>✓</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -507,7 +507,7 @@ function StepCard({
             <ul className="mt-1 space-y-0.5">
               {annotation.issues.map((item, i) => (
                 <li key={`is-${i}`} className="flex gap-1.5">
-                  <span className={isDark ? "text-rose-300" : "text-rose-600"}>✗</span>
+                  <span className={"text-state-danger"}>✗</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -518,7 +518,7 @@ function StepCard({
             <ul className="mt-1 space-y-0.5">
               {annotation.suggestions.map((item, i) => (
                 <li key={`sg-${i}`} className="flex gap-1.5">
-                  <span className={isDark ? "text-sky-300" : "text-sky-600"}>→</span>
+                  <span className={"text-state-warning"}>→</span>
                   <span>{item}</span>
                 </li>
               ))}
@@ -588,7 +588,7 @@ function EditStep({
   return (
     <div className={`mt-4 rounded-xl p-4 space-y-3 ${isDark ? "bg-paper-raised/[0.03]" : "bg-paper-secondary"}`}>
       <div className="flex items-center gap-3">
-        <span className={`text-xs font-medium ${isDark ? "text-ink-secondary" : "text-ink-secondary"}`}>Poäng:</span>
+        <span className={`text-xs font-medium ${"text-ink-secondary"}`}>Poäng:</span>
         <input
           type="number"
           step={0.25}
@@ -596,9 +596,9 @@ function EditStep({
           max={step.maxPoints}
           value={pts}
           onChange={(e) => setPts(Number(e.target.value))}
-          className={`w-24 py-1.5 text-sm rounded-lg border px-3 ${isDark ? "bg-paper-raised/5 border-paper-raised/10 text-paper" : "bg-paper-raised border-ink-hairline text-ink"}`}
+          className={`w-24 py-1.5 text-sm rounded-lg border px-3 ${"bg-paper-raised/5 border-paper-raised/10 text-ink"}`}
         />
-        <span className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>/ {step.maxPoints}</span>
+        <span className={`text-xs ${"text-ink-muted"}`}>/ {step.maxPoints}</span>
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={onDone} className={`text-xs px-2 ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>Avbryt</button>
@@ -609,7 +609,7 @@ function EditStep({
             });
             onDone();
           }}
-          className="rounded-full bg-[#e8b0e4] text-ink text-xs font-semibold px-4 py-1.5 hover:bg-[#d89dd3]"
+          className="rounded-full bg-accent text-accent-fg text-xs font-semibold px-4 py-1.5 hover:bg-accent-soft"
         >
           Spara ändring
         </button>
@@ -656,7 +656,7 @@ function ClassParamsSummary({ klass, prov, isDark }: { klass: Klass; prov: Prov;
       <div className={`font-medium mb-2 ${isDark ? "text-paper" : "text-ink"}`}>Rättningsparametrar</div>
       {hasCustomRules && (
         <div className="mb-1">
-          <span className={isDark ? "text-ink-muted" : "text-ink-muted"}>Klassregler:</span>
+          <span className={"text-ink-muted"}>Klassregler:</span>
           <ul className="mt-1 space-y-1 pl-3">
             {klass.gradingParams.customRules.map((rule, i) => (
               <li key={i} className="italic">· {rule}</li>
@@ -665,7 +665,7 @@ function ClassParamsSummary({ klass, prov, isDark }: { klass: Klass; prov: Prov;
         </div>
       )}
       {prov.customParams && (
-        <div><span className={isDark ? "text-ink-muted" : "text-ink-muted"}>Provet:</span> <span className="italic">{prov.customParams}</span></div>
+        <div><span className={"text-ink-muted"}>Provet:</span> <span className="italic">{prov.customParams}</span></div>
       )}
     </div>
   );

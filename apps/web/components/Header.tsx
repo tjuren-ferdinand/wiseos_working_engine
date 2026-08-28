@@ -28,7 +28,7 @@ export default function Header() {
           <img
             src={LOGO_MARK}
             alt="WiseOS"
-            className="h-10 w-auto object-contain transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105"
+            className="h-10 w-auto object-contain mix-blend-difference transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105"
           />
           <span className="wiseos-logo-label inline-flex h-11 items-center overflow-hidden whitespace-nowrap text-[15px] font-semibold tracking-tight leading-none opacity-0 -translate-x-2 max-w-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:max-w-[5.5rem] group-hover:opacity-100 group-hover:translate-x-0">
             WiseOS

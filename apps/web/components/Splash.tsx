@@ -48,7 +48,7 @@ export default function Splash({ children }: { children: React.ReactNode }) {
         {show && !fadeOut && (
           <motion.div
             className="fixed inset-0 z-[9999] flex flex-col items-center justify-center overflow-hidden"
-            style={{ background: "radial-gradient(120% 120% at 50% 30%, #23262b 0%, #17181b 60%, #101113 100%)" }}
+            style={{ background: "radial-gradient(120% 120% at 50% 30%, rgb(var(--surface-2)) 0%, rgb(var(--surface)) 60%, rgb(var(--background)) 100%)" }}
             exit={{ opacity: 0, scale: 1.06, filter: "blur(6px)" }}
             transition={{ duration: 0.55, ease: [0.22, 1, 0.36, 1] }}
           >
@@ -56,7 +56,7 @@ export default function Splash({ children }: { children: React.ReactNode }) {
             <motion.div
               className="absolute h-[420px] w-[420px] rounded-full"
               style={{
-                background: "radial-gradient(circle, rgba(226,229,233,0.16) 0%, rgba(226,229,233,0) 70%)",
+                background: "radial-gradient(circle, rgb(var(--accent) / 0.16) 0%, transparent 70%)",
               }}
               initial={{ opacity: 0, scale: 0.6 }}
               animate={{ opacity: 1, scale: 1 }}
@@ -69,7 +69,7 @@ export default function Splash({ children }: { children: React.ReactNode }) {
                 src={LOGO_MARK}
                 alt="WiseOS"
                 className="h-24 w-auto max-w-[220px] object-contain select-none"
-                style={{ filter: "drop-shadow(0 0 26px rgba(226,229,233,0.35))" }}
+                style={{ filter: "drop-shadow(0 0 26px rgb(var(--accent) / 0.35))" }}
                 initial={{ opacity: 0, scale: 0.35, rotate: -130 }}
                 animate={{ opacity: 1, scale: 1, rotate: 0 }}
                 transition={{ duration: 0.9, ease: [0.16, 1, 0.3, 1] }}
@@ -77,19 +77,19 @@ export default function Splash({ children }: { children: React.ReactNode }) {
 
               {/* Hairline that draws under the wordmark */}
               <motion.div
-                className="h-px bg-gradient-to-r from-transparent via-[#E2E5E9]/70 to-transparent"
+                className="h-px bg-gradient-to-r from-transparent via-ink/70 to-transparent"
                 initial={{ width: 0, opacity: 0 }}
                 animate={{ width: 220, opacity: 1 }}
                 transition={{ delay: 0.55, duration: 0.6, ease: "easeOut" }}
               />
 
               {/* Wordmark — staggered letter reveal */}
-              <h1 className="flex text-[28px] font-semibold tracking-[0.24em] uppercase">
+              <h1 className="flex text-[28px] font-semibold tracking-[0.24em] uppercase text-ink">
                 {logoText.split("").map((char, i) => (
                   <motion.span
                     key={i}
                     className="inline-block"
-                    style={{ color: "#E2E5E9", minWidth: char === " " ? "0.4em" : undefined }}
+                    style={{ minWidth: char === " " ? "0.4em" : undefined }}
                     initial={{ opacity: 0, y: 16 }}
                     animate={{ opacity: 1, y: 0 }}
                     transition={{ delay: 0.65 + i * 0.055, duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
@@ -100,7 +100,7 @@ export default function Splash({ children }: { children: React.ReactNode }) {
               </h1>
 
               <motion.p
-                className="text-[12px] tracking-[0.18em] uppercase text-[#8a8f96]"
+                className="text-[12px] tracking-[0.18em] uppercase text-ink-secondary"
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 transition={{ delay: 1.15, duration: 0.5 }}

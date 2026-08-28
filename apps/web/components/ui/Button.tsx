@@ -21,7 +21,7 @@ export default function Button({
       "bg-ink text-equi-50 hover:bg-ink/90 dark:bg-equi-100 dark:text-ink dark:hover:bg-equi-200",
     secondary: "bg-equi-100 text-ink hover:bg-equi-200 dark:bg-equi-800 dark:hover:bg-equi-700",
     ghost:
-      "bg-transparent text-muted hover:bg-equi-100 hover:text-ink dark:hover:bg-equi-900",
+      "bg-transparent text-ink-secondary hover:bg-equi-100 hover:text-ink dark:hover:bg-equi-900",
     outline:
       "border border-equi-300 bg-transparent text-ink hover:bg-equi-100 dark:border-equi-700 dark:hover:bg-equi-900",
   };

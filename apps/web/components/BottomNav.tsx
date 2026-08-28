@@ -31,7 +31,7 @@ export default function BottomNav() {
               key={item.href}
               href={item.href}
               className={`flex flex-col items-center justify-center gap-1 rounded-2xl px-3 py-2 transition-all active:scale-95 ${
-                active ? "text-ink" : "text-muted"
+                active ? "text-ink" : "text-ink-secondary"
               }`}
             >
               <LineIcon

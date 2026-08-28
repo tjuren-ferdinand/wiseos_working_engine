@@ -17,8 +17,8 @@ export const ACCENT_THEMES: { id: AccentTheme; label: string; swatch: string }[]
 
 /** De två huvudvalen (utöver Mono) som visas direkt i inställningarna.
  *  Resten är mindre detalj-/accentnyanser under "Fler nyanser". */
-export const PRIMARY_ACCENT_THEMES = ACCENT_THEMES.slice(0, 3);
-export const DETAIL_ACCENT_THEMES = ACCENT_THEMES.slice(3);
+export const PRIMARY_ACCENT_THEMES = [ACCENT_THEMES[0], ACCENT_THEMES[1], ACCENT_THEMES[5]];
+export const DETAIL_ACCENT_THEMES = [ACCENT_THEMES[2], ACCENT_THEMES[3], ACCENT_THEMES[4]];
 
 export type ReviewLayout = "split" | "stacked" | "compact";
 
@@ -53,8 +53,8 @@ interface ThemeContextType {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: React.ReactNode }) {
-  const [theme, setThemeState] = useState<Theme>("light");
-  const [accentTheme, setAccentThemeState] = useState<AccentTheme>("mono");
+  const [theme, setThemeState] = useState<Theme>("dark");
+  const [accentTheme, setAccentThemeState] = useState<AccentTheme>("ice");
   const [reviewLayout, setReviewLayoutState] = useState<ReviewLayout>("split");
   const [mounted, setMounted] = useState(false);
 

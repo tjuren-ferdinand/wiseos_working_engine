@@ -19,7 +19,7 @@ export default function ErrorState({
         <LineIcon name="x" className="h-5 w-5 text-danger" />
       </div>
       <h3 className="mt-4 text-base font-medium text-ink">{title}</h3>
-      {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+      {description && <p className="mt-1 text-sm text-ink-secondary">{description}</p>}
       {onRetry && (
         <Button variant="secondary" size="sm" onClick={onRetry} className="mt-5">
           Försök igen

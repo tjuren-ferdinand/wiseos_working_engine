@@ -140,7 +140,7 @@ export default function ProcessingScene({ prov }: { prov: Prov }) {
                       done 
                         ? "bg-state-success text-paper" 
                         : active 
-                        ? isDark ? "bg-paper-secondary text-ink" : "bg-paper-secondary text-[#3f2a3f]"
+                        ? isDark ? "bg-paper-secondary text-ink" : "bg-paper-secondary text-ink"
                         : isDark ? "bg-paper-raised/10 text-paper/50" : "bg-paper-secondary text-ink-secondary"
                     }`}
                   >

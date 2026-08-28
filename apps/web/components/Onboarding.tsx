@@ -6,7 +6,6 @@ import { LOGO_MARK } from "@/lib/logo";
 import LineIcon from "./LineIcon";
 
 const ONBOARDING_KEY = "wiseos_onboarding_completed";
-const ACCENT = "#ea580c";
 
 interface TourStep {
   title: string;
@@ -39,27 +38,27 @@ const steps: TourStep[] = [
 function StepVisual({ step }: { step: number }) {
   if (step === 0) {
     return (
-      <div className="mb-6 overflow-hidden rounded-2xl border border-[#E2E5E9]/10 bg-[#0f1114] p-4">
+      <div className="mb-6 overflow-hidden rounded-2xl border border-ink-hairline/10 bg-paper-raised p-4">
         <div className="mb-3 flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-[#ea580c]" />
-          <div className="h-2 w-20 rounded bg-[#E2E5E9]/10" />
+          <div className="h-2 w-2 rounded-full bg-accent" />
+          <div className="h-2 w-20 rounded bg-ink/10" />
         </div>
         <div className="grid grid-cols-3 gap-2">
-          <div className="h-14 rounded-xl bg-[#E2E5E9]/5 p-2">
-            <div className="text-[9px] text-[#8a8f96]">Prov</div>
-            <div className="text-sm font-semibold text-[#E2E5E9]">12</div>
+          <div className="h-14 rounded-xl bg-ink/5 p-2">
+            <div className="text-[9px] text-ink-secondary">Prov</div>
+            <div className="text-sm font-semibold text-ink">12</div>
           </div>
-          <div className="h-14 rounded-xl bg-[#E2E5E9]/5 p-2">
-            <div className="text-[9px] text-[#8a8f96]">Tid sparad</div>
-            <div className="text-sm font-semibold text-[#E2E5E9]">4h</div>
+          <div className="h-14 rounded-xl bg-ink/5 p-2">
+            <div className="text-[9px] text-ink-secondary">Tid sparad</div>
+            <div className="text-sm font-semibold text-ink">4h</div>
           </div>
-          <div className="h-14 rounded-xl bg-[#ea580c]/10 p-2">
-            <div className="text-[9px] text-[#ea580c]">AI-rättat</div>
-            <div className="text-sm font-semibold text-[#E2E5E9]">89</div>
+          <div className="h-14 rounded-xl bg-accent/10 p-2">
+            <div className="text-[9px] text-accent">AI-rättat</div>
+            <div className="text-sm font-semibold text-ink">89</div>
           </div>
         </div>
-        <div className="mt-3 h-2 w-full rounded bg-[#E2E5E9]/5" />
-        <div className="mt-2 h-2 w-5/6 rounded bg-[#E2E5E9]/5" />
+        <div className="mt-3 h-2 w-full rounded bg-ink/5" />
+        <div className="mt-2 h-2 w-5/6 rounded bg-ink/5" />
       </div>
     );
   }
@@ -73,14 +72,14 @@ function StepVisual({ step }: { step: number }) {
         ].map((c) => (
           <div
             key={c.name}
-            className="flex items-center gap-3 rounded-2xl border border-[#E2E5E9]/10 bg-[#0f1114] p-3"
+            className="flex items-center gap-3 rounded-2xl border border-ink-hairline/10 bg-paper-raised p-3"
           >
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-[#E2E5E9]/5 text-[#E2E5E9]">
+            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-ink/5 text-ink">
               <LineIcon name="graduation-cap" className="h-4 w-4" />
             </div>
             <div>
-              <div className="text-sm font-medium text-[#E2E5E9]">{c.name}</div>
-              <div className="text-[11px] text-[#8a8f96]">{c.count}</div>
+              <div className="text-sm font-medium text-ink">{c.name}</div>
+              <div className="text-[11px] text-ink-secondary">{c.count}</div>
             </div>
           </div>
         ))}
@@ -90,13 +89,13 @@ function StepVisual({ step }: { step: number }) {
 
   if (step === 2) {
     return (
-      <div className="mb-6 rounded-2xl border border-dashed border-[#E2E5E9]/15 bg-[#0f1114] p-5 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-[#ea580c]/10 text-[#ea580c]">
+      <div className="mb-6 rounded-2xl border border-dashed border-ink-hairline/15 bg-paper-raised p-5 text-center">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
           <LineIcon name="upload" className="h-6 w-6" />
         </div>
-        <div className="mt-3 text-sm font-medium text-[#E2E5E9]">Dra hit elevprov</div>
-        <div className="mt-1 text-[11px] text-[#8a8f96]">PDF eller bilder</div>
-        <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-[#ea580c] px-4 py-1.5 text-[11px] font-semibold text-white">
+        <div className="mt-3 text-sm font-medium text-ink">Dra hit elevprov</div>
+        <div className="mt-1 text-[11px] text-ink-secondary">PDF eller bilder</div>
+        <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-[11px] font-semibold text-accent-fg">
           <LineIcon name="play" className="h-3 w-3" />
           Starta rättning
         </div>
@@ -105,21 +104,21 @@ function StepVisual({ step }: { step: number }) {
   }
 
   return (
-    <div className="mb-6 rounded-2xl border border-[#E2E5E9]/10 bg-[#0f1114] p-4">
+    <div className="mb-6 rounded-2xl border border-ink-hairline/10 bg-paper-raised p-4">
       <div className="mb-3 flex items-center justify-between">
-        <div className="text-sm font-medium text-[#E2E5E9]">Elev: Erik Svensson</div>
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-[#ea580c]/10 text-[#ea580c]">
+        <div className="text-sm font-medium text-ink">Elev: Erik Svensson</div>
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-accent">
           <LineIcon name="check" className="h-3.5 w-3.5" />
         </div>
       </div>
       <div className="space-y-2">
-        <div className="h-2 w-full rounded bg-[#E2E5E9]/5" />
-        <div className="h-2 w-5/6 rounded bg-[#E2E5E9]/5" />
-        <div className="h-2 w-4/6 rounded bg-[#E2E5E9]/5" />
+        <div className="h-2 w-full rounded bg-ink/5" />
+        <div className="h-2 w-5/6 rounded bg-ink/5" />
+        <div className="h-2 w-4/6 rounded bg-ink/5" />
       </div>
-      <div className="mt-3 flex items-center justify-between rounded-xl bg-[#E2E5E9]/5 p-2">
-        <span className="text-[11px] text-[#8a8f96]">Poäng</span>
-        <span className="text-sm font-bold text-[#E2E5E9]">18/20</span>
+      <div className="mt-3 flex items-center justify-between rounded-xl bg-ink/5 p-2">
+        <span className="text-[11px] text-ink-secondary">Poäng</span>
+        <span className="text-sm font-bold text-ink">18/20</span>
       </div>
     </div>
   );
@@ -214,33 +213,33 @@ export default function Onboarding() {
       />
 
       <div
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-[#E2E5E9]/10 bg-[#14151a] p-8 shadow-2xl"
+        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-ink-hairline/10 bg-paper-elevated p-8 shadow-2xl"
         style={{ animation: "modalIn 0.35s cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
         {!showTour ? (
           <div className="text-center">
             <div className="mb-6 flex items-center justify-center gap-3">
               <img src={LOGO_MARK} alt="WiseOS" className="h-12 w-auto object-contain" />
-              <span className="text-2xl font-semibold tracking-tight text-[#E2E5E9]">WiseOS</span>
+              <span className="text-2xl font-semibold tracking-tight text-ink">WiseOS</span>
             </div>
 
-            <h1 className="text-3xl font-bold tracking-tight text-[#E2E5E9]">
+            <h1 className="text-3xl font-bold tracking-tight text-ink">
               Välkommen till WiseOS
             </h1>
-            <p className="mx-auto mt-4 max-w-xs text-[15px] leading-relaxed text-[#8a8f96]">
+            <p className="mx-auto mt-4 max-w-xs text-[15px] leading-relaxed text-ink-secondary">
               En AI-driven rättningsassistent byggd för svenska lärare. Här är en snabb rundtur.
             </p>
 
             <div className="mt-10 flex flex-col gap-3">
               <button
                 onClick={startTour}
-                className="w-full rounded-full bg-[#ea580c] px-6 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_24px_-4px_rgba(234,88,12,0.45)] hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] hover:scale-[1.02] active:scale-[0.98]"
               >
                 Starta rundturen
               </button>
               <button
                 onClick={handleSkip}
-                className="w-full rounded-full border border-[#E2E5E9]/10 bg-transparent px-6 py-3 text-sm font-medium text-[#8a8f96] transition-all hover:bg-[#E2E5E9]/5 hover:text-[#E2E5E9]"
+                className="w-full rounded-full border border-ink-hairline/10 bg-transparent px-6 py-3 text-sm font-medium text-ink-secondary transition-all hover:bg-ink/5 hover:text-ink"
               >
                 Hoppa över
               </button>
@@ -248,8 +247,8 @@ export default function Onboarding() {
           </div>
         ) : (
           <div className="flex flex-col" style={{ animation: "stepIn 0.3s ease-out" }}>
-            <div className="mb-5 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-[#8a8f96]">
-              <span className="text-[#ea580c]">Rundtur</span>
+            <div className="mb-5 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-ink-secondary">
+              <span className="text-accent">Rundtur</span>
               <span>
                 Steg {currentStep + 1} av {steps.length}
               </span>
@@ -260,7 +259,7 @@ export default function Onboarding() {
                 <div
                   key={i}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === currentStep ? "w-8 bg-[#ea580c]" : "w-2 bg-[#E2E5E9]/15"
+                    i === currentStep ? "w-8 bg-accent" : "w-2 bg-ink/15"
                   }`}
                 />
               ))}
@@ -268,10 +267,10 @@ export default function Onboarding() {
 
             <StepVisual step={currentStep} />
 
-            <h2 className="text-2xl font-bold tracking-tight text-[#E2E5E9]">
+            <h2 className="text-2xl font-bold tracking-tight text-ink">
               {steps[currentStep].title}
             </h2>
-            <p className="mx-auto mt-3 max-w-[360px] text-[15px] leading-relaxed text-[#8a8f96]">
+            <p className="mx-auto mt-3 max-w-[360px] text-[15px] leading-relaxed text-ink-secondary">
               {steps[currentStep].description}
             </p>
 
@@ -280,7 +279,7 @@ export default function Onboarding() {
                 {currentStep > 0 && (
                   <button
                     onClick={goPrev}
-                    className="flex-1 rounded-full border border-[#E2E5E9]/10 bg-transparent px-4 py-3 text-sm font-medium text-[#8a8f96] transition-all hover:bg-[#E2E5E9]/5 hover:text-[#E2E5E9]"
+                    className="flex-1 rounded-full border border-ink-hairline/10 bg-transparent px-4 py-3 text-sm font-medium text-ink-secondary transition-all hover:bg-ink/5 hover:text-ink"
                   >
                     Föregående
                   </button>
@@ -288,14 +287,14 @@ export default function Onboarding() {
                 {currentStep < steps.length - 1 ? (
                   <button
                     onClick={goNext}
-                    className="flex-1 rounded-full bg-[#ea580c] px-4 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_24px_-4px_rgba(234,88,12,0.45)] active:scale-[0.98]"
+                    className="flex-1 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] active:scale-[0.98]"
                   >
                     Nästa
                   </button>
                 ) : (
                   <button
                     onClick={finish}
-                    className="flex-1 rounded-full bg-[#ea580c] px-4 py-3 text-sm font-semibold text-white transition-all hover:shadow-[0_0_24px_-4px_rgba(234,88,12,0.45)] hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex-1 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Gå till dashboarden
                   </button>
@@ -303,7 +302,7 @@ export default function Onboarding() {
               </div>
               <button
                 onClick={handleSkip}
-                className="w-full py-2 text-[12.5px] text-[#8a8f96] transition-colors hover:text-[#E2E5E9]"
+                className="w-full py-2 text-[12.5px] text-ink-secondary transition-colors hover:text-ink"
               >
                 Hoppa över introduktionen
               </button>

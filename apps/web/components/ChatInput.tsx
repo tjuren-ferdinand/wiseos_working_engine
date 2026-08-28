@@ -29,7 +29,7 @@ export default function ChatInput({ onSend, disabled }: ChatInputProps) {
         onChange={(e) => setValue(e.target.value)}
         placeholder="Fråga AI:n om ett ämne, en övning eller en rättning..."
         disabled={disabled}
-        className="min-h-12 flex-1 resize-none bg-transparent px-4 py-3 text-sm text-ink placeholder:text-muted focus:outline-none"
+        className="min-h-12 flex-1 resize-none bg-transparent px-4 py-3 text-sm text-ink placeholder:text-ink-muted focus:outline-none"
       />
       <button
         type="submit"
