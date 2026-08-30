@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { AnimatePresence, motion } from "framer-motion";
-import { LOGO_MARK } from "@/lib/logo";
+import { useTheme } from "@/lib/theme";
+import { LOGO_MARK_DARK, LOGO_MARK_LIGHT } from "@/lib/logo";
 
 const SESSION_KEY = "wiseos_arc_splash_shown";
 
@@ -11,6 +12,8 @@ export default function Splash({ children }: { children: React.ReactNode }) {
   const [fadeOut, setFadeOut] = useState(false);
   const [mainReveal, setMainReveal] = useState(false);
   const [skip, setSkip] = useState(false);
+  const { theme } = useTheme();
+  const logoSrc = theme === "dark" ? LOGO_MARK_DARK : LOGO_MARK_LIGHT;
 
   useEffect(() => {
     const alreadyShown = sessionStorage.getItem(SESSION_KEY);
@@ -66,7 +69,7 @@ export default function Splash({ children }: { children: React.ReactNode }) {
             <div className="relative flex flex-col items-center gap-6">
               {/* Mark: spins in from a sliver, settles with a soft overshoot */}
               <motion.img
-                src={LOGO_MARK}
+                src={logoSrc}
                 alt="WiseOS"
                 className="h-24 w-auto max-w-[220px] object-contain select-none"
                 style={{ filter: "drop-shadow(0 0 26px rgb(var(--accent) / 0.35))" }}

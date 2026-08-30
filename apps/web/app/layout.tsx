@@ -4,6 +4,7 @@ import { LOGO_MARK } from "@/lib/logo";
 import { ThemeProvider } from "@/lib/theme";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
+import MainContainer from "@/components/MainContainer";
 import Onboarding from "@/components/Onboarding";
 import Splash from "@/components/Splash";
 import StoreHydrator from "@/components/StoreHydrator";
@@ -26,7 +27,7 @@ export const viewport: Viewport = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="sv" suppressHydrationWarning className="dark" data-theme="ice">
+    <html lang="sv" suppressHydrationWarning>
       <head>
         <link rel="preconnect" href="https://fonts.googleapis.com" />
         <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
@@ -37,9 +38,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <StoreHydrator />
           <Splash>
             <Header />
-            <main className="flex min-h-screen w-full flex-col pt-20 pb-28">
-              {children}
-            </main>
+            <MainContainer>{children}</MainContainer>
             <BottomNav />
           </Splash>
           <Onboarding />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useStore, actions, type Prov, type StudentResult, type Klass, type Question } from "@/lib/store";
 import { useTheme, type ReviewLayout } from "@/lib/theme";
 import Surface from "./ui/Surface";
@@ -19,8 +19,28 @@ export default function ReviewWorkbench() {
   const [editingStep, setEditingStep] = useState<{ resultId: string; stepId: string } | null>(null);
   const [editPoints, setEditPoints] = useState<string>("");
 
-  // Prov ready for review or already published.
-  const completedProv = prov.filter((p) => p.status === "review" || p.status === "published");
+  // Prov in the review pipeline: currently grading or ready for review.
+  // Published prov does not appear here — it is shown on the results/elev side.
+  const completedProv = prov.filter((p) => p.status === "grading" || p.status === "review");
+
+  useEffect(() => {
+    if (selectedProv && !completedProv.some((p) => p.id === selectedProv.id)) {
+      setSelectedProv(null);
+      setShowPublish(false);
+    }
+  }, [completedProv, selectedProv]);
+
+  useEffect(() => {
+    // Poll while any prov is still being graded so the list becomes
+    // clickable as soon as AI grading completes — no page reload needed.
+    if (!completedProv.some((p) => p.status === "grading")) return;
+
+    const timer = setInterval(() => {
+      actions.hydrate().catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [completedProv]);
 
   const getKlass = (provId: string): Klass | undefined => {
     const p = prov.find((pr) => pr.id === provId);
@@ -61,24 +81,25 @@ export default function ReviewWorkbench() {
         {completedProv.map((p) => {
           const klass = getKlass(p.id);
           const provResults = getProvResults(p.id);
-          const published = p.status === "published";
+          const isGrading = p.status === "grading";
 
           return (
             <Surface
               key={p.id}
-              onClick={() => setSelectedProv(p)}
-              interactive
+              onClick={isGrading ? undefined : () => setSelectedProv(p)}
+              interactive={!isGrading}
+              className={isGrading ? "opacity-60" : ""}
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
                   <h3 className="text-[15px] font-medium text-ink">{p.title}</h3>
                   <p className="mt-0.5 text-[13px] text-ink-secondary">{klass?.name}</p>
                 </div>
-                <StatusBadge status={published ? "published" : "review"} />
+                <StatusBadge status={p.status} />
               </div>
               <div className="mt-4 flex items-center gap-2 text-[13px] text-ink-muted">
                 <LineIcon name="users" className="h-3.5 w-3.5" />
-                {provResults.length} elever
+                {isGrading ? "Rättar..." : `${provResults.length} elever`}
               </div>
             </Surface>
           );

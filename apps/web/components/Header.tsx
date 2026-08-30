@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { LOGO_MARK } from "@/lib/logo";
 import { usePathname } from "next/navigation";
 import SettingsPanel from "./SettingsPanel";
 
@@ -25,12 +24,7 @@ export default function Header() {
     <header className="fixed top-0 inset-x-0 z-40 h-16 border-b border-equi-300/50 bg-equi-50/80 backdrop-blur-lg dark:border-equi-800/50 dark:bg-equi-950/80 safe-area-inset-top">
       <div className="mx-auto flex h-full max-w-5xl items-center justify-between px-5">
         <Link href="/" className="group flex h-11 items-center gap-2">
-          <img
-            src={LOGO_MARK}
-            alt="WiseOS"
-            className="h-10 w-auto object-contain mix-blend-difference transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:scale-105"
-          />
-          <span className="wiseos-logo-label inline-flex h-11 items-center overflow-hidden whitespace-nowrap text-[15px] font-semibold tracking-tight leading-none opacity-0 -translate-x-2 max-w-0 transition-all duration-300 ease-[cubic-bezier(0.22,1,0.36,1)] group-hover:max-w-[5.5rem] group-hover:opacity-100 group-hover:translate-x-0">
+          <span className="text-[15px] font-semibold tracking-tight leading-none text-ink">
             WiseOS
           </span>
         </Link>

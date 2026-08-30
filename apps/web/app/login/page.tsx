@@ -1,10 +1,11 @@
 "use client";
 
 import { useState, useEffect, useRef } from "react";
+import { createPortal } from "react-dom";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence, useInView, useScroll, useMotionValueEvent } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import { LOGO_MARK } from "@/lib/logo";
+import Logo from "@/components/Logo";
 import LineIcon, { type IconName } from "@/components/LineIcon";
 import { TESTIMONIALS } from "@/lib/data/testimonials";
 import { SOCIAL_STATS } from "@/lib/data/stats";
@@ -71,6 +72,7 @@ function AuthModal({
   const [signupDone, setSignupDone] = useState(false);
 
   if (!open) return null;
+  if (typeof document === "undefined") return null;
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -103,7 +105,7 @@ function AuthModal({
     setSignupDone(true);
   };
 
-  return (
+  return createPortal(
     <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={onClose} />
       <div className="relative w-full max-w-[400px] overflow-hidden rounded-2xl border border-ink-hairline/10 bg-paper-elevated p-6 shadow-2xl">
@@ -221,7 +223,8 @@ function AuthModal({
           </p>
         )}
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }
 
@@ -663,14 +666,14 @@ export default function LoginPage() {
   return (<div className="min-h-screen overflow-y-auto overflow-x-hidden bg-paper text-ink">
       {/* Top bar */}
       <motion.header
-        initial={{ y: 0 }}
-        animate={{ y: hidden ? "-100%" : 0 }}
+        initial={{ y: 0, opacity: 1 }}
+        animate={{ y: hidden ? "-100%" : 0, opacity: hidden ? 0 : 1 }}
         transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 inset-x-0 z-40 h-16 border-b border-equi-800/50 backdrop-blur-lg transition-colors duration-300 ${scrolled ? "bg-equi-950/95" : "bg-equi-950/70"}`}
+        className={`fixed top-0 inset-x-0 z-40 h-16 border-b border-equi-800/50 bg-equi-950 backdrop-blur-lg transition-shadow duration-300 ${scrolled ? "shadow-soft" : "shadow-none"}`}
       >
         <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-6">
           <div className="flex items-center gap-2.5">
-            <img src={LOGO_MARK} alt="WiseOS" className="h-9 w-auto object-contain mix-blend-difference" />
+            <Logo className="h-9 w-auto object-contain" />
             <span className="text-[15px] font-medium tracking-tight text-paper">WiseOS</span>
           </div>
           <div className="flex items-center gap-2">

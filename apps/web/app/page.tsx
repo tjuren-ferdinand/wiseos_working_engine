@@ -13,7 +13,8 @@ export default function DashboardPage() {
   const kurser = useStore((s) => s.kurser);
 
   // Metrics
-  const pendingReviews = prov.filter((p) => p.status === "review" || p.status === "grading").length;
+  const pendingReviews = prov.filter((p) => p.status === "review").length;
+  const aiGradedProv = prov.filter((p) => p.status === "review" || p.status === "published").length;
   const publishedProvIds = prov.filter((p) => p.status === "published").map((p) => p.id);
   const completedThisWeek = results.filter((r) => publishedProvIds.includes(r.provId)).length;
   const totalStudents = results.length;
@@ -106,7 +107,7 @@ export default function DashboardPage() {
               </div>
               <div className="mt-2">
                 <span className={`text-[26px] font-medium tracking-[-0.01em] ${ink}`}>
-                  {completedThisWeek}
+                  {aiGradedProv}
                 </span>
               </div>
               <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>denna vecka</div>

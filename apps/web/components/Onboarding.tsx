@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { LOGO_MARK } from "@/lib/logo";
+import Logo from "@/components/Logo";
 import LineIcon from "./LineIcon";
 
 const ONBOARDING_KEY = "wiseos_onboarding_completed";
@@ -219,7 +219,7 @@ export default function Onboarding() {
         {!showTour ? (
           <div className="text-center">
             <div className="mb-6 flex items-center justify-center gap-3">
-              <img src={LOGO_MARK} alt="WiseOS" className="h-12 w-auto object-contain" />
+              <Logo className="h-12 w-auto object-contain" />
               <span className="text-2xl font-semibold tracking-tight text-ink">WiseOS</span>
             </div>
 
