@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import Logo from "./Logo";
 import SettingsPanel from "./SettingsPanel";
 
 const navLinks = [
@@ -13,7 +14,6 @@ const navLinks = [
 
 export default function Header() {
   const pathname = usePathname();
-  if (pathname === "/login") return null;
 
   const isActive = (href: string) => {
     if (href === "/") return pathname === "/";
@@ -21,10 +21,11 @@ export default function Header() {
   };
 
   return (
-    <header className="fixed top-0 inset-x-0 z-40 h-16 border-b border-equi-300/50 bg-equi-50/80 backdrop-blur-lg dark:border-equi-800/50 dark:bg-equi-950/80 safe-area-inset-top">
+    <header className="fixed top-0 inset-x-0 z-40 h-16 border-b border-ink-hairline bg-paper/80 backdrop-blur-lg shadow-sm dark:border-ink-hairline dark:bg-paper-elevated/80 safe-area-inset-top">
       <div className="mx-auto flex h-full max-w-5xl items-center justify-between px-5">
         <Link href="/" className="group flex h-11 items-center gap-2">
-          <span className="text-[15px] font-semibold tracking-tight leading-none text-ink">
+          <Logo className="h-7 w-7 object-contain" alt="" />
+          <span className="text-[15px] font-semibold tracking-tight leading-none text-ink max-w-0 opacity-0 overflow-hidden transition-all duration-300 group-hover:max-w-[5.5rem] group-hover:opacity-100 whitespace-nowrap">
             WiseOS
           </span>
         </Link>

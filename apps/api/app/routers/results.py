@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..db import get_db
+from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 
 router = APIRouter(prefix="/api/v1/results", tags=["results"])
 
@@ -17,6 +18,7 @@ router = APIRouter(prefix="/api/v1/results", tags=["results"])
 def list_results(
     test_id: str | None = Query(None, alias="testId"),
     db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
     q = db.query(models.GradingResult)
     if test_id:
@@ -25,7 +27,11 @@ def list_results(
 
 
 @router.post("", response_model=schemas.GradingResultOut)
-def create_result(payload: schemas.GradingResultCreate, db: Session = Depends(get_db)):
+def create_result(
+    payload: schemas.GradingResultCreate,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     test = db.get(models.Test, payload.testId)
     if not test:
         raise HTTPException(404, "Test not found")
@@ -49,8 +55,39 @@ def create_result(payload: schemas.GradingResultCreate, db: Session = Depends(ge
     return result
 
 
+@router.patch("/{result_id}", response_model=schemas.GradingResultOut)
+def update_result(
+    result_id: str,
+    payload: schemas.GradingResultUpdate,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    result = db.get(models.GradingResult, result_id)
+    if not result:
+        raise HTTPException(404, "Result not found")
+    if payload.steps is not None:
+        result.steps = [s.model_dump() for s in payload.steps]
+    if payload.totalScore is not None:
+        result.total_score = payload.totalScore
+    if payload.maxScore is not None:
+        result.max_score = payload.maxScore
+    if payload.percentage is not None:
+        result.percentage = payload.percentage
+    if payload.grade is not None:
+        result.grade = payload.grade
+    if payload.feedback is not None:
+        result.feedback = payload.feedback
+    db.commit()
+    db.refresh(result)
+    return result
+
+
 @router.get("/{result_id}", response_model=schemas.GradingResultOut)
-def get_result(result_id: str, db: Session = Depends(get_db)):
+def get_result(
+    result_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     result = db.get(models.GradingResult, result_id)
     if not result:
         raise HTTPException(404, "Result not found")

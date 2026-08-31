@@ -171,6 +171,7 @@ export type BatchGradeRequest = {
   testSpecificParameters: string;
   answerKey: AnswerKeyItem[];
   files: File[];
+  identificationMethod?: 'name_field' | 'qr_code' | 'barcode' | 'student_id';
 };
 
 // ============================================================================
@@ -399,6 +400,7 @@ export const api = {
     fd.append("class_grading_parameters", req.classGradingParameters);
     fd.append("test_specific_parameters", req.testSpecificParameters);
     fd.append("answer_key_json", JSON.stringify(req.answerKey));
+    if (req.identificationMethod) fd.append("identification_method", req.identificationMethod);
     for (const f of req.files) fd.append("files", f, f.name);
 
     const controller = new AbortController();

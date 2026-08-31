@@ -192,6 +192,8 @@ class DocumentMeta(BaseModel):
     questionsExpected: int = 0
     questionsFound: int = 0
     needsReviewCount: int = 0
+    # Extraherat elevnamn från bilden (t.ex. "Name: Erik Johansson") när name_field används.
+    studentName: str | None = None
     # Sätts om HELA dokumentanalysen fallerade tekniskt.
     error: str | None = None
 
@@ -259,6 +261,12 @@ class ClassCreate(BaseModel):
     gradeThresholds: GradeThresholdsSchema | None = None
 
 
+class ClassUpdate(BaseModel):
+    name: str | None = None
+    gradingParams: GradingParamsSchema | None = None
+    gradeThresholds: GradeThresholdsSchema | None = None
+
+
 class ClassOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -285,6 +293,16 @@ class TestCreate(BaseModel):
     customParams: str | None = None
     questions: list[QuestionSchema] = []
     status: str = "draft"
+
+
+class TestUpdate(BaseModel):
+    title: str | None = None
+    date: str | None = None
+    maxPoints: float | None = None
+    facitMode: str | None = None
+    customParams: str | None = None
+    questions: list[QuestionSchema] | None = None
+    status: str | None = None
 
 
 class TestOut(BaseModel):
@@ -325,6 +343,15 @@ class GradingResultCreate(BaseModel):
     totalScore: float
     maxScore: float
     percentage: float
+    grade: str | None = None
+    feedback: str | None = None
+
+
+class GradingResultUpdate(BaseModel):
+    steps: list[GradingStepSchema] | None = None
+    totalScore: float | None = None
+    maxScore: float | None = None
+    percentage: float | None = None
     grade: str | None = None
     feedback: str | None = None
 

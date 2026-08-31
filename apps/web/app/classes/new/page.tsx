@@ -124,10 +124,10 @@ function NewKlassForm() {
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="block">
+    <label className="block h-full flex flex-col">
       <div className="text-[14px] font-medium text-ink">{label}</div>
       {hint && <div className="mt-0.5 text-[12.5px] text-ink-muted leading-relaxed">{hint}</div>}
-      <div className="mt-2">{children}</div>
+      <div className="mt-auto pt-2">{children}</div>
     </label>
   );
 }

@@ -87,10 +87,10 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
 
       <header className={`rounded-2xl border p-6 flex flex-wrap items-center justify-between gap-4 ${isDark ? "border-paper-raised/10 bg-paper-raised/5" : "border-ink-hairline bg-paper-raised shadow-sm"}`}>
         <div>
-          <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${"text-ink-muted"}`}>
+          <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${"text-ink-secondary"}`}>
             {klass.name} · {prov.title}
           </div>
-          <h1 className={`mt-1 text-2xl font-semibold tracking-tight ${isDark ? "text-paper" : "text-ink"}`}>{result.studentName}</h1>
+          <h1 className={`mt-1 text-2xl font-semibold tracking-tight text-ink`}>{result.studentName}</h1>
         </div>
         <ScoreBadge total={total} max={max} isDark={isDark} />
       </header>
@@ -125,18 +125,18 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
 
 function ScoreBadge({ total, max, isDark }: { total: number; max: number; isDark: boolean }) {
   const pct = max ? total / max : 0;
-  const color = isDark
-    ? pct >= 0.85 ? "text-state-success bg-state-success/20 ring-state-success/30"
-      : pct >= 0.5 ? "text-state-warning bg-state-warning/20 ring-state-warning/30"
-      : "text-rose-400 bg-rose-500/20 ring-rose-500/30"
-    : pct >= 0.85 ? "text-state-success bg-state-success/10 ring-state-success/20"
-      : pct >= 0.5 ? "text-state-warning bg-state-warning/10 ring-state-warning/20"
-      : "text-rose-700 bg-rose-50 ring-rose-200";
+  const scoreColor = isDark
+    ? pct >= 0.85 ? "text-state-success"
+      : pct >= 0.5 ? "text-state-warning"
+      : "text-rose-400"
+    : pct >= 0.85 ? "text-state-success"
+      : pct >= 0.5 ? "text-state-warning"
+      : "text-rose-700";
   return (
-    <div className={`rounded-2xl ring-1 px-5 py-3 ${color}`}>
-      <div className="text-[10px] uppercase tracking-[0.08em] font-semibold opacity-70">Slutpoäng</div>
-      <div className="mt-0.5 text-2xl font-semibold tabular-nums">
-        {total}<span className={`text-base ${isDark ? "text-paper/30" : "text-ink-muted"}`}> / {max}</span>
+    <div className={`rounded-2xl border border-ink-hairline shadow-card px-5 py-3 bg-paper-elevated text-ink`}>
+      <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-secondary">Slutpoäng</div>
+      <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${scoreColor}`}>
+        {total}<span className={`text-base text-ink-muted`}> / {max}</span>
       </div>
     </div>
   );
@@ -432,13 +432,13 @@ function StepCard({
       <div
         className={`mt-3 rounded-xl p-3 text-xs leading-relaxed font-mono ${
           isDark
-            ? "bg-paper-raised/[0.03] text-paper/70"
+            ? "bg-paper-raised/[0.08] text-ink"
             : "bg-paper-secondary/70 text-ink"
         }`}
       >
         <span
           className={
-            "text-ink-muted"
+            isDark ? "text-ink-secondary" : "text-ink-muted"
           }
         >
           Elev:
@@ -477,13 +477,13 @@ function StepCard({
         <div
           className={`mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed ${
             isDark
-              ? "bg-accent/10 ring-accent/20 text-accent"
-              : "bg-accent/10 ring-accent/20 text-accent"
+              ? "bg-accent/10 ring-accent/20 text-ink"
+              : "bg-accent/10 ring-accent/20 text-ink"
           }`}
         >
           <span
             className={`inline-flex items-center gap-1 font-semibold mb-1 align-[-2px] ${
-              "text-accent"
+              "text-ink"
             }`}
           >
             <LineIcon name="pen" className="h-3.5 w-3.5" />
@@ -531,7 +531,7 @@ function StepCard({
       {step.feedback && (
         <div
           className={`mt-2 rounded-xl p-3 text-xs leading-relaxed ${
-            isDark ? "bg-paper-raised/[0.03] text-paper/70" : "bg-paper-secondary/70 text-ink"
+            isDark ? "bg-paper-raised/[0.08] text-ink" : "bg-paper-secondary/70 text-ink"
           }`}
         >
           <span className="font-semibold mr-1">Feedback:</span>

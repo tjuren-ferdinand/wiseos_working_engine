@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { useRouter } from "next/navigation";
 import Logo from "@/components/Logo";
 import LineIcon from "./LineIcon";
 
@@ -150,7 +149,6 @@ export function useOnboarding() {
 
 export default function Onboarding() {
   const { shouldShow, completeOnboarding } = useOnboarding();
-  const router = useRouter();
 
   const [isOpen, setIsOpen] = useState(false);
   const [showTour, setShowTour] = useState(false);
@@ -158,7 +156,7 @@ export default function Onboarding() {
 
   useEffect(() => {
     if (shouldShow) {
-      const timer = setTimeout(() => setIsOpen(true), 500);
+      const timer = setTimeout(() => setIsOpen(true), 600);
       return () => clearTimeout(timer);
     }
   }, [shouldShow]);
@@ -196,41 +194,47 @@ export default function Onboarding() {
   const finish = () => {
     setIsOpen(false);
     completeOnboarding();
-    if (typeof window !== "undefined") {
-      window.location.href = "/";
-    } else {
-      router.push("/");
-    }
   };
 
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center p-4">
+    <>
+      {/* Backdrop — subtle, not opaque */}
       <div
-        className="absolute inset-0 bg-black/95 backdrop-blur-md transition-opacity duration-300"
+        className="fixed inset-0 z-[9999] bg-black/30 backdrop-blur-sm transition-opacity duration-300"
         onClick={handleSkip}
       />
 
+      {/* Slide-in panel from right */}
       <div
-        className="relative w-full max-w-lg overflow-hidden rounded-2xl border border-ink-hairline/10 bg-paper-elevated p-8 shadow-2xl"
-        style={{ animation: "modalIn 0.35s cubic-bezier(0.22, 1, 0.36, 1)" }}
+        className="fixed right-0 top-0 z-[10000] flex h-full w-full max-w-lg flex-col overflow-y-auto border-l border-ink-hairline/10 bg-paper-elevated p-8 shadow-2xl"
+        style={{ animation: "slideIn 0.4s cubic-bezier(0.22, 1, 0.36, 1)" }}
       >
+        {/* Close button */}
+        <button
+          onClick={handleSkip}
+          className="absolute right-4 top-4 flex h-8 w-8 items-center justify-center rounded-full text-ink-secondary transition-colors hover:bg-ink/5 hover:text-ink"
+          aria-label="Stäng"
+        >
+          <LineIcon name="x" className="h-4 w-4" />
+        </button>
+
         {!showTour ? (
-          <div className="text-center">
+          <div className="flex flex-1 flex-col items-center justify-center text-center">
             <div className="mb-6 flex items-center justify-center gap-3">
               <Logo className="h-12 w-auto object-contain" />
               <span className="text-2xl font-semibold tracking-tight text-ink">WiseOS</span>
             </div>
 
-            <h1 className="text-3xl font-bold tracking-tight text-ink">
+            <h1 className="text-2xl font-bold tracking-tight text-ink">
               Välkommen till WiseOS
             </h1>
             <p className="mx-auto mt-4 max-w-xs text-[15px] leading-relaxed text-ink-secondary">
               En AI-driven rättningsassistent byggd för svenska lärare. Här är en snabb rundtur.
             </p>
 
-            <div className="mt-10 flex flex-col gap-3">
+            <div className="mt-10 flex w-full max-w-xs flex-col gap-3">
               <button
                 onClick={startTour}
                 className="w-full rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] hover:scale-[1.02] active:scale-[0.98]"
@@ -246,7 +250,7 @@ export default function Onboarding() {
             </div>
           </div>
         ) : (
-          <div className="flex flex-col" style={{ animation: "stepIn 0.3s ease-out" }}>
+          <div className="flex flex-1 flex-col" style={{ animation: "stepIn 0.3s ease-out" }}>
             <div className="mb-5 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-ink-secondary">
               <span className="text-accent">Rundtur</span>
               <span>
@@ -267,14 +271,14 @@ export default function Onboarding() {
 
             <StepVisual step={currentStep} />
 
-            <h2 className="text-2xl font-bold tracking-tight text-ink">
+            <h2 className="text-xl font-bold tracking-tight text-ink">
               {steps[currentStep].title}
             </h2>
-            <p className="mx-auto mt-3 max-w-[360px] text-[15px] leading-relaxed text-ink-secondary">
+            <p className="mt-3 max-w-[360px] text-[15px] leading-relaxed text-ink-secondary">
               {steps[currentStep].description}
             </p>
 
-            <div className="mt-8 flex flex-col gap-3">
+            <div className="mt-auto flex flex-col gap-3 pt-8">
               <div className="flex gap-3">
                 {currentStep > 0 && (
                   <button
@@ -296,7 +300,7 @@ export default function Onboarding() {
                     onClick={finish}
                     className="flex-1 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] hover:scale-[1.02] active:scale-[0.98]"
                   >
-                    Gå till dashboarden
+                    Klar
                   </button>
                 )}
               </div>
@@ -304,7 +308,7 @@ export default function Onboarding() {
                 onClick={handleSkip}
                 className="w-full py-2 text-[12.5px] text-ink-secondary transition-colors hover:text-ink"
               >
-                Hoppa över introduktionen
+                Hoppa över
               </button>
             </div>
           </div>
@@ -312,14 +316,14 @@ export default function Onboarding() {
       </div>
 
       <style jsx>{`
-        @keyframes modalIn {
+        @keyframes slideIn {
           from {
             opacity: 0;
-            transform: translateY(16px) scale(0.98);
+            transform: translateX(100%);
           }
           to {
             opacity: 1;
-            transform: translateY(0) scale(1);
+            transform: translateX(0);
           }
         }
         @keyframes stepIn {
@@ -333,6 +337,6 @@ export default function Onboarding() {
           }
         }
       `}</style>
-    </div>
+    </>
   );
 }

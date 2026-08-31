@@ -17,10 +17,11 @@ from __future__ import annotations
 import json
 import logging
 
-from fastapi import APIRouter, File, Form, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
 
 from .. import schemas
+from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 from ..services.batch_pipeline import (
     UploadedFile,
     active_rules,
@@ -50,7 +51,9 @@ async def batch_grade(
     class_grading_parameters: str = Form(""),
     test_specific_parameters: str = Form(""),
     answer_key_json: str = Form("[]"),
+    identification_method: str = Form("name_field"),
     files: list[UploadFile] = File(...),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
     # 1. Validera facit-JSON (valfritt – tomt betyder facitfri rättning)
     try:
@@ -91,6 +94,7 @@ async def batch_grade(
         class_grading_parameters=class_grading_parameters,
         test_specific_parameters=test_specific_parameters,
         files=uploads,
+        identification_method=identification_method,
     )
 
     combined_params = f"{class_grading_parameters}\n{test_specific_parameters}"

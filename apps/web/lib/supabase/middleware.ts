@@ -6,6 +6,15 @@ import { NextResponse, type NextRequest } from "next/server";
  * skyddar sidor som kräver inloggning. Anropas från middleware.ts.
  */
 export async function updateSession(request: NextRequest) {
+  const pathname = request.nextUrl.pathname;
+
+  // Låt /auth/callback passera utan att middleware rör cookies/session —
+  // Route Handlern sköter exchangeCodeForSession() själv och middleware:ns
+  // getUser()-anrop kan störa PKCE code_verifier-cookien.
+  if (pathname.startsWith("/auth/callback")) {
+    return NextResponse.next({ request });
+  }
+
   let supabaseResponse = NextResponse.next({ request });
 
   const supabase = createServerClient(
@@ -32,7 +41,7 @@ export async function updateSession(request: NextRequest) {
 
   // Route-skydd: oautentiserade besökare skickas till /login, som nu
   // fungerar som appens publika landningssida (hero + inloggning/signup).
-  const isPublicPath = request.nextUrl.pathname.startsWith("/login");
+  const isPublicPath = pathname.startsWith("/login");
   if (!user && !isPublicPath) {
     const redirectUrl = new URL("/login", request.url);
     return NextResponse.redirect(redirectUrl);

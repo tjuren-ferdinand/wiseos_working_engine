@@ -68,7 +68,7 @@ export default function GradePage() {
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <Link href={`/classes/${klass.id}`} className={`text-sm transition-colors ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>← {klass.name}</Link>
-          <h1 className={`mt-3 text-[40px] font-bold tracking-[-0.02em] ${isDark ? "text-paper" : "text-ink"}`}>{prov.title}</h1>
+          <h1 className={`mt-3 text-[40px] font-bold tracking-[-0.02em] text-ink`}>{prov.title}</h1>
           <div className={`mt-2 text-sm ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
             Klassmapp · {allResults.length} elever rättade
           </div>
@@ -112,7 +112,7 @@ export default function GradePage() {
                     {r.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-sm font-semibold truncate ${isDark ? "text-paper group-hover:text-[#e8b0e4]" : "text-ink group-hover:text-[#c78bbf]"}`}>
+                    <div className={`text-sm font-semibold truncate ${isDark ? "text-ink group-hover:text-[#e8b0e4]" : "text-ink group-hover:text-[#c78bbf]"}`}>
                       {r.studentName}
                     </div>
                     <div className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>{r.steps.length} steg</div>

@@ -5,7 +5,6 @@ import { ThemeProvider } from "@/lib/theme";
 import Header from "@/components/Header";
 import BottomNav from "@/components/BottomNav";
 import MainContainer from "@/components/MainContainer";
-import Onboarding from "@/components/Onboarding";
 import Splash from "@/components/Splash";
 import StoreHydrator from "@/components/StoreHydrator";
 
@@ -41,7 +40,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
             <MainContainer>{children}</MainContainer>
             <BottomNav />
           </Splash>
-          <Onboarding />
         </ThemeProvider>
       </body>
     </html>

@@ -157,6 +157,7 @@ async def grade_batch(
     class_grading_parameters: str,
     test_specific_parameters: str,
     files: list[UploadedFile],
+    identification_method: str = "name_field",
 ) -> list[StudentDocumentResult]:
     """Rättar en batch elevdokument bildförst.
 
@@ -197,10 +198,12 @@ async def grade_batch(
                 note = f"{unsupported} sida/sidor hade filformat som inte kan analyseras."
                 meta.error = f"{meta.error} | {note}" if meta.error else note
 
+            # Föredra namn som extraherats från bilden (name_field) framför filnamnet.
+            resolved_name = meta.studentName or document.student_name
             return StudentDocumentResult(
                 id=str(uuid.uuid4()),
                 provId=prov_id,
-                studentName=document.student_name,
+                studentName=resolved_name,
                 scanPages=[_data_url(page) for page in document.pages],
                 document=meta,
                 questions=questions,

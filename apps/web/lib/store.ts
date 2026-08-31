@@ -549,6 +549,7 @@ export async function runBatchGrade(opts: {
       testSpecificParameters: customParams || '',
       answerKey: normalisedAnswerKey,
       files,
+      identificationMethod,
     }, signal);
 
     onPhase?.('saving');

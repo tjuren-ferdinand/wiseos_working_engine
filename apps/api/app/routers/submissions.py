@@ -6,6 +6,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..config import settings
 from ..db import get_db
+from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 from ..services.wolfram import WolframVerifier
 from ..services.feedback import generate_feedback
 from ..services.anonymize import pseudonymize_student
@@ -14,7 +15,11 @@ router = APIRouter(prefix="/api/v1/submissions", tags=["submissions"])
 
 
 @router.post("/grade", response_model=schemas.GradeResponse)
-async def grade_submission(payload: schemas.SubmissionCreate, db: Session = Depends(get_db)):
+async def grade_submission(
+    payload: schemas.SubmissionCreate,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     assignment = db.get(models.Assignment, payload.assignment_id)
     if not assignment:
         raise HTTPException(404, "Assignment not found")
@@ -63,7 +68,10 @@ async def grade_submission(payload: schemas.SubmissionCreate, db: Session = Depe
 
 
 @router.get("/pending", response_model=list[schemas.SubmissionOut], tags=["review"])
-def list_pending_reviews(db: Session = Depends(get_db)):
+def list_pending_reviews(
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     """Alla inlämningar som väntar på lärargranskning (konfidens < tröskel)."""
     return (
         db.query(models.Submission)
@@ -74,7 +82,12 @@ def list_pending_reviews(db: Session = Depends(get_db)):
 
 
 @router.post("/{submission_id}/review", response_model=schemas.SubmissionOut, tags=["review"])
-def review_submission(submission_id: str, action: schemas.ReviewAction, db: Session = Depends(get_db)):
+def review_submission(
+    submission_id: str,
+    action: schemas.ReviewAction,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     sub = db.get(models.Submission, submission_id)
     if not sub:
         raise HTTPException(404, "Submission not found")
@@ -106,7 +119,10 @@ def review_submission(submission_id: str, action: schemas.ReviewAction, db: Sess
 
 
 @router.post("/quick-grade", response_model=schemas.QuickGradeResponse, tags=["grade"])
-async def quick_grade(req: schemas.QuickGradeRequest):
+async def quick_grade(
+    req: schemas.QuickGradeRequest,
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     """Stateless rättning – sparar inget i databasen.
 
     Användbar för testning, externa integrationer och Wolfram Cloud-piloter.
@@ -129,7 +145,11 @@ async def quick_grade(req: schemas.QuickGradeRequest):
 
 
 @router.get("/{submission_id}", response_model=schemas.SubmissionOut)
-def get_submission(submission_id: str, db: Session = Depends(get_db)):
+def get_submission(
+    submission_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
     s = db.get(models.Submission, submission_id)
     if not s:
         raise HTTPException(404, "Submission not found")

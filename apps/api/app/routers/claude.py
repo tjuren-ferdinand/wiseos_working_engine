@@ -7,9 +7,10 @@ Groq) beroende på AI_PROVIDER i .env.
 """
 from __future__ import annotations
 
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 
 from .. import schemas
+from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 from ..services.feedback import generate_feedback_detailed
 from ..services.wolfram import WolframVerifier
 
@@ -17,7 +18,10 @@ router = APIRouter(prefix="/api/v1/claude", tags=["claude"])
 
 
 @router.post("/analyze", response_model=schemas.ClaudeAnalyzeResponse)
-async def analyze(payload: schemas.ClaudeAnalyzeRequest) -> schemas.ClaudeAnalyzeResponse:
+async def analyze(
+    payload: schemas.ClaudeAnalyzeRequest,
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+) -> schemas.ClaudeAnalyzeResponse:
     verifier = WolframVerifier()
     wolfram = await verifier.verify_equation(payload.studentAnswer, payload.correctAnswer)
 

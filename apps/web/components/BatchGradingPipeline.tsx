@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import type { AnswerKeyItem } from "@/lib/api";
 import { actions, runBatchGrade, type GradingParams, type StudentResult } from "@/lib/store";
+import { useTheme } from "@/lib/theme";
 
 // ============================================================================
 // TYPES
@@ -62,6 +63,9 @@ export default function BatchGradingPipeline({
   identificationMethod,
   expectedStudents,
 }: BatchGradingPipelineProps) {
+  const { theme } = useTheme();
+  const isDark = theme === "dark";
+
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
   const [results, setResults] = useState<StudentResult[]>([]);
@@ -158,20 +162,28 @@ export default function BatchGradingPipeline({
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-50 flex items-center justify-center"
+        className="fixed inset-0 z-[200] flex items-center justify-center"
       >
-        <div className="absolute inset-0 bg-ink/70 backdrop-blur-xl" />
+        <div className="absolute inset-0 bg-paper backdrop-blur-2xl" />
 
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 20 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 20 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="relative w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+          className="relative z-10 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
         >
-          <div className="relative rounded-[32px] bg-paper-raised/95 backdrop-blur-2xl shadow-card shadow-ink/[0.08] ring-1 ring-paper-raised/50">
-            <div className="absolute -top-40 -right-40 w-96 h-96 bg-gradient-to-br from-paper-secondary/30 to-paper-secondary/20 rounded-full blur-3xl" />
-            <div className="absolute -bottom-40 -left-40 w-96 h-96 bg-gradient-to-tr from-blue-400/20 to-cyan-400/20 rounded-full blur-3xl" />
+          <div className={`relative rounded-[32px] border backdrop-blur-2xl shadow-card ${
+            isDark
+              ? "bg-paper-elevated/95 border-ink-hairline shadow-ink/[0.12]"
+              : "bg-paper-elevated/95 border-ink-hairline shadow-ink/[0.08]"
+          }`}>
+            <div className={`absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl ${
+              isDark ? "bg-gradient-to-br from-paper-raised/20 to-paper-raised/10" : "bg-gradient-to-br from-paper-secondary/30 to-paper-secondary/20"
+            }`} />
+            <div className={`absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl ${
+              isDark ? "bg-gradient-to-tr from-accent/10 to-accent/5" : "bg-gradient-to-tr from-blue-400/20 to-cyan-400/20"
+            }`} />
 
             {/* Header */}
             <div className="relative px-10 pt-10 pb-6 border-b border-ink-hairline">
@@ -295,10 +307,14 @@ export default function BatchGradingPipeline({
             {/* Body */}
             <div className="relative px-10 py-6 max-h-[30vh] overflow-y-auto">
               {phase === "error" && error && (
-                <div className="rounded-2xl bg-rose-50 border border-rose-200 p-5 text-sm text-rose-800">
+                <div className={`rounded-2xl border p-5 text-sm ${
+                  isDark
+                    ? "bg-rose-950/30 border-rose-500/20 text-rose-200"
+                    : "bg-rose-50 border-rose-200 text-rose-800"
+                }`}>
                   <div className="font-semibold">Backend-fel</div>
-                  <div className="mt-1 whitespace-pre-wrap font-mono text-xs">{error}</div>
-                  <div className="mt-2 text-xs text-rose-700">
+                  <div className="mt-1 whitespace-pre-wrap font-mono text-xs opacity-90">{error}</div>
+                  <div className="mt-2 text-xs opacity-80">
                     Kontrollera att API-tjänsten körs på {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} och försök igen.
                   </div>
                 </div>
@@ -404,7 +420,7 @@ export default function BatchGradingPipeline({
                         {phase === "complete" && (
                           <button
                             onClick={() => onComplete(results)}
-                            className="px-6 py-3 rounded-2xl text-sm font-semibold text-paper bg-gradient-to-r from-ink to-paper-secondary hover:from-paper-secondary hover:to-paper-secondary shadow-lg shadow-card transition-all"
+                            className="px-6 py-3 rounded-2xl text-sm font-semibold text-paper bg-gradient-to-r from-ink to-paper-secondary hover:from-paper-secondary hover:to-paper-secondary hover:text-ink shadow-lg shadow-card transition-all"
                           >
                             Granska resultat
                           </button>

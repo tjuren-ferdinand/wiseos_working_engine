@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useStore } from "@/lib/store";
 import Reveal from "@/components/Reveal";
 import { createClient } from "@/lib/supabase/client";
+import Onboarding from "@/components/Onboarding";
 
 export default function DashboardPage() {
   const klasser = useStore((s) => s.klasser);
@@ -55,10 +56,11 @@ export default function DashboardPage() {
 
   return (
     <div className="pt-4">
+      <Onboarding />
         {/* Greeting */}
         <Reveal>
-          <div className="mb-16">
-            <h1 className="text-[26px] font-medium tracking-[-0.02em] text-ink">
+          <div className="mb-20">
+            <h1 className="text-[26px] font-medium tracking-[-0.02em] text-ink break-words">
               Välkommen tillbaka, {userName}
             </h1>
             <p className="mt-2 text-[13.5px] text-ink-secondary">
@@ -73,8 +75,9 @@ export default function DashboardPage() {
 
         {/* Metrics — integrated information row, not boxed widgets */}
         <Reveal>
-          <div className="grid grid-cols-3 gap-12 pb-6 mb-6 border-b border-ink-hairline">
-            <div>
+          <div className="max-w-2xl mx-auto pb-6 mb-6 border-b border-ink-hairline">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-10">
+            <div className="min-w-0">
               <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                 Tid sparad
               </div>
@@ -89,7 +92,7 @@ export default function DashboardPage() {
               <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>den här veckan</div>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                 Publicerade resultat
               </div>
@@ -101,7 +104,7 @@ export default function DashboardPage() {
               <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>av totalt {totalStudents}</div>
             </div>
 
-            <div>
+            <div className="min-w-0">
               <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                 AI-rättade prov
               </div>
@@ -111,6 +114,7 @@ export default function DashboardPage() {
                 </span>
               </div>
               <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>denna vecka</div>
+            </div>
             </div>
           </div>
         </Reveal>
@@ -147,10 +151,10 @@ export default function DashboardPage() {
         )}
 
         {/* Two column layout — quiet lists, generous spacing, hairline separators only */}
-        <div className="grid grid-cols-5 gap-12">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-8 lg:gap-12">
 
           {/* Classes */}
-          <Reveal className="col-span-3" delay={120}>
+          <Reveal className="col-span-1 lg:col-span-3" delay={120}>
             <div className="flex items-center justify-between mb-3">
               <h2 className={`text-[12px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                 Klasser
@@ -181,21 +185,21 @@ export default function DashboardPage() {
                     <Link
                       key={k.id}
                       href={`/classes/${k.id}`}
-                      className={`group flex items-center justify-between py-3.5 border-b ${hairline} transition-colors hover:bg-ink/[0.02] -mx-1 px-1`}
+                      className={`group flex items-center justify-between py-3.5 border-b ${hairline} transition-colors hover:bg-ink/[0.02] -mx-1 px-1 min-w-0`}
                     >
-                      <div className="flex items-center gap-3.5">
+                      <div className="flex items-center gap-3.5 min-w-0">
                         <span className={`text-[12.5px] font-medium w-8 tabular-nums ${inkMuted}`}>
                           {k.name.slice(0, 2)}
                         </span>
-                        <div>
-                          <div className={`text-[14px] font-medium ${ink}`}>{k.name}</div>
-                          <div className={`text-[12.5px] ${inkMuted}`}>
+                        <div className="min-w-0">
+                          <div className={`text-[14px] font-medium ${ink} truncate`}>{k.name}</div>
+                          <div className={`text-[12.5px] ${inkMuted} truncate`}>
                             {(kurs?.name || "Kurs")} · {k.students.length} elever · {klassProv.length} prov
                           </div>
                         </div>
                       </div>
                       {pendingInClass > 0 && (
-                        <span className={`text-[12px] font-medium ${inkSecondary}`}>
+                        <span className={`text-[12px] font-medium ${inkSecondary} shrink-0 ml-2`}>
                           {pendingInClass} väntar
                         </span>
                       )}
@@ -207,7 +211,7 @@ export default function DashboardPage() {
           </Reveal>
 
           {/* Recent activity */}
-          <Reveal className="col-span-2" delay={180}>
+          <Reveal className="col-span-1 lg:col-span-2" delay={180}>
             <h2 className={`text-[12px] font-medium uppercase tracking-[0.1em] mb-3 ${inkMuted}`}>
               Senaste aktivitet
             </h2>
