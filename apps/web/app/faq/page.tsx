@@ -1,5 +1,7 @@
 "use client";
 
+// DRAFT — kräver juristgranskning innan publicering.
+
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import PageHeader from "@/components/ui/PageHeader";
@@ -19,7 +21,7 @@ const FAQS = [
   },
   {
     q: "Är mina elevers data säker?",
-    a: "Ja. All data hanteras säkert, rensas efter genomförd rättning och följer GDPR. Vi sparar inget längre än nödvändigt.",
+    a: `DRAFT — kräver juristgranskning innan publicering. Tekniskt vidtar WiseOS flera åtgärder: endast inloggad lärare kan nå sin egen data (teacher_id-ägandeskap), fritext skrubbas för personnummer/e-post/telefon och vissa namnliknande mönster innan den skickas till extern AI, och resultat pseudonymiseras efter 30 dagar samt raderas permanent efter 90 dagar. Läraren kan också radera klasser, elever, prov och enskilda resultat manuellt. Viktiga begränsningar: skannade provsidor med elevhandstil skickas oskrubbat till Google Gemini; vi har inte tecknat DPA med Google, Groq eller Wolfram; och serverplats/jurisdiktion är inte verifierad. Granska därför integriteten med skolans dataskyddsombud innan användning.`,
   },
   {
     q: "Hur börjar jag?",
@@ -72,7 +74,7 @@ export default function FaqPage() {
       <PageHeader
         eyebrow="Vanliga frågor"
         title="Svar på det du undrar över"
-        subtitle="Här samlar vi svaren om WiseOS, säkerhet och hur du kommer igång."
+        subtitle="DRAFT — kräver juristgranskning innan publicering. Svaren baseras på faktisk implementation och är inte slutgiltig rådgivning."
       />
 
       <section className="mt-12">

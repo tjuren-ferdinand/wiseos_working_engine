@@ -11,6 +11,7 @@ Prioriterad ordning när vi verifierar att elevens svar ≡ korrekt svar:
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -18,6 +19,9 @@ import httpx
 
 from ..config import settings
 from ..schemas import WolframResult
+from .anonymize import scrub_pii
+
+logger = logging.getLogger("wiseos.grading")
 
 
 def _normalize(expr: str) -> str:
@@ -184,6 +188,18 @@ class WolframVerifier:
             )
 
     async def verify_equation(self, student_answer: str, correct_answer: str) -> WolframResult:
+        # GDPR-anonymiseringssköld: skrubba personnummer/e-post/telefon INNAN
+        # något av dessa strängar lämnar backend till Wolfram (cloud/full
+        # results/short answers). Matematiska uttryck påverkas inte.
+        raw_student, raw_correct = student_answer, correct_answer
+        student_answer = scrub_pii(student_answer)
+        correct_answer = scrub_pii(correct_answer)
+        if (student_answer, correct_answer) != (raw_student, raw_correct):
+            logger.warning("pii_scrubbed_from_wolfram_input")
+        logger.debug(
+            "wolfram_outgoing student=%r correct=%r", student_answer, correct_answer,
+        )
+
         # 1) Egen Wolfram Cloud-funktion
         if self.api_url:
             try:

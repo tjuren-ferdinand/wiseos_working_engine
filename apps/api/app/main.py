@@ -1,9 +1,10 @@
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from .db import init_db
-from .routers import assignments, submissions, ocr, wolfram_test, batch, auth, classes, results, claude, supabase_auth
+from .routers import admin, assignments, submissions, ocr, wolfram_test, batch, auth, classes, results, claude, supabase_auth
 from .services.batch_pipeline import integration_status
+from .services.supabase_auth import SupabaseUser, get_current_supabase_user
 
 app = FastAPI(
     title="wiseOS API",
@@ -52,6 +53,7 @@ app.include_router(classes.router)
 app.include_router(results.router)
 app.include_router(claude.router)
 app.include_router(supabase_auth.router)
+app.include_router(admin.router)
 
 
 # Alias enligt mega-prompten: stateless rättning på /api/v1/grade
@@ -60,5 +62,8 @@ from .routers.submissions import quick_grade  # noqa: E402
 
 
 @app.post("/api/v1/grade", response_model=QuickGradeResponse, tags=["grade"])
-async def grade_alias(req: QuickGradeRequest):
-    return await quick_grade(req)
+async def grade_alias(
+    req: QuickGradeRequest,
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    return await quick_grade(req, _user=_user)

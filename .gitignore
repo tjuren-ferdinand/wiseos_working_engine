@@ -50,3 +50,6 @@ __pycache__/
 # Coverage
 coverage/
 .nyc_output/
+
+# SQLite-databas ska inte versionshanteras
+apps/api/wiseos.db

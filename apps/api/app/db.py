@@ -44,6 +44,10 @@ def init_db() -> None:
         "ALTER TABLE submissions ADD COLUMN final_score INTEGER",
         # Sprint: Authentication - koppla Teacher till User
         "ALTER TABLE teachers ADD COLUMN user_id VARCHAR(36)",
+        # GDPR-sprint v1: ägandeskap – Klass kopplas till Supabase-lärarens id.
+        "ALTER TABLE classes ADD COLUMN teacher_id VARCHAR(255)",
+        # GDPR-sprint v1 (Vecka 2): retention-tracking för GradingResult.
+        "ALTER TABLE grading_results ADD COLUMN anonymized_at DATETIME",
     ]
     with engine.begin() as conn:
         for stmt in migrations:

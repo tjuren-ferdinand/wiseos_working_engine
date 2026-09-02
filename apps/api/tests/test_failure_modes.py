@@ -229,11 +229,30 @@ async def test_no_pages_does_not_crash(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_empty_answer_key_returns_nothing(monkeypatch):
-    _install(monkeypatch, [(200, _gemini_body(_valid_payload()))])
+async def test_empty_answer_key_with_no_detected_questions_returns_nothing(monkeypatch):
+    """Facitfritt läge (answer_key=[]): hittar AI:n ingen tryckt frågetext i
+    dokumentet ska den returnera en tom 'questions'-lista (se prompten i
+    gemini_vision._build_prompt, punkt 2) – och pipen ska förmedla det som
+    en tom, felfri resultatlista (ingen crash, inget påhittat innehåll)."""
+    empty_payload = {"questions": [], "unlisted_questions": []}
+    _install(monkeypatch, [(200, _gemini_body(empty_payload))])
     questions, meta = await gemini_vision.analyze_document(pages=_pages(), answer_key=[])
     assert questions == []
-    assert meta.error is not None
+    assert meta.error is None
+
+
+@pytest.mark.asyncio
+async def test_empty_answer_key_grades_ai_detected_questions(monkeypatch):
+    """Facitfritt läge (answer_key=[]): hittar AI:n en uppgift med tryckt
+    frågetext ska den bedömas och returneras – det är HELA syftet med
+    facitfritt läge (AI:n genererar facit och bedömning i samma anrop, se
+    gemini_vision._analyze_chunk). Detta är INTE en felväg."""
+    _install(monkeypatch, [(200, _gemini_body(_valid_payload()))])
+    questions, meta = await gemini_vision.analyze_document(pages=_pages(), answer_key=[])
+    assert len(questions) == 1
+    assert questions[0].questionNumber == "1"
+    assert questions[0].assessment.status == "correct"
+    assert meta.error is None
 
 
 # ---------------------------------------------------------------------------

@@ -244,12 +244,14 @@ POST /api/v1/batch/grade (multipart: prov_id, files[], answer_key_json, params)
 | **Elevarbete (transkription)** | I `steps[].studentWork` (JSON-fält i `grading_results`) | SQLite |
 | **AI-feedback** | `grading_results.feedback`, `submissions.ai_feedback` | SQLite |
 
-### Anonymisering (bekräftat i `apps/api/app/services/anonymize.py`)
+### Anonymisering (bekräftat i `apps/api/app/services/anonymize.py`) — GDPR Vecka 1 (klar)
 
 - `pseudonymize_student()` skapar deterministisk pseudonym (`"Elev #A4F7"`) via SHA-256.
-- `scrub_pii()` maskerar personnummer, e-post och telefonnummer i fritext.
-- **Används** i `submissions.py` (V1) och `feedback.py` — elevdata som skickas till AI-tjänster skrubbas.
-- **Inte använd** i `gemini_vision.py` — elevnamnet skickas **inte** till Gemini (bara "student_label" som loggas lokalt). Filerna innehåller dock elevens handskrift som skickas till Gemini API.
+- `scrub_pii()` maskerar personnummer, e-post, telefonnummer **och namnliknande text** (`_NAME_LIKE`-heuristik) i fritext.
+- **Används nu även** i `gemini_vision.py` (skrubbar `grading_notes` innan Gemini-prompten byggs) och `wolfram.py` (skrubbar student/correct-svar innan externt anrop). Terminalbevis: `apps/api/scripts/prove_pii_scrub.py`.
+- Elevnamnet (`student_label`) skickas fortfarande **inte** till Gemini i payloaden — bara loggat lokalt.
+- **⚠ Känd begränsning (best-effort, inte 100% garanti):** `_NAME_LIKE` matchar bara "Förnamn Efternamn"-mönster (två+ efterföljande versalord). Den missar: (1) enstaka förnamn utan efternamn, (2) namn med bindestreck ("Anna-Karin Svensson" scrubbas bara delvis), (3) namn som OCR:n råkar läsa i gemener. Detta är en medveten avvägning – full NER är oproportionerligt för nuvarande skala. Kandidat för Vecka 3+: korsreferera mot kända `KlassStudent.name`-värden i klassen (roster-aware scrub) istället för generisk regex.
+- **⚠ Fortsatt känd risk:** Elevens handskrift (bildinnehåll) skickas alltid till Gemini API — det går inte att textbaserat skrubba en bild. Detta kräver en verifierad DPA med Google, inte kodfix.
 
 ### Bildlagring
 
@@ -259,11 +261,21 @@ POST /api/v1/batch/grade (multipart: prov_id, files[], answer_key_json, params)
   2. Som data-URL:er i batch-responsen → Zustand under sessionen.
 - **⚠ OKÄNT:** Googles databehandlingspolicy för Gemini API — behåller Google bilderna? Kräver kontroll av Google Gemini API Terms of Service.
 
-### Radering / anonymisering
+### Radering / anonymisering — GDPR Vecka 2 (klar)
 
-- **Ingen automatisk radering** finns implementerad. Landningssidan säger "rensas automatiskt efter rättning" (verifierat i `login/page.tsx:43`) men **det är inte implementerat i backend-koden**.
-- **Ingen "delete"-endpoint** för klasser, elever, prov eller resultat.
-- **⚠ RISKOMRÅDE:** SQLite-filen (`wiseos.db`, 12 MB) innehåller all historisk elevdata utan utgångsdatum.
+- **Retention-policy implementerad** i `apps/api/app/services/retention.py`, konfigurerbar via `RETENTION_ANONYMIZE_DAYS` (default 30) och `RETENTION_HARD_DELETE_DAYS` (default 90) i `config.py`:
+  - Dag 30+: `GradingResult.student_name`/`student_id` pseudonymiseras (`anonymized_at` sätts). Pedagogiskt innehåll (poäng, feedback, transkription) behålls.
+  - Dag 90+: raden raderas helt (hard delete).
+  - Körs via `POST /api/v1/admin/retention/run` (auth-skyddad) eller `apps/api/scripts/run_retention.py` (avsedd för cron/Task Scheduler — **ingen inbyggd schemaläggare finns**, detta måste triggas externt).
+  - Regressionstestat i `apps/api/tests/test_retention.py` (5 tester, isolerad in-memory DB).
+- **Hard delete-endpoints** för lärarens egna data (ingen automatisk utgångstid — bara explicit radering):
+  - `DELETE /api/v1/classes/{class_id}` — hela klassen (cascade: elever, prov, resultat, facit).
+  - `DELETE /api/v1/classes/{class_id}/students/{student_id}` — en elev (rensar även kopplade `GradingResult` manuellt, se kod-kommentar om att `student_id` inte är en riktig FK).
+  - `DELETE /api/v1/classes/tests/{test_id}` — ett prov (cascade: resultat, facit).
+  - `DELETE /api/v1/results/{result_id}` — ett enskilt elevresultat.
+- **TTL för provbilder: ej tillämpligt.** Skannade provsidor (`scanPages`) persisteras varken i backend-DB:n eller i frontendens Zustand-store (ingen `persist`-middleware mot `localStorage` hittad i `store.ts`) — de existerar bara i minnet under en aktiv session/request. Det finns alltså ingen server- eller klientsidig lagring att sätta TTL på idag.
+- **⚠ Kvarstående begränsning:** Landningssidans påstående "rensas automatiskt efter rättning" (`login/page.tsx:43`) är fortfarande inte 1:1 vad koden gör (koden raderar efter 90 dagar, inte direkt efter rättning) — texten bör uppdateras eller policyn skärpas beroende på vad som faktiskt utlovas till kunder.
+- **⚠ RISKOMRÅDE (minskat men inte eliminerat):** Innan Vecka 2 innehöll SQLite-filen (`wiseos.db`) all historisk elevdata utan utgångsdatum. Nu finns en policy och verktyg, men den körs INTE automatiskt förrän någon schemalägger `scripts/run_retention.py` eller `/api/v1/admin/retention/run` externt.
 
 ### Servrar och jurisdiktion
 
@@ -279,13 +291,13 @@ POST /api/v1/batch/grade (multipart: prov_id, files[], answer_key_json, params)
 
 ### ⚠ GDPR-flaggor (hög prioritet)
 
-1. **Elevdata (inkl. minderårigas handskrift) skickas till tre externa AI-tjänster** utan verifierat DPA (Data Processing Agreement) med Google/Groq/Wolfram.
-2. **Ingen radering/anonymiseringsfunktion** trots att landningssidan påstår det.
+1. **Elevdata (inkl. minderårigas handskrift) skickas till tre externa AI-tjänster** utan verifierat DPA (Data Processing Agreement) med Google/Groq/Wolfram. *(Fritext skrubbas nu, se Vecka 1 — men bilder/handskrift går okrypterat/oskrubbat till Gemini, kräver DPA.)*
+2. ~~Ingen radering/anonymiseringsfunktion~~ **Åtgärdat i Vecka 1–2:** `scrub_pii()` (namn/personnummer/e-post/telefon i fritext) + retention-policy (30d pseudonymisering, 90d hard delete) + explicita DELETE-endpoints. Landningssidans exakta formulering ("rensas automatiskt efter rättning") bör dock stämmas av mot den faktiska 90-dagarspolicyn.
 3. **Ingen dokumenterad dataskyddspolicy, ingen DPIA** (Data Protection Impact Assessment).
 4. **Serverplats okänd** för Supabase/Google/Groq — potentiellt utanför EU/EES.
-5. **Ingen Admin/roller** = ingen teknisk åtskillnad mellan lärare. Alla kan se alla klasser/elever.
+5. ~~Ingen Admin/roller = ingen teknisk åtskillnad mellan lärare~~ **Åtgärdat i Vecka 1:** `teacher_id`-ägandeskap på `Klass`/`Test`/`GradingResult`, verifierat i varje endpoint (404 vid annan lärares data).
 
-**Rekommendation:** Systemet ska **inte** användas med riktiga elevers personuppgifter förrän dessa punkter är åtgärdade.
+**Rekommendation:** Systemet ska **inte** användas med riktiga elevers personuppgifter förrän kvarstående punkter (DPA, DPIA, serverplats) är åtgärdade.
 
 ---
 

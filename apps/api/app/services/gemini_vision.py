@@ -39,6 +39,7 @@ from ..schemas import (
     QuestionResult,
     SourceRegion,
 )
+from .anonymize import scrub_pii
 
 logger = logging.getLogger("wiseos.grading")
 
@@ -420,6 +421,16 @@ async def _generate_json(payload: dict, *, request_id: str) -> tuple[dict, int]:
 
     url = f"{API_ROOT}/models/{settings.GEMINI_MODEL}:generateContent"
     last_error: GradingError | None = None
+
+    # GDPR-bevis: logga textdelen av prompten (utan bildbytes) precis INNAN
+    # den lämnar backend, så att man i terminalen kan se att PII redan är
+    # skrubbad. Endast text-parts loggas – inline_data (bildbytes) exkluderas.
+    outgoing_text = "\n".join(
+        p["text"] for p in payload["contents"][0]["parts"] if "text" in p
+    )
+    logger.debug(
+        "gemini_outgoing_prompt request_id=%s text=%r", request_id, outgoing_text,
+    )
 
     for attempt in range(1, MAX_ATTEMPTS + 1):
         try:
@@ -810,6 +821,20 @@ async def analyze_document(
         questionsExpected=len(answer_key),
     )
 
+    # GDPR-anonymiseringssköld: lärarens fritextanvisningar (grading_notes)
+    # kan innehålla PII (t.ex. om ett elevnamn/personnummer råkar skrivas in
+    # i klass- eller provparametrarna). Skrubba INNAN texten läggs i prompten
+    # som skickas till Gemini. Bildinnehållet (elevens handskrift) är en
+    # separat, känd kvarstående risk – se GDPR-planen §1.1.
+    raw_grading_notes = grading_notes
+    grading_notes = scrub_pii(grading_notes)
+    if raw_grading_notes != grading_notes:
+        logger.warning(
+            "pii_scrubbed_from_grading_notes request_id=%s", request_id,
+        )
+
+    # Elevnamnet (student_label) loggas ENDAST lokalt för felsökning – det
+    # skickas aldrig med i payloaden/prompten till Gemini (se _build_payload).
     logger.info(
         "grade_start request_id=%s student=%s pages=%d questions=%d model=%s",
         request_id, student_label or "-", len(pages), len(answer_key), settings.GEMINI_MODEL,

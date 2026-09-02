@@ -12,6 +12,23 @@ from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 router = APIRouter(prefix="/api/v1/classes", tags=["classes"])
 
 
+def _get_owned_class(db: Session, class_id: str, teacher_id: str) -> models.Klass:
+    """Hämtar en klass och verifierar att `teacher_id` äger den.
+
+    404 (inte 403) oavsett om klassen saknas eller ägs av någon annan, för
+    att inte läcka existensen av andra lärares resurser.
+    """
+    klass = (
+        db.query(models.Klass)
+        .options(selectinload(models.Klass.students))
+        .filter(models.Klass.id == class_id, models.Klass.teacher_id == teacher_id)
+        .first()
+    )
+    if not klass:
+        raise HTTPException(404, "Class not found")
+    return klass
+
+
 @router.get("", response_model=list[schemas.ClassOut])
 def list_classes(
     db: Session = Depends(get_db),
@@ -20,6 +37,7 @@ def list_classes(
     return (
         db.query(models.Klass)
         .options(selectinload(models.Klass.students))
+        .filter(models.Klass.teacher_id == _user.id)
         .order_by(models.Klass.created_at.desc())
         .all()
     )
@@ -32,6 +50,7 @@ def create_class(
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
     klass = models.Klass(
+        teacher_id=_user.id,
         name=payload.name,
         kurs_id=payload.kursId,
         grading_params=payload.gradingParams.model_dump() if payload.gradingParams else None,
@@ -54,15 +73,7 @@ def get_class(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    klass = (
-        db.query(models.Klass)
-        .options(selectinload(models.Klass.students))
-        .filter(models.Klass.id == class_id)
-        .first()
-    )
-    if not klass:
-        raise HTTPException(404, "Class not found")
-    return klass
+    return _get_owned_class(db, class_id, _user.id)
 
 
 @router.patch("/{class_id}", response_model=schemas.ClassOut)
@@ -72,14 +83,7 @@ def update_class(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    klass = (
-        db.query(models.Klass)
-        .options(selectinload(models.Klass.students))
-        .filter(models.Klass.id == class_id)
-        .first()
-    )
-    if not klass:
-        raise HTTPException(404, "Class not found")
+    klass = _get_owned_class(db, class_id, _user.id)
     if payload.name is not None:
         klass.name = payload.name
     if payload.gradingParams is not None:
@@ -98,10 +102,8 @@ def add_student(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    klass = db.get(models.Klass, class_id)
-    if not klass:
-        raise HTTPException(404, "Class not found")
-    student = models.KlassStudent(klass_id=class_id, name=payload.name, identifier=payload.identifier)
+    klass = _get_owned_class(db, class_id, _user.id)
+    student = models.KlassStudent(klass_id=klass.id, name=payload.name, identifier=payload.identifier)
     db.add(student)
     db.commit()
     db.refresh(student)
@@ -114,12 +116,10 @@ def list_tests(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    klass = db.get(models.Klass, class_id)
-    if not klass:
-        raise HTTPException(404, "Class not found")
+    klass = _get_owned_class(db, class_id, _user.id)
     return (
         db.query(models.Test)
-        .filter(models.Test.klass_id == class_id)
+        .filter(models.Test.klass_id == klass.id)
         .order_by(models.Test.created_at.desc())
         .all()
     )
@@ -132,11 +132,9 @@ def create_test(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    klass = db.get(models.Klass, class_id)
-    if not klass:
-        raise HTTPException(404, "Class not found")
+    klass = _get_owned_class(db, class_id, _user.id)
     test = models.Test(
-        klass_id=class_id,
+        klass_id=klass.id,
         title=payload.title,
         date=payload.date,
         max_points=payload.maxPoints,
@@ -158,7 +156,7 @@ def get_test(
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
     test = db.get(models.Test, test_id)
-    if not test:
+    if not test or test.klass.teacher_id != _user.id:
         raise HTTPException(404, "Test not found")
     return test
 
@@ -171,7 +169,7 @@ def update_test(
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
     test = db.get(models.Test, test_id)
-    if not test:
+    if not test or test.klass.teacher_id != _user.id:
         raise HTTPException(404, "Test not found")
     if payload.title is not None:
         test.title = payload.title
@@ -190,3 +188,68 @@ def update_test(
     db.commit()
     db.refresh(test)
     return test
+
+
+# ---------------------------------------------------------------------------
+# Hard delete – GDPR-sprint v1 (Vecka 2). Permanent radering, ingen "soft
+# delete"/papperskorg. Cascade ("all, delete-orphan") sköter Klass -> Students
+# + Tests, och Test -> GradingResults + AnswerKeyRecord, se models.py.
+# ---------------------------------------------------------------------------
+
+
+@router.delete("/{class_id}", status_code=204)
+def delete_class(
+    class_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    klass = _get_owned_class(db, class_id, _user.id)
+    db.delete(klass)
+    db.commit()
+
+
+@router.delete("/{class_id}/students/{student_id}", status_code=204)
+def delete_student(
+    class_id: str,
+    student_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    klass = _get_owned_class(db, class_id, _user.id)
+    student = (
+        db.query(models.KlassStudent)
+        .filter(models.KlassStudent.id == student_id, models.KlassStudent.klass_id == klass.id)
+        .first()
+    )
+    if not student:
+        raise HTTPException(404, "Student not found")
+    # OBS: GradingResult.student_id är INTE en riktig ForeignKey (fritt fält
+    # för fuzzy identifiering) och raderas därför inte automatiskt via cascade.
+    # Vi rensar manuellt de GradingResults i klassens prov som pekar på detta
+    # elev-id, så att inga kvarvarande poster förblir kopplade till ett
+    # elev-id som inte längre existerar.
+    (
+        db.query(models.GradingResult)
+        .filter(
+            models.GradingResult.student_id == student_id,
+            models.GradingResult.test_id.in_(
+                db.query(models.Test.id).filter(models.Test.klass_id == klass.id)
+            ),
+        )
+        .delete(synchronize_session=False)
+    )
+    db.delete(student)
+    db.commit()
+
+
+@router.delete("/tests/{test_id}", status_code=204, tags=["tests"])
+def delete_test(
+    test_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    test = db.get(models.Test, test_id)
+    if not test or test.klass.teacher_id != _user.id:
+        raise HTTPException(404, "Test not found")
+    db.delete(test)
+    db.commit()

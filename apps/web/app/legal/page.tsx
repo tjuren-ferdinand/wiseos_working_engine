@@ -1,20 +1,26 @@
 "use client";
 
+// DRAFT — kräver juristgranskning innan publicering.
+
 import { motion } from "framer-motion";
 import PageHeader from "@/components/ui/PageHeader";
 
 const SECTIONS = [
   {
     title: "Villkor",
-    content: `WiseOS tillhandahålls som ett verktyg för lärare att spara tid på provrättning. Tjänsten får användas i undervisningssyfte och i enlighet med gällande lag. All användning av tjänsten sker på eget ansvar och vi rekommenderar att du alltid granskar och godkänner AI-föreslagna poäng innan du publicerar resultat till elever.`,
+    content: `WiseOS är ett AI-baserat beslutsstöd för provrättning som riktar sig till lärare och skolor. Tjänsten tillhandahålls uteslutande som personuppgiftsbiträde (Processor) — skolan/läraren är personuppgiftsansvarig (Controller). Endast lärare skapar konton; elever loggar aldrig in. All AI-föreslagen poäng ska granskas av läraren innan den publiceras.`,
   },
   {
     title: "Användning",
-    content: `Du ansvarar för att innehåll du laddar upp, såsom prov och personuppgifter, hanteras i enlighet med din skolas riktlinjer och dataskyddsförordningen. WiseOS sparar och lagrar bara data så länge det är nödvändigt för att genomföra rättningen.`,
+    content: `Läraren ansvarar för att det finns rättslig grund för behandling av elevernas personuppgifter. WiseOS lagrar elevens namn, identifierare, transkriptioner av elevens arbete, poäng och AI-genererad feedback. Data sparas i en SQLite-databas. Klasser, elever, prov och individuella resultat kan raderas permanent av läraren via API:t. Råa provbilder bearbetas i minnet och returneras som data-URL:ar; de lagras inte på disk i backenden.`,
   },
   {
     title: "Integritet",
-    content: `Vi tar dataskydd på största allvar. Personuppgifter behandlas säkert, krypteras i transport och vila, och rensas efter avslutad rättning. WiseOS använder ledande molntjänster och följer GDPR.`,
+    content: `• Retention: GradingResult-rader (elevresultat med transkription, poäng, feedback) pseudonymiseras efter 30 dagar — elevnamn och identifierare ersätts av en slumpmässig pseudonym, så att pedagogiskt innehåll kan behållas för statistik. Efter 90 dagar raderas raden helt (hard delete). Klass/Test/KlassStudent-data raderas inte automatiskt utan endast på lärarens explicita begäran.
+• PII-scrubbing: fritext som skickas till externa AI-tjänster (t.ex. rättningsinstruktioner, elevens svar i text) maskeras för personnummer, e-postadresser, telefonnummer och vissa namnliknande mönster. Heuristiken fångar inte alltid riktiga namn; därför ska fritext fortfarande granskas.
+• Bilder: skannade provsidor/handstil skickas oskrubbat till Google Gemini för tolkning. Inget personuppgiftsbiträdesavtal (DPA) är i dag på plats med Google, Groq eller Wolfram. Serverplats och jurisdiktion för dessa tjänster är ännu ej verifierade.
+• Rättigheter: läraren kan när som helst radera hela klasser, enskilda elever, prov och enskilda resultat via API:t.
+• Säkerhet: autentisering och ägandeskap (teacher_id) är obligatoriska för V2-endpoints. Applikationskoden innehåller inte egen kryptering av databasen i vila; sådan kryptering måste tillhandahållas av driftsmiljön.`,
   },
   {
     title: "Betalning",
@@ -51,7 +57,7 @@ export default function LegalPage() {
       <PageHeader
         eyebrow="Juridik"
         title="Användarvillkor"
-        subtitle="Här hittar du villkoren för att använda WiseOS. Läs igenom dem noggrant."
+        subtitle="DRAFT — kräver juristgranskning innan publicering. Texten baseras på faktisk implementation och är inte slutgiltig juridisk rådgivning."
       />
 
       <section className="mt-12">

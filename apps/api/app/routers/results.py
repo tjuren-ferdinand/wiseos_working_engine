@@ -14,13 +14,31 @@ from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 router = APIRouter(prefix="/api/v1/results", tags=["results"])
 
 
+def _get_owned_test(db: Session, test_id: str, teacher_id: str) -> models.Test:
+    """Hämtar ett Test och verifierar ägandeskap via dess Klass."""
+    test = (
+        db.query(models.Test)
+        .join(models.Klass)
+        .filter(models.Test.id == test_id, models.Klass.teacher_id == teacher_id)
+        .first()
+    )
+    if not test:
+        raise HTTPException(404, "Test not found")
+    return test
+
+
 @router.get("", response_model=list[schemas.GradingResultOut])
 def list_results(
     test_id: str | None = Query(None, alias="testId"),
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    q = db.query(models.GradingResult)
+    q = (
+        db.query(models.GradingResult)
+        .join(models.Test)
+        .join(models.Klass)
+        .filter(models.Klass.teacher_id == _user.id)
+    )
     if test_id:
         q = q.filter(models.GradingResult.test_id == test_id)
     return q.order_by(models.GradingResult.scanned_at.desc()).all()
@@ -32,9 +50,7 @@ def create_result(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    test = db.get(models.Test, payload.testId)
-    if not test:
-        raise HTTPException(404, "Test not found")
+    test = _get_owned_test(db, payload.testId, _user.id)
 
     result = models.GradingResult(
         test_id=payload.testId,
@@ -62,7 +78,13 @@ def update_result(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    result = db.get(models.GradingResult, result_id)
+    result = (
+        db.query(models.GradingResult)
+        .join(models.Test)
+        .join(models.Klass)
+        .filter(models.GradingResult.id == result_id, models.Klass.teacher_id == _user.id)
+        .first()
+    )
     if not result:
         raise HTTPException(404, "Result not found")
     if payload.steps is not None:
@@ -88,7 +110,37 @@ def get_result(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    result = db.get(models.GradingResult, result_id)
+    result = (
+        db.query(models.GradingResult)
+        .join(models.Test)
+        .join(models.Klass)
+        .filter(models.GradingResult.id == result_id, models.Klass.teacher_id == _user.id)
+        .first()
+    )
     if not result:
         raise HTTPException(404, "Result not found")
     return result
+
+
+@router.delete("/{result_id}", status_code=204)
+def delete_result(
+    result_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    """Hard delete av ett enskilt elevresultat – GDPR-sprint v1 (Vecka 2).
+
+    T.ex. om en elev/vårdnadshavare begär radering av just sitt resultat
+    utan att hela provet/klassen ska påverkas.
+    """
+    result = (
+        db.query(models.GradingResult)
+        .join(models.Test)
+        .join(models.Klass)
+        .filter(models.GradingResult.id == result_id, models.Klass.teacher_id == _user.id)
+        .first()
+    )
+    if not result:
+        raise HTTPException(404, "Result not found")
+    db.delete(result)
+    db.commit()

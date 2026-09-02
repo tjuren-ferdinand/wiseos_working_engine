@@ -96,6 +96,10 @@ class Klass(Base):
     __tablename__ = "classes"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    # Supabase auth-user-id (SupabaseUser.id) för läraren som äger klassen.
+    # Nullable för bakåtkompatibilitet med rader skapade innan ägandeskap
+    # infördes – sådana rader blir osynliga för alla lärare (GDPR-sprint v1).
+    teacher_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     name: Mapped[str] = mapped_column(String(255))
     kurs_id: Mapped[str] = mapped_column(String(100), index=True)
     grading_params: Mapped[dict | None] = mapped_column(JSON, nullable=True)
@@ -165,6 +169,9 @@ class GradingResult(Base):
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
     scanned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     graded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # GDPR-sprint v1 (Vecka 2): sätts när retention-sweepen pseudonymiserat
+    # student_name/student_id på denna rad. NULL = ännu inte anonymiserad.
+    anonymized_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     test: Mapped[Test] = relationship(back_populates="grading_results")
 

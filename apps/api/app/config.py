@@ -38,6 +38,13 @@ class Settings(BaseSettings):
     # Villkorad Automatisering: under denna tröskel flaggas inlämning för manuell granskning.
     REVIEW_CONFIDENCE_THRESHOLD: float = 0.95
 
+    # GDPR-sprint v1 (Vecka 2): retention-policy för GradingResult.
+    # Dag 0-30: full data (elevnamn, transkription, feedback).
+    # Dag 30+: elevnamn/identitet pseudonymiseras (anonymized_at sätts).
+    # Dag 90+: raden raderas helt (hard delete).
+    RETENTION_ANONYMIZE_DAYS: int = 30
+    RETENTION_HARD_DELETE_DAYS: int = 90
+
     # JWT Authentication (legacy – befintligt eget system, orört)
     JWT_SECRET_KEY: str = "CHANGE_ME_IN_PRODUCTION_use_openssl_rand_hex_32"
     JWT_ALGORITHM: str = "HS256"
