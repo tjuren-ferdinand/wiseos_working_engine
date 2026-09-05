@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends
 from .. import schemas
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 from ..services.feedback import generate_feedback_detailed
-from ..services.wolfram import WolframVerifier
+from ..services.providers.registry import get_math_provider
 
 router = APIRouter(prefix="/api/v1/claude", tags=["claude"])
 
@@ -22,7 +22,7 @@ async def analyze(
     payload: schemas.ClaudeAnalyzeRequest,
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ) -> schemas.ClaudeAnalyzeResponse:
-    verifier = WolframVerifier()
+    verifier = get_math_provider()
     wolfram = await verifier.verify_equation(payload.studentAnswer, payload.correctAnswer)
 
     problem = payload.problem if not payload.context else f"{payload.problem}\n\nKontext: {payload.context}"

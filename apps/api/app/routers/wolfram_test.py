@@ -5,7 +5,6 @@ vill stänga av den i produktion.
 """
 from __future__ import annotations
 
-import httpx
 from fastapi import APIRouter, Depends, HTTPException, Query
 
 from .. import schemas
@@ -75,36 +74,5 @@ async def raw_query(
     if not settings.WOLFRAM_APP_ID:
         raise HTTPException(503, "WOLFRAM_APP_ID är inte konfigurerat i .env")
 
-    async with httpx.AsyncClient(timeout=20.0) as client:
-        r = await client.get(
-            "https://api.wolframalpha.com/v2/query",
-            params={
-                "input": input,
-                "appid": settings.WOLFRAM_APP_ID,
-                "output": "JSON",
-                "format": "plaintext",
-                "scantimeout": "10",
-                "podtimeout": "10",
-            },
-        )
-
-    if r.status_code != 200:
-        return {"http_status": r.status_code, "body": r.text[:500]}
-
-    data = r.json()
-    qr = data.get("queryresult", {})
-    pods = qr.get("pods", []) or []
-    return {
-        "http_status": r.status_code,
-        "success": qr.get("success"),
-        "error": qr.get("error"),
-        "numpods": qr.get("numpods"),
-        "pods": [
-            {
-                "id": p.get("id"),
-                "title": p.get("title"),
-                "plaintext": [sp.get("plaintext") for sp in p.get("subpods", [])],
-            }
-            for p in pods
-        ],
-    }
+    verifier = WolframVerifier()
+    return await verifier.raw_query(input)

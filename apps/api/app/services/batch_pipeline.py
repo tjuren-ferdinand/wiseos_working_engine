@@ -17,10 +17,17 @@ import logging
 import re
 import uuid
 from dataclasses import dataclass, field
+from io import BytesIO
+
+import pymupdf
+from pypdf import PdfReader
 
 from ..config import settings
-from ..schemas import AnswerKeyItem, DocumentMeta, StudentDocumentResult
-from . import gemini_vision
+from ..schemas import AnswerKeyItem, DocumentMeta, MathVerification, StudentDocumentResult, WolframResult
+from . import feedback, gemini_vision
+from .batch_identification import IdentifiedName, extract_student_name
+from .gemini_vision import GradingError
+from .providers.registry import get_feedback_provider, get_math_provider, get_vision_provider
 
 logger = logging.getLogger("wiseos.grading")
 
@@ -74,6 +81,59 @@ class UploadedFile:
     filename: str
     content: bytes
     content_type: str
+    source_id: str | None = None
+    page_number: int = 1
+
+
+def _rasterize_pdf_page(pdf_bytes: bytes, page_number: int, dpi: int = 200) -> tuple[bytes, str]:
+    """Rendera en PDF-sida till en PNG-bild så att den kan skickas till vision-modeller.
+
+    Vision-modeller har generellt sett bättre stöd för bilder (PNG/JPEG) än för
+    råa PDF-bytes, och Workbench kan visa en data-URL med image/* som en <img>.
+    """
+    doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
+    try:
+        page = doc.load_page(page_number)
+        matrix = pymupdf.Matrix(dpi / 72.0, dpi / 72.0)
+        pixmap = page.get_pixmap(matrix=matrix)
+        return pixmap.tobytes("png"), "image/png"
+    finally:
+        doc.close()
+
+
+def expand_pdf_uploads(files: list[UploadedFile], max_pages: int = 300) -> list[UploadedFile]:
+    expanded: list[UploadedFile] = []
+    for upload in files:
+        if upload.content_type != "application/pdf":
+            if len(expanded) >= max_pages:
+                raise ValueError(f"Uppladdningen innehåller fler än {max_pages} sidor")
+            expanded.append(upload)
+            continue
+        try:
+            reader = PdfReader(BytesIO(upload.content), strict=False)
+        except Exception as exc:
+            raise ValueError(f"{upload.filename} är inte en giltig PDF") from exc
+        if not reader.pages:
+            raise ValueError(f"{upload.filename} innehåller inga sidor")
+        if len(expanded) + len(reader.pages) > max_pages:
+            raise ValueError(f"Uppladdningen innehåller fler än {max_pages} sidor")
+        stem = re.sub(r"\.[^.]+$", "", upload.filename or "dokument")
+        for page_index, _page in enumerate(reader.pages):
+            try:
+                image_bytes, _ = _rasterize_pdf_page(upload.content, page_index, dpi=200)
+            except Exception as exc:
+                raise ValueError(f"Kunde inte rendera sida {page_index + 1} i {upload.filename}") from exc
+            page_number = page_index + 1
+            expanded.append(
+                UploadedFile(
+                    filename=f"{stem}_sida_{page_number}.png",
+                    content=image_bytes,
+                    content_type="image/png",
+                    source_id=upload.filename,
+                    page_number=page_number,
+                )
+            )
+    return expanded
 
 
 @dataclass
@@ -82,6 +142,8 @@ class StudentDocument:
 
     student_name: str
     pages: list[UploadedFile] = field(default_factory=list)
+    identification_method: str = "unresolved"
+    identification_confidence: float = 0.0
 
 
 # Filnamnssuffix som anger sidnummer: "Anna_Andersson_sida2.jpg", "Anna - p3.png",
@@ -119,7 +181,14 @@ def group_pages_by_student(files: list[UploadedFile]) -> list[StudentDocument]:
     for position, upload in enumerate(files):
         stem = re.sub(r"\.[^.]+$", "", upload.filename or "")
         base, page_no = _split_page_suffix(stem)
-        key = derive_student_name(base).lower()
+        if upload.source_id:
+            page_no = upload.page_number
+        has_page_suffix = base != stem
+        key = (
+            " ".join(derive_student_name(base).casefold().split())
+            if not upload.source_id and has_page_suffix and not _generic_filename(base)
+            else f"upload:{position}"
+        )
         if key not in buckets:
             buckets[key] = []
             order.append(key)
@@ -139,10 +208,238 @@ def group_pages_by_student(files: list[UploadedFile]) -> list[StudentDocument]:
     return documents
 
 
+_GENERIC_STEMS = {
+    "image", "img", "scan", "scanned", "dokument", "doc", "test", "page",
+    "sida", "okand", "okänd", "unknown", "file", "picture", "pic", "photo",
+    "bild", "foto", "dsc", "sample", "exempel",
+}
+_NUMERIC_ONLY = re.compile(r"^\d+$")
+
+
+def _generic_filename(base: str) -> bool:
+    """Return True when the filename stem gives no usable student name."""
+    if not base:
+        return True
+    first = re.split(r"[\s_\-.]", base)[0].lower().strip()
+    if first in _GENERIC_STEMS:
+        return True
+    if _NUMERIC_ONLY.fullmatch(first):
+        return True
+    if not re.search(r"[a-zåäö]", base, re.IGNORECASE):
+        return True
+    return False
+
+
+def _resolve_name(
+    extracted: IdentifiedName,
+    upload: UploadedFile,
+    identification_method: str,
+) -> str:
+    """Pick the best student name for a page: extracted name, derived filename, or unknown."""
+    if identification_method == "name_field" and extracted.studentName:
+        return extracted.studentName.strip()
+
+    stem = re.sub(r"\.[^.]+$", "", upload.filename or "")
+    base, _ = _split_page_suffix(stem)
+    if _generic_filename(base):
+        return f"Okänd elev - {upload.filename}"
+    derived = derive_student_name(base)
+    if not derived or derived == "Okänd elev":
+        return f"Okänd elev - {upload.filename}"
+    return derived
+
+
+async def identify_and_group_pages(
+    files: list[UploadedFile],
+    identification_method: str = "name_field",
+) -> list[StudentDocument]:
+    """Identify the student on each page, then group pages by that student.
+
+    Pages that cannot be identified are grouped under 'Okänd elev - <filename>'.
+    Multi-page documents for the same student are kept as one StudentDocument.
+    """
+    if identification_method != "name_field":
+        raise ValueError(f"Identifieringsmetoden {identification_method!r} stöds inte ännu")
+
+    semaphore = asyncio.Semaphore(5)
+
+    async def _get_name(upload: UploadedFile) -> IdentifiedName:
+        async with semaphore:
+            return await extract_student_name(
+                (upload.content, upload.content_type),
+                identification_method=identification_method,
+            )
+
+    extracted = await asyncio.gather(*[_get_name(upload) for upload in files])
+    candidates = group_pages_by_student(files)
+    extraction_by_file = {id(upload): item for upload, item in zip(files, extracted)}
+    documents: list[StudentDocument] = []
+
+    for candidate in candidates:
+        confident = [
+            item
+            for page in candidate.pages
+            if (item := extraction_by_file[id(page)]).studentName and item.confidence >= 0.85
+        ]
+        names: dict[str, list[IdentifiedName]] = {}
+        for item in confident:
+            key = " ".join((item.studentName or "").casefold().split())
+            names.setdefault(key, []).append(item)
+
+        if len(names) == 1:
+            identified = next(iter(names.values()))
+            candidate.student_name = identified[0].studentName or candidate.student_name
+            candidate.identification_method = "name_field"
+            candidate.identification_confidence = min(1.0, max(item.confidence for item in identified))
+        elif len(names) > 1:
+            candidate.student_name = f"Okänd elev - {candidate.pages[0].filename}"
+            candidate.identification_method = "conflicting_name_fields"
+            candidate.identification_confidence = 0.0
+        else:
+            stem = re.sub(r"\.[^.]+$", "", candidate.pages[0].filename or "")
+            base, _ = _split_page_suffix(stem)
+            if _generic_filename(base):
+                candidate.student_name = f"Okänd elev - {candidate.pages[0].filename}"
+                candidate.identification_method = "unresolved"
+                candidate.identification_confidence = 0.0
+            else:
+                candidate.student_name = derive_student_name(base)
+                candidate.identification_method = "filename"
+                candidate.identification_confidence = 0.6
+        documents.append(candidate)
+
+    merged: list[StudentDocument] = []
+    for document in documents:
+        previous = merged[-1] if merged else None
+        same_pdf_student = (
+            previous
+            and previous.identification_method == "name_field"
+            and document.identification_method == "name_field"
+            and previous.pages[-1].source_id
+            and previous.pages[-1].source_id == document.pages[0].source_id
+            and " ".join(previous.student_name.casefold().split())
+            == " ".join(document.student_name.casefold().split())
+            and previous.pages[-1].page_number + 1 == document.pages[0].page_number
+        )
+        if same_pdf_student:
+            previous.pages.extend(document.pages)
+            previous.identification_confidence = min(
+                previous.identification_confidence,
+                document.identification_confidence,
+            )
+        else:
+            merged.append(document)
+
+    return merged
+
+
 def _data_url(upload: UploadedFile) -> str:
     encoded = base64.b64encode(upload.content).decode("ascii")
     mime = upload.content_type or "application/octet-stream"
     return f"data:{mime};base64,{encoded}"
+
+
+_MATH_NOTATION = re.compile(r"(?:\\frac|\\sqrt|[=+*/^]|\d\s*-\s*\d|\b(?:sin|cos|tan|log)\s*\()", re.IGNORECASE)
+_MATH_TERMS = re.compile(r"\b(?:beräkna|lös|ekvation|uttryck|deriv|integr|algebra|procent|area|volym|hastighet|kraft|energi)\b", re.IGNORECASE)
+
+
+def requires_math_verification(item: AnswerKeyItem) -> bool:
+    if item.mathematical_verification is not None:
+        return item.mathematical_verification
+    text = f"{item.question_text}\n{item.final_answer}"
+    return bool(_MATH_NOTATION.search(text) or _MATH_TERMS.search(text))
+
+
+async def apply_math_verification(
+    questions: list,
+    answer_key: list[AnswerKeyItem],
+) -> None:
+    items = {str(item.question_number).strip(): item for item in answer_key}
+    verifier = get_math_provider()
+    configured = bool(settings.WOLFRAM_API_URL or settings.WOLFRAM_APP_ID)
+    for question in questions:
+        item = items.get(question.questionNumber)
+        if not item or not requires_math_verification(item):
+            question.mathVerification = MathVerification()
+            continue
+        if not question.found or not question.studentWork.strip():
+            question.mathVerification = MathVerification(
+                provider="wolfram" if configured else "development-local",
+                status="unavailable",
+                message="Matematisk verifiering kräver ett läsbart elevsvar.",
+            )
+            continue
+        try:
+            verification = await verifier.verify_equation(question.studentWork, item.final_answer)
+        except Exception:
+            logger.exception("math_verification_crashed question=%s", question.questionNumber)
+            question.mathVerification = MathVerification(
+                provider="wolfram" if configured else "development-local",
+                status="failed",
+                message="Den matematiska verifieringen misslyckades och kräver lärargranskning.",
+            )
+            question.assessment.status = "needs_review"
+            continue
+
+        if not configured:
+            status = "degraded"
+            message = "Wolfram är inte konfigurerat; endast lokal deterministisk jämförelse kördes."
+        elif verification.confidence >= 0.85:
+            status = "verified" if verification.is_correct else "not_equivalent"
+            message = (
+                "Wolfram verifierade att slutsvaret är matematiskt ekvivalent."
+                if verification.is_correct
+                else "Wolfram kunde inte verifiera slutsvaret som matematiskt ekvivalent."
+            )
+        else:
+            status = "degraded"
+            message = "Wolfram gav inget tillräckligt säkert svar; lärargranskning krävs."
+
+        question.mathVerification = MathVerification(
+            provider="wolfram" if configured else "development-local",
+            status=status,
+            isEquivalent=verification.is_correct,
+            confidence=verification.confidence,
+            message=message,
+        )
+        if status == "verified" and not item.derivation_steps and not item.reasoning_requirements and not item.rubric:
+            question.assessment.status = "correct"
+            question.assessment.points = question.assessment.maxPoints
+        elif status == "not_equivalent" and question.assessment.status == "correct":
+            question.assessment.status = "needs_review"
+            question.assessment.points = 0.0
+
+
+async def apply_feedback_provider(questions: list) -> None:
+    provider = feedback.provider_name()
+    for question in questions:
+        if question.error or not question.found or not question.studentWork.strip():
+            question.feedbackProvider = "system"
+            continue
+        if provider == "unavailable":
+            question.feedbackProvider = "gemini-vision" if settings.GEMINI_API_KEY else "unavailable"
+            continue
+        math = question.mathVerification
+        wolfram = WolframResult(
+            is_correct=bool(math.isEquivalent),
+            confidence=math.confidence,
+            notes=math.message or None,
+        )
+        try:
+            fb = get_feedback_provider()
+            generated, used = await fb.generate_feedback(
+                problem=question.questionText,
+                student_answer=question.studentWork,
+                correct_answer=question.correctAnswer,
+                wolfram=wolfram,
+            )
+        except RuntimeError:
+            logger.exception("feedback_provider_failed question=%s provider=%s", question.questionNumber, provider)
+            question.feedbackProvider = "gemini-vision" if question.feedback else "unavailable"
+            continue
+        if generated:
+            question.feedback = generated
+            question.feedbackProvider = used
 
 
 # Så många elevdokument analyseras samtidigt. Håller nere risken för 429
@@ -166,7 +463,7 @@ async def grade_batch(
       2. Modellen transkriberar elevens faktiska arbete och bedömer det.
       3. Originalsidorna bevaras som data-URL:er i sidordning.
     """
-    documents = group_pages_by_student(files)
+    documents = await identify_and_group_pages(files, identification_method)
     grading_notes = "\n".join(
         part.strip()
         for part in (class_grading_parameters, test_specific_parameters)
@@ -185,15 +482,31 @@ async def grade_batch(
             pages = [
                 (page.content, page.content_type or "image/png")
                 for page in document.pages
-                if gemini_vision.is_supported_image(page.content_type or "")
+                if gemini_vision.is_supported_document(page.content_type or "")
             ]
             unsupported = len(document.pages) - len(pages)
-            questions, meta = await gemini_vision.analyze_document(
-                pages=pages,
-                answer_key=answer_key,
-                grading_notes=grading_notes,
-                student_label=document.student_name,
-            )
+            try:
+                questions, meta = await get_vision_provider().analyze_document(
+                    pages=pages,
+                    answer_key=answer_key,
+                    grading_notes=grading_notes,
+                    student_label=document.student_name,
+                )
+            except GradingError as e:
+                # Circuit-open or provider-level error → needs_review, never fabricated data.
+                meta = DocumentMeta(
+                    pageCount=len(pages),
+                    model=settings.GEMINI_MODEL,
+                    questionsExpected=len(answer_key),
+                    error=str(e),
+                    needsReviewCount=len(answer_key) or 1,
+                )
+                questions = [
+                    gemini_vision._failed_question(i, str(e))
+                    for i in answer_key
+                ]
+            await apply_math_verification(questions, answer_key)
+            await apply_feedback_provider(questions)
             if unsupported:
                 note = f"{unsupported} sida/sidor hade filformat som inte kan analyseras."
                 meta.error = f"{meta.error} | {note}" if meta.error else note
@@ -204,6 +517,8 @@ async def grade_batch(
                 id=str(uuid.uuid4()),
                 provId=prov_id,
                 studentName=resolved_name,
+                identificationMethod=document.identification_method,
+                identificationConfidence=document.identification_confidence,
                 scanPages=[_data_url(page) for page in document.pages],
                 document=meta,
                 questions=questions,
@@ -221,13 +536,33 @@ async def grade_batch(
     return results
 
 
+def _provider_name(getter) -> str:
+    """Resolve a provider's name, returning 'unavailable' on failure."""
+    try:
+        return getter().name
+    except Exception:
+        return "unavailable"
+
+
 def integration_status() -> dict[str, bool | str]:
+    from .providers.registry import (
+        get_feedback_provider,
+        get_math_provider,
+        get_ocr_provider,
+        get_vision_provider,
+    )
+
     return {
         "wolfram": bool(settings.WOLFRAM_APP_ID or settings.WOLFRAM_API_URL),
         "gemini": bool(settings.GEMINI_API_KEY),
         "groq": bool(settings.GROQ_API_KEY),
         "anthropic": bool(settings.ANTHROPIC_API_KEY),
         "mathpix": bool(settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY),
+        "ocrProvider": _provider_name(get_ocr_provider),
+        "gradingProvider": _provider_name(get_vision_provider),
+        "feedbackProvider": _provider_name(get_feedback_provider),
+        "mathProvider": _provider_name(get_math_provider),
+        "mathpixStatus": "configured_not_active_in_batch" if settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY else "not_configured",
         "gradingEngine": "gemini-vision" if gemini_vision.available() else "unconfigured",
         "model": settings.GEMINI_MODEL,
     }

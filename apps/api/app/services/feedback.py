@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import logging
+import re
 
 import httpx
 
@@ -11,6 +12,12 @@ from . import gemini_client
 from .anonymize import scrub_pii
 
 logger = logging.getLogger(__name__)
+
+
+def _safe_output(text: str) -> str:
+    text = re.sub(r"<(?:think|thinking)>.*?</(?:think|thinking)>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"```(?:json)?|```", "", text, flags=re.IGNORECASE)
+    return text.strip()[:2000]
 
 
 SYSTEM_PROMPT = (
@@ -51,7 +58,7 @@ async def _generate_with_groq(user_msg: str) -> str:
         )
         response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
-        return content.strip()
+        return _safe_output(content)
 
 
 async def _generate_with_anthropic(user_msg: str) -> str:
@@ -64,7 +71,20 @@ async def _generate_with_anthropic(user_msg: str) -> str:
         system=SYSTEM_PROMPT,
         messages=[{"role": "user", "content": user_msg}],
     )
-    return "\n".join(b.text for b in msg.content if getattr(b, "type", None) == "text").strip()
+    return _safe_output("\n".join(b.text for b in msg.content if getattr(b, "type", None) == "text"))
+
+
+def provider_name() -> str:
+    configured = settings.FEEDBACK_PROVIDER.strip().lower()
+    if configured != "auto":
+        return configured
+    if settings.ANTHROPIC_API_KEY:
+        return "anthropic"
+    if settings.GROQ_API_KEY:
+        return "groq"
+    if settings.GEMINI_API_KEY:
+        return "gemini"
+    return "unavailable"
 
 
 async def generate_feedback_detailed(
@@ -73,30 +93,23 @@ async def generate_feedback_detailed(
     correct_answer: str,
     wolfram: WolframResult,
 ) -> tuple[str, str]:
+    """Delegates to the active feedback provider via the registry."""
+    from .providers.registry import get_feedback_provider
+
     safe_problem = scrub_pii(problem)
     safe_student = scrub_pii(student_answer)
     safe_correct = scrub_pii(correct_answer)
-    user_msg = _feedback_message(safe_problem, safe_student, safe_correct, wolfram)
-    provider = settings.AI_PROVIDER.strip().lower()
 
-    try:
-        if provider == "groq" and settings.GROQ_API_KEY:
-            text = await _generate_with_groq(user_msg)
-            if text:
-                return text, "groq"
-        elif provider == "gemini" and settings.GEMINI_API_KEY:
-            text = await gemini_client.complete_text(SYSTEM_PROMPT, user_msg, max_tokens=1200)
-            if text:
-                return text, "gemini"
-        elif provider == "anthropic" and settings.ANTHROPIC_API_KEY:
-            text = await _generate_with_anthropic(user_msg)
-            if text:
-                return text, "anthropic"
-    except Exception as e:
-        logger.exception("AI-provider %r misslyckades", provider)
-        raise RuntimeError(f"Kunde inte generera AI-feedback. Provider ({provider}) returnerade ett fel: {str(e)}") from e
-
-    raise RuntimeError("Ingen AI-provider för feedback är konfigurerad eller aktiverad.")
+    provider = get_feedback_provider()
+    text, used = await provider.generate_feedback(
+        problem=safe_problem,
+        student_answer=safe_student,
+        correct_answer=safe_correct,
+        wolfram=wolfram,
+    )
+    if not text:
+        raise RuntimeError(f"Feedback-provider {used} returnerade ett tomt svar")
+    return text, used
 
 
 async def generate_feedback(

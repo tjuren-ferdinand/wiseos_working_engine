@@ -14,8 +14,10 @@ SYSTEM_PROMPT = """Du är facit-extraheraren i wiseOS. Analysera det uppladdade 
 1. Nummer (question_number).
 2. Själva frågan/uppdraget (question_text) – ordagrant eller en kort sammanfattning om texten är lång.
 3. Förväntat korrekt svar (final_answer).
-4. Eventuella lösningssteg (derivation_steps).
-5. Maxpoäng (max_points) – 1.0 om inget poängantal syns.
+4. Godtagbara alternativa svar (acceptable_answers).
+5. Eventuella lösningssteg (derivation_steps), viktiga begrepp (important_concepts) och resonemangskrav (reasoning_requirements).
+6. Om matematisk verifiering är relevant (mathematical_verification).
+7. Maxpoäng (max_points) – 1.0 om inget poängantal syns.
 
 Svara ENDAST med en giltig JSON-array. Inga förklaringar, inga kodblock, ingen annan text.
 
@@ -68,10 +70,11 @@ def _extract_json_array(text: str) -> list[dict]:
 GENERATE_PROMPT = (
     "Du är wiseOS facitmotor för svenska prov i olika ämnen. "
     "Konstruera ett rimligt facit utifrån provets beskrivning. "
-    "Varje uppgift ska innehålla frågan, det förväntade svaret, eventuella lösningssteg och maxpoäng. "
+    "Varje uppgift ska innehålla frågan, förväntat svar, godtagbara alternativ, lösningssteg, viktiga begrepp, resonemangskrav, matematisk verifiering och maxpoäng. "
     'Svara enbart med JSON på formen '
     '{"items": [{"question_number": "1", "question_text": "Frågan", "final_answer": "Svar", '
-    '"derivation_steps": [], "max_points": 1}]}'
+    '"acceptable_answers": [], "derivation_steps": [], "important_concepts": [], '
+    '"reasoning_requirements": [], "mathematical_verification": false, "max_points": 1}]}'
 )
 
 
@@ -137,29 +140,10 @@ async def extract_answer_key(file_bytes: bytes, mime_type: str) -> list[AnswerKe
         return items if items else _mock_answer_key(len(file_bytes))
 
     try:
-        from anthropic import AsyncAnthropic
+        from .providers.registry import get_claude_vision_provider
 
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        encoded = base64.b64encode(file_bytes).decode("ascii")
-        if mime_type == "application/pdf":
-            media_block = {
-                "type": "document",
-                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
-            }
-        else:
-            media_block = {
-                "type": "image",
-                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
-            }
-
-        msg = await client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=4000,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": [media_block, {"type": "text", "text": "Extract this answer key."}]}],
-        )
-        text = "\n".join(block.text for block in msg.content if getattr(block, "type", None) == "text")
-        return _parse_items(text)
+        adapter = get_claude_vision_provider()
+        return await adapter.extract_answer_key(file_bytes, mime_type)
     except Exception:
         items = await _extract_with_vision(file_bytes, mime_type)
         return items if items else _mock_answer_key(len(file_bytes))
