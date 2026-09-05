@@ -24,35 +24,8 @@ def get_db():
 def init_db() -> None:
     # Import models so they register with Base.metadata
     from . import models  # noqa: F401
-    from sqlalchemy import text
 
+    # For production, run `alembic upgrade head` instead. `create_all` is kept
+    # for dev convenience only — it is idempotent and harmless on databases
+    # that are already managed by Alembic.
     Base.metadata.create_all(bind=engine)
-
-    # Lightweight idempotent migrations för Sprint A (Villkorad Automatisering).
-    # Lägger till nya kolumner om en gammal DB redan finns. ALTER TABLE ADD COLUMN
-    # är säkert i SQLite och Postgres när IF NOT EXISTS används.
-    migrations = [
-        "ALTER TABLE submissions ADD COLUMN student_pseudonym VARCHAR(32)",
-        "ALTER TABLE submissions ADD COLUMN ocr_confidence FLOAT",
-        "ALTER TABLE submissions ADD COLUMN wolfram_confidence FLOAT",
-        "ALTER TABLE submissions ADD COLUMN confidence_overall FLOAT",
-        "ALTER TABLE submissions ADD COLUMN requires_review BOOLEAN DEFAULT 0",
-        "ALTER TABLE submissions ADD COLUMN review_status VARCHAR(32) DEFAULT 'auto_approved'",
-        "ALTER TABLE submissions ADD COLUMN reviewed_by VARCHAR(255)",
-        "ALTER TABLE submissions ADD COLUMN reviewed_at DATETIME",
-        "ALTER TABLE submissions ADD COLUMN final_feedback TEXT",
-        "ALTER TABLE submissions ADD COLUMN final_score INTEGER",
-        # Sprint: Authentication - koppla Teacher till User
-        "ALTER TABLE teachers ADD COLUMN user_id VARCHAR(36)",
-        # GDPR-sprint v1: ägandeskap – Klass kopplas till Supabase-lärarens id.
-        "ALTER TABLE classes ADD COLUMN teacher_id VARCHAR(255)",
-        # GDPR-sprint v1 (Vecka 2): retention-tracking för GradingResult.
-        "ALTER TABLE grading_results ADD COLUMN anonymized_at DATETIME",
-    ]
-    with engine.begin() as conn:
-        for stmt in migrations:
-            try:
-                conn.execute(text(stmt))
-            except Exception:
-                # Kolumn finns redan – ignorera
-                pass

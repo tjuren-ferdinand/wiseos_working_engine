@@ -228,6 +228,10 @@ def delete_student(
     # Vi rensar manuellt de GradingResults i klassens prov som pekar på detta
     # elev-id, så att inga kvarvarande poster förblir kopplade till ett
     # elev-id som inte längre existerar.
+    # See also: models.py GradingResult.student_id KNOWN-ISSUE comment.
+    # The FK ondelete="SET NULL" is declared in the model but not enforced at DB
+    # level. This manual hard-delete is the actual cleanup mechanism. If the FK
+    # is ever enforced, this manual delete must be reconciled with SET NULL semantics.
     (
         db.query(models.GradingResult)
         .filter(

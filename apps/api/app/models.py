@@ -134,7 +134,7 @@ class Test(Base):
     klass_id: Mapped[str] = mapped_column(String(36), ForeignKey("classes.id"))
     title: Mapped[str] = mapped_column(String(255))
     date: Mapped[str | None] = mapped_column(String(32), nullable=True)
-    max_points: Mapped[int] = mapped_column(Integer, default=0)
+    max_points: Mapped[float] = mapped_column(Float, default=0.0)
     facit_mode: Mapped[str] = mapped_column(String(32), default="none")
     custom_params: Mapped[str | None] = mapped_column(Text, nullable=True)
     questions: Mapped[list | None] = mapped_column(JSON, nullable=True)
@@ -158,9 +158,25 @@ class GradingResult(Base):
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
     test_id: Mapped[str] = mapped_column(String(36), ForeignKey("tests.id"), index=True)
     student_name: Mapped[str] = mapped_column(String(255))
-    student_id: Mapped[str | None] = mapped_column(String(36), nullable=True)
+    # KNOWN-ISSUE: ondelete="SET NULL" is declared here but NOT enforced at the DB
+    # level on existing SQLite databases. The FK constraint was never created because
+    # the column was added via ad-hoc ALTER TABLE (SQLite cannot add FK constraints
+    # via ALTER). On fresh databases (create_all or Alembic baseline), the FK IS
+    # created correctly.
+    #
+    # Additionally, routers/classes.py:delete_student explicitly HARD-DELETES
+    # GradingResult rows when a student is deleted, rather than relying on
+    # SET NULL cascade. This is semantically incompatible with ondelete="SET NULL"
+    # — the app code wins (runs first), but the schema declaration is misleading.
+    #
+    # DO NOT add the FK constraint to existing SQLite databases without first
+    # reconciling classes.py:delete_student to use SET NULL semantics.
+    # See plan-3766349cb86fba8f.md "student_id FK conflict analysis" for details.
+    student_id: Mapped[str | None] = mapped_column(String(36), ForeignKey("students.id", ondelete="SET NULL"), nullable=True, index=True)
     identification_method: Mapped[str] = mapped_column(String(32), default="name_field")
-    identification_confidence: Mapped[float] = mapped_column(Float, default=1.0)
+    identification_confidence: Mapped[float] = mapped_column(Float, default=0.0)
+    scan_pages: Mapped[list] = mapped_column(JSON, default=list)
+    document: Mapped[dict | None] = mapped_column(JSON, nullable=True)
     steps: Mapped[list] = mapped_column(JSON, default=list)
     total_score: Mapped[float] = mapped_column(Float, default=0.0)
     max_score: Mapped[float] = mapped_column(Float, default=0.0)
