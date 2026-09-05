@@ -8,16 +8,28 @@ aldrig kraschar och aldrig fejkar ett resultat när något går fel.
 from __future__ import annotations
 
 import json
+from io import BytesIO
 
 import httpx
 import pytest
+from pypdf import PdfWriter
+from sqlalchemy import create_engine
+from sqlalchemy.orm import sessionmaker
+from sqlalchemy.pool import StaticPool
 
-from app.schemas import AnswerKeyItem
-from app.services import gemini_vision
+from app import models
+from app.db import Base
+from app.routers.batch import _persist_batch
+from app.schemas import Annotation, AnswerKeyItem, Assessment, DocumentMeta, QuestionResult, StudentDocumentResult, WolframResult
+from app.services import batch_pipeline, feedback, gemini_vision
+from app.services.batch_identification import IdentifiedName
 from app.services.batch_pipeline import (
     UploadedFile,
+    apply_math_verification,
     derive_student_name,
+    expand_pdf_uploads,
     group_pages_by_student,
+    identify_and_group_pages,
 )
 
 PNG_1PX = bytes.fromhex(
@@ -436,3 +448,152 @@ def test_student_name_without_page_suffix_is_single_page():
 
 def test_derive_student_name_strips_suffix():
     assert derive_student_name("Anna_Andersson - prov") == "Anna Andersson"
+
+
+def test_pdf_upload_is_split_into_traceable_single_page_documents():
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    writer.add_blank_page(width=100, height=100)
+    buffer = BytesIO()
+    writer.write(buffer)
+
+    expanded = expand_pdf_uploads(
+        [UploadedFile("klassprov.pdf", buffer.getvalue(), "application/pdf")]
+    )
+    assert len(expanded) == 2
+    assert [page.page_number for page in expanded] == [1, 2]
+    assert all(page.source_id == "klassprov.pdf" for page in expanded)
+    assert all(page.content_type == "image/png" for page in expanded)
+    assert all(page.content.startswith(b"\x89PNG") for page in expanded)
+
+
+@pytest.mark.asyncio
+async def test_low_confidence_names_never_merge_generic_pages(monkeypatch):
+    async def identify(page, *, identification_method):
+        return IdentifiedName("Anna Andersson", 0.2, "name_field")
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    files = [
+        UploadedFile("IMG_001.png", b"first", "image/png"),
+        UploadedFile("IMG_002.png", b"second", "image/png"),
+    ]
+    documents = await identify_and_group_pages(files)
+    assert len(documents) == 2
+    assert all(document.identification_method == "unresolved" for document in documents)
+    assert all(document.identification_confidence == 0 for document in documents)
+
+
+@pytest.mark.asyncio
+async def test_filename_group_uses_one_confident_name_field(monkeypatch):
+    async def identify(page, *, identification_method):
+        return (
+            IdentifiedName("Anna Andersson", 0.96, "name_field")
+            if page[0] == b"first"
+            else IdentifiedName(None, 0.0, "name_field_empty")
+        )
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    files = [
+        UploadedFile("Anna_Andersson_sida2.png", b"second", "image/png"),
+        UploadedFile("Anna_Andersson_sida1.png", b"first", "image/png"),
+    ]
+    documents = await identify_and_group_pages(files)
+    assert len(documents) == 1
+    assert documents[0].student_name == "Anna Andersson"
+    assert documents[0].identification_method == "name_field"
+    assert documents[0].identification_confidence == 0.96
+    assert [page.content for page in documents[0].pages] == [b"first", b"second"]
+
+
+def test_feedback_output_never_exposes_internal_reasoning():
+    raw = "<think>hemligt resonemang</think><thinking>mer internt</thinking>Bra försök.```"
+    assert feedback._safe_output(raw) == "Bra försök."
+
+
+@pytest.mark.asyncio
+async def test_math_verification_only_runs_for_relevant_questions(monkeypatch):
+    calls: list[tuple[str, str]] = []
+
+    class Verifier:
+        async def verify_equation(self, student_answer, correct_answer):
+            calls.append((student_answer, correct_answer))
+            return WolframResult(is_correct=True, confidence=0.99)
+
+    monkeypatch.setattr(batch_pipeline, "get_math_provider", lambda: Verifier())
+    monkeypatch.setattr(batch_pipeline.settings, "WOLFRAM_APP_ID", "configured")
+    math_question = QuestionResult(
+        questionNumber="1",
+        found=True,
+        studentWork="x = 2",
+        assessment=Assessment(status="partial", points=0.5, maxPoints=1),
+    )
+    language_question = QuestionResult(
+        questionNumber="2",
+        found=True,
+        studentWork="Stockholm",
+        assessment=Assessment(status="correct", points=1, maxPoints=1),
+    )
+    answer_key = [
+        AnswerKeyItem(question_number="1", question_text="Lös x + 1 = 3", final_answer="x = 2"),
+        AnswerKeyItem(question_number="2", question_text="Sveriges huvudstad?", final_answer="Stockholm"),
+    ]
+
+    await apply_math_verification([math_question, language_question], answer_key)
+    assert calls == [("x = 2", "x = 2")]
+    assert math_question.mathVerification.status == "verified"
+    assert math_question.assessment.status == "correct"
+    assert math_question.assessment.points == 1
+    assert language_question.mathVerification.status == "not_applicable"
+
+
+def test_persist_batch_keeps_scans_identity_answer_key_and_is_idempotent():
+    engine = create_engine(
+        "sqlite://",
+        connect_args={"check_same_thread": False},
+        poolclass=StaticPool,
+    )
+    Base.metadata.create_all(engine)
+    db = sessionmaker(bind=engine)()
+    klass = models.Klass(teacher_id="teacher-1", name="NA1", kurs_id="matte4")
+    klass.students.append(models.KlassStudent(name="Anna Andersson"))
+    test = models.Test(title="Algebra", facit_mode="uploaded", max_points=0)
+    klass.tests.append(test)
+    db.add(klass)
+    db.commit()
+
+    result = StudentDocumentResult(
+        id="batch-result-1",
+        provId=test.id,
+        studentName="Anna Andersson",
+        identificationMethod="name_field",
+        identificationConfidence=0.96,
+        scanPages=["data:image/png;base64,AA=="],
+        document=DocumentMeta(pageCount=1, model="test-model"),
+        questions=[
+            QuestionResult(
+                questionNumber="1",
+                found=True,
+                questionText="Vad är 2 + 2?",
+                studentWork="4",
+                transcriptionConfidence=0.95,
+                correctAnswer="4",
+                assessment=Assessment(status="correct", points=2, maxPoints=2, confidence=0.98),
+                feedback="Rätt.",
+                annotation=Annotation(summary="Korrekt."),
+            )
+        ],
+    )
+    _persist_batch(db, test, [result], [_item(max_points=2)])
+    _persist_batch(db, test, [result], [_item(max_points=2)])
+
+    stored = db.query(models.GradingResult).one()
+    assert stored.id == result.id
+    assert stored.student_id == klass.students[0].id
+    assert stored.identification_confidence == 0.96
+    assert stored.scan_pages == ["data:image/png;base64,AA=="]
+    assert stored.document["model"] == "test-model"
+    assert stored.steps[0]["studentWork"] == "4"
+    assert stored.total_score == 2
+    assert stored.max_score == 2
+    assert db.query(models.AnswerKeyRecord).one().items[0]["final_answer"] == "4"
+    assert test.status == "review"
