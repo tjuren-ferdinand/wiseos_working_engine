@@ -8,6 +8,11 @@ out/
 pnpm-debug.log*
 .pnpm-store/
 
+# Detta är ett pnpm-projekt — npm-lockfiler ska aldrig committas
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
