@@ -42,4 +42,5 @@ COPY --from=deps /app/node_modules ./node_modules
 
 EXPOSE 3000
 
-CMD ["sh", "-c", "pnpm exec next start -p ${PORT:-3000}"]
+# Run Next directly via node — no pnpm needed at runtime.
+CMD ["sh", "-c", "node node_modules/next/dist/bin/next start -p ${PORT:-3000}"]
