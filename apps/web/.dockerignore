@@ -3,3 +3,6 @@ node_modules/
 .env.local
 .env.*
 *.tsbuildinfo
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
