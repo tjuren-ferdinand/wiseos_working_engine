@@ -49,7 +49,7 @@ def provider_name() -> str:
         return "openrouter"
     if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL:
         return "groq"
-    return "mock"
+    return "unavailable"
 
 
 async def _openai_style(
@@ -143,10 +143,11 @@ async def _gemini(
 
 
 async def read_image(image_bytes: bytes, mime_type: str, prompt: str = PROMPT) -> str | None:
-    if not is_image(mime_type):
+    normalized_mime = _normalize_mime(mime_type)
+    if normalized_mime not in IMAGE_MIME_TYPES and normalized_mime != "application/pdf":
         return None
 
-    data_url = f"data:{_normalize_mime(mime_type)};base64,{base64.b64encode(image_bytes).decode('ascii')}"
+    data_url = f"data:{normalized_mime};base64,{base64.b64encode(image_bytes).decode('ascii')}"
     errors = []
 
     if settings.GEMINI_API_KEY:
@@ -155,13 +156,13 @@ async def read_image(image_bytes: bytes, mime_type: str, prompt: str = PROMPT) -
         except Exception as e:
             errors.append(f"Gemini Error: {str(e)}")
 
-    if settings.OPENROUTER_API_KEY:
+    if settings.OPENROUTER_API_KEY and normalized_mime != "application/pdf":
         try:
             return await _openai_style("https://openrouter.ai/api/v1/chat/completions", settings.OPENROUTER_API_KEY, settings.OPENROUTER_VISION_MODEL, data_url, prompt)
         except Exception as e:
             errors.append(f"OpenRouter Error: {str(e)}")
 
-    if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL:
+    if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL and normalized_mime != "application/pdf":
         try:
             return await _openai_style("https://api.groq.com/openai/v1/chat/completions", settings.GROQ_API_KEY, settings.GROQ_VISION_MODEL, data_url, prompt)
         except Exception as e:

@@ -15,50 +15,7 @@ async function getAuthHeader(): Promise<Record<string, string>> {
   }
 }
 
-export type Assignment = {
-  id: string;
-  title: string;
-  subject: string | null;
-  grade_level: string | null;
-  problem_text: string | null;
-  correct_answer: string;
-  created_at: string;
-};
 
-export type ReviewStatus =
-  | "auto_approved"
-  | "pending_review"
-  | "approved"
-  | "edited"
-  | "rejected";
-
-export type Submission = {
-  id: string;
-  assignment_id: string;
-  student_name: string;
-  answer_text: string;
-  student_pseudonym: string | null;
-  score: number;
-  ai_feedback: string | null;
-  wolfram_verification: Record<string, unknown> | null;
-  graded_at: string;
-  ocr_confidence: number | null;
-  wolfram_confidence: number | null;
-  confidence_overall: number | null;
-  requires_review: boolean;
-  review_status: ReviewStatus;
-  reviewed_by: string | null;
-  reviewed_at: string | null;
-  final_feedback: string | null;
-  final_score: number | null;
-};
-
-export type ReviewAction = {
-  action: "approve" | "edit" | "reject";
-  reviewed_by?: string;
-  final_feedback?: string;
-  final_score?: number;
-};
 
 async function jsonFetch<T>(path: string, init?: RequestInit, fallbackKey?: string): Promise<T> {
   try {
@@ -75,12 +32,16 @@ async function jsonFetch<T>(path: string, init?: RequestInit, fallbackKey?: stri
   }
 }
 
-export type OcrResult = { latex: string; text: string; confidence: number };
+export type OcrResult = { latex: string; text: string; confidence: number; provider: string; status: "completed" | "degraded" };
 export type AnswerKeyItem = {
   question_number: string;
   question_text: string;
   final_answer: string;
+  acceptable_answers?: string[];
   derivation_steps: string[];
+  important_concepts?: string[];
+  reasoning_requirements?: string[];
+  mathematical_verification?: boolean | null;
   max_points: number;
 };
 
@@ -115,6 +76,14 @@ export type Assessment = {
   confidence: number;
 };
 
+export type MathVerification = {
+  provider: string;
+  status: "not_applicable" | "verified" | "not_equivalent" | "degraded" | "unavailable" | "failed";
+  isEquivalent: boolean | null;
+  confidence: number;
+  message: string;
+};
+
 export type QuestionResult = {
   questionNumber: string;
   /** false = uppgiften finns inte i dokumentet. Oläslig handstil ger true + låg confidence. */
@@ -129,6 +98,8 @@ export type QuestionResult = {
   feedback: string;
   annotation: Annotation;
   sourceRegions: SourceRegion[];
+  mathVerification: MathVerification;
+  feedbackProvider: string;
   /** Satt när ett tekniskt fel hindrade bedömning. */
   error: string | null;
   pointsTeacher: number | null;
@@ -150,7 +121,10 @@ export type DocumentMeta = {
 export type StudentDocumentResult = {
   id: string;
   provId: string;
+  studentId: string | null;
   studentName: string;
+  identificationMethod: string;
+  identificationConfidence: number;
   scanPages: string[];
   document: DocumentMeta;
   questions: QuestionResult[];
@@ -228,6 +202,14 @@ export type BackendGradingStep = {
   feedback?: string | null;
   studentWork?: string | null;
   correctAnswer?: string | null;
+  found?: boolean | null;
+  transcriptionConfidence?: number | null;
+  annotation?: Annotation | null;
+  error?: string | null;
+  outsideAnswerKey?: boolean;
+  sourceRegions?: SourceRegion[];
+  mathVerification?: MathVerification | null;
+  feedbackProvider?: string | null;
 };
 
 export type BackendGradingResult = {
@@ -246,6 +228,7 @@ export type BackendGradingResult = {
   scannedAt: string;
   gradedAt: string | null;
   scanPages: string[];
+  document: DocumentMeta | null;
 };
 
 export type ClaudeAnalyzeResult = {
@@ -257,7 +240,6 @@ export type ClaudeAnalyzeResult = {
 };
 
 export const api = {
-  listAssignments: () => jsonFetch<Assignment[]>("/api/v1/assignments"),
   // --- Classes / students ---
   listClasses: () => jsonFetch<BackendClass[]>("/api/v1/classes", undefined, "classes"),
   getClass: async (id: string) => {
@@ -354,21 +336,7 @@ export const api = {
   // --- AI (provider-ärlig, se ClaudeAnalyzeResult.provider) ---
   claudeAnalyze: (data: { problem: string; studentAnswer: string; correctAnswer: string; context?: string }) =>
     jsonFetch<ClaudeAnalyzeResult>("/api/v1/claude/analyze", { method: "POST", body: JSON.stringify(data) }),
-  getAssignment: (id: string) => jsonFetch<Assignment>(`/api/v1/assignments/${id}`),
-  createAssignment: (data: Omit<Assignment, "id" | "created_at">) =>
-    jsonFetch<Assignment>("/api/v1/assignments", { method: "POST", body: JSON.stringify(data) }),
-  listResults: (id: string) => jsonFetch<Submission[]>(`/api/v1/assignments/${id}/results`),
-  grade: (data: { assignment_id: string; student_name: string; answer_text: string; ocr_confidence?: number | null }) =>
-    jsonFetch<{ submission: Submission; wolfram: any; feedback: string }>(
-      "/api/v1/submissions/grade",
-      { method: "POST", body: JSON.stringify(data) },
-    ),
-  listPending: () => jsonFetch<Submission[]>("/api/v1/submissions/pending"),
-  review: (submissionId: string, action: ReviewAction) =>
-    jsonFetch<Submission>(`/api/v1/submissions/${submissionId}/review`, {
-      method: "POST",
-      body: JSON.stringify(action),
-    }),
+
   ocrUpload: async (file: File): Promise<OcrResult> => {
     const fd = new FormData();
     fd.append("file", file);
@@ -404,7 +372,11 @@ export const api = {
     for (const f of req.files) fd.append("files", f, f.name);
 
     const controller = new AbortController();
-    const timeout = setTimeout(() => controller.abort(), 300_000);
+    let timedOut = false;
+    const timeout = setTimeout(() => {
+      timedOut = true;
+      controller.abort();
+    }, 300_000);
     const onAbort = () => controller.abort();
     signal?.addEventListener("abort", onAbort);
     try {
@@ -419,36 +391,15 @@ export const api = {
       return res.json();
     } catch (error) {
       if ((error as Error).name === "AbortError") {
-        throw new Error("Rättningen tog längre än fem minuter. Kontrollera att backend körs och försök igen.");
+        if (timedOut) {
+          throw new Error("Rättningen överskred fem minuters tidsgräns. Jobbets sparade status kan kontrolleras från provsidan.");
+        }
+        throw new DOMException("Rättningen avbröts av användaren.", "AbortError");
       }
       throw error;
     } finally {
       clearTimeout(timeout);
       signal?.removeEventListener("abort", onAbort);
     }
-  },
-  fetchGradingResults: async () => {
-    const results = await jsonFetch<BatchGradeResponse>("/api/v1/batch/grade/results");
-    // Mappning sker alltid på questionNumber, aldrig på arrayindex eller
-    // textparsning av etiketten.
-    return {
-      transcription: results.results.map((r) =>
-        r.questions.map((q) => ({
-          questionNumber: q.questionNumber,
-          studentWork: q.studentWork,
-          confidence: q.transcriptionConfidence,
-        })),
-      ),
-      assessment: results.results.map((r) =>
-        r.questions.map((q) => ({
-          questionNumber: q.questionNumber,
-          studentAnswer: q.studentWork,
-          expectedAnswer: q.correctAnswer,
-          status: q.assessment.status,
-          points: q.assessment.points,
-          maxPoints: q.assessment.maxPoints,
-        })),
-      ),
-    };
   },
 };

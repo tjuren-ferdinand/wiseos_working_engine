@@ -4,6 +4,7 @@ import {
   type AnswerKeyItem,
   type Annotation,
   type DocumentMeta,
+  type MathVerification,
   type StudentDocumentResult,
 } from "@/lib/api";
 
@@ -15,6 +16,8 @@ export interface Kurs {
   id: string;
   name: string;
   code: string; // t.ex. FYSFYS01
+  subject: string;
+  level?: string;
   description: string;
   gradeThresholds: GradeThresholds;
 }
@@ -94,6 +97,8 @@ export interface Step {
   error?: string | null;
   /** true = uppgiften hittades i bilden men saknas i facit. */
   outsideAnswerKey?: boolean;
+  mathVerification?: MathVerification;
+  feedbackProvider?: string;
 }
 
 export interface StudentResult {
@@ -115,8 +120,6 @@ export interface StudentResult {
   scanPages?: string[];
   /** Diagnostik från rättningsmotorn (modell, latens, fel). */
   document?: DocumentMeta;
-  /** Simulerade handskrivna sidor (Caveat-font) för demo. En sträng per sida. */
-  mockScanPages?: string[];
 }
 
 // ============================================================================
@@ -146,42 +149,61 @@ export const DEFAULT_GRADE_THRESHOLDS: GradeThresholds = {
 // (Kurser är läroplansreferenser, inte elevdata - hanteras inte i backend DB.)
 // ============================================================================
 
+// Svensk kurskatalog (gymnasiet + högstadiet). Kurskoder följer Skolverkets
+// GY11-nomenklatur där sådan finns; övriga är generiska.
 const KURSER: Kurs[] = [
-  {
-    id: "fysik2",
-    name: "Fysik 2",
-    code: "FYSFYS02",
-    description: "Fördjupningskurs i fysik med mekanik, svängningar, vågrörelser och modern fysik.",
-    gradeThresholds: DEFAULT_GRADE_THRESHOLDS,
-  },
-  {
-    id: "matte4",
-    name: "Matematik 4",
-    code: "MATMAT04",
-    description: "Avancerad matematik med komplexa tal, differentialekvationer och linjär algebra.",
-    gradeThresholds: DEFAULT_GRADE_THRESHOLDS,
-  },
-  {
-    id: "kemi2",
-    name: "Kemi 2",
-    code: "KEMKEM02",
-    description: "Fördjupning i organisk kemi, reaktionskinetik och kemisk jämvikt.",
-    gradeThresholds: DEFAULT_GRADE_THRESHOLDS,
-  },
-  {
-    id: "prog1",
-    name: "Programmering 1",
-    code: "PRRPRR01",
-    description: "Grundläggande programmering med Python, algoritmer och datastrukturer.",
-    gradeThresholds: DEFAULT_GRADE_THRESHOLDS,
-  },
-  {
-    id: "teknik1",
-    name: "Teknik 1",
-    code: "TEKTEK01",
-    description: "Tekniska system, konstruktion och hållbar utveckling.",
-    gradeThresholds: DEFAULT_GRADE_THRESHOLDS,
-  },
+  // Matematik
+  { id: "matte1c", name: "Matematik 1c", code: "MATMAT01c", subject: "Matematik", level: "Gymnasiet", description: "Gymnasiematematik med algebra, funktioner och statistik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte1b", name: "Matematik 1b", code: "MATMAT01b", subject: "Matematik", level: "Gymnasiet", description: "Matematik för samhälls- och ekonomiprogrammen.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte1a", name: "Matematik 1a", code: "MATMAT01a", subject: "Matematik", level: "Gymnasiet", description: "Matematik för estetiska och humanistiska program.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte2", name: "Matematik 2a/2b/2c", code: "MATMAT02", subject: "Matematik", level: "Gymnasiet", description: "Fortsättningskurs i matematik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte3", name: "Matematik 3b/3c", code: "MATMAT03", subject: "Matematik", level: "Gymnasiet", description: "Funktioner, derivata, integraler och sannolikhet.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte4", name: "Matematik 4", code: "MATMAT04", subject: "Matematik", level: "Gymnasiet", description: "Avancerad matematik med komplexa tal, differentialekvationer och linjär algebra.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte5", name: "Matematik 5", code: "MATMAT05", subject: "Matematik", level: "Gymnasiet", description: "Fördjupning i matematisk analys.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "matte-spec", name: "Matematik – specialisering", code: "MATMAT00", subject: "Matematik", level: "Gymnasiet", description: "Fördjupningskurs inom ett valt matematiskt område.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  // Naturvetenskap
+  { id: "fysik1", name: "Fysik 1", code: "FYSFYS01", subject: "Fysik", level: "Gymnasiet", description: "Mekanik, värme, vågor och ellära.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "fysik2", name: "Fysik 2", code: "FYSFYS02", subject: "Fysik", level: "Gymnasiet", description: "Fördjupningskurs i fysik med mekanik, svängningar, vågrörelser och modern fysik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "kemi1", name: "Kemi 1", code: "KEMKEM01", subject: "Kemi", level: "Gymnasiet", description: "Grundläggande kemi med atom- och molekyllära.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "kemi2", name: "Kemi 2", code: "KEMKEM02", subject: "Kemi", level: "Gymnasiet", description: "Fördjupning i organisk kemi, reaktionskinetik och kemisk jämvikt.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "biologi1", name: "Biologi 1", code: "BIOBIO01", subject: "Biologi", level: "Gymnasiet", description: "Cell, genetik och ekologi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "biologi2", name: "Biologi 2", code: "BIOBIO02", subject: "Biologi", level: "Gymnasiet", description: "Fysiologi, evolution och bioteknik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "natkunskap1a", name: "Naturkunskap 1a", code: "NARNAT01a", subject: "Naturkunskap", level: "Gymnasiet", description: "Tvärvetenskaplig naturvetenskap för samhällsprogram.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "natkunskap1b", name: "Naturkunskap 1b", code: "NARNAT01b", subject: "Naturkunskap", level: "Gymnasiet", description: "Fortsättningskurs i naturvetenskap.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  // Teknik & data
+  { id: "teknik1", name: "Teknik 1", code: "TEKTEK01", subject: "Teknik", level: "Gymnasiet", description: "Tekniska system, konstruktion och hållbar utveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "teknik2", name: "Teknik 2", code: "TEKTEK02", subject: "Teknik", level: "Gymnasiet", description: "Fördjupning inom teknik och design.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "teknik3", name: "Teknik 3", code: "TEKTEK03", subject: "Teknik", level: "Gymnasiet", description: "Avancerad teknik och produktutveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "teknik4", name: "Teknik 4", code: "TEKTEK04", subject: "Teknik", level: "Gymnasiet", description: "Specialiserad teknikkurs.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "prog1", name: "Programmering 1", code: "PRRPRR01", subject: "Programmering", level: "Gymnasiet", description: "Grundläggande programmering med Python, algoritmer och datastrukturer.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "prog2", name: "Programmering 2", code: "PRRPRR02", subject: "Programmering", level: "Gymnasiet", description: "Fördjupning i programmering och mjukvaruutveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "tillampad-prog", name: "Tillämpad programmering", code: "PRRAPP01", subject: "Programmering", level: "Gymnasiet", description: "Programmering i ett tillämpat projekt.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "webbutv1", name: "Webbutveckling 1", code: "GRNWEB01", subject: "Programmering", level: "Gymnasiet", description: "Webbteknik, HTML, CSS och grundläggande JavaScript.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "webbutv2", name: "Webbutveckling 2", code: "GRNWEB02", subject: "Programmering", level: "Gymnasiet", description: "Fördjupning inom webbutveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "datorteknik1", name: "Datorteknik 1", code: "DAODAT01", subject: "Teknik", level: "Gymnasiet", description: "Datorns uppbyggnad, nätverk och operativsystem.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  // Språk
+  { id: "engelska5", name: "Engelska 5", code: "ENGENG05", subject: "Engelska", level: "Gymnasiet", description: "Gymnasiets första engelskakurs.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "engelska6", name: "Engelska 6", code: "ENGENG06", subject: "Engelska", level: "Gymnasiet", description: "Fortsättningskurs i engelska.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "engelska7", name: "Engelska 7", code: "ENGENG07", subject: "Engelska", level: "Gymnasiet", description: "Fördjupningskurs i engelska.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "svenska1", name: "Svenska 1", code: "SVESVE01", subject: "Svenska", level: "Gymnasiet", description: "Läs- och skrivutveckling samt retorik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "svenska2", name: "Svenska 2", code: "SVESVE02", subject: "Svenska", level: "Gymnasiet", description: "Litteratur, språkhistoria och skrivande.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "svenska3", name: "Svenska 3", code: "SVESVE03", subject: "Svenska", level: "Gymnasiet", description: "Litteraturfördjupning och akademiskt skrivande.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  // Samhällsämnen
+  { id: "samhall1a", name: "Samhällskunskap 1a", code: "SAMSAM01a", subject: "Samhällskunskap", level: "Gymnasiet", description: "Demokrati, politik och ekonomi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "samhall1b", name: "Samhällskunskap 1b", code: "SAMSAM01b", subject: "Samhällskunskap", level: "Gymnasiet", description: "Fortsättningskurs i samhällskunskap.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "samhall2", name: "Samhällskunskap 2", code: "SAMSAM02", subject: "Samhällskunskap", level: "Gymnasiet", description: "Fördjupning i samhällsvetenskap.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "historia1a", name: "Historia 1a", code: "HISHIS01a", subject: "Historia", level: "Gymnasiet", description: "Världshistoria och historiebruk.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "historia1b", name: "Historia 1b", code: "HISHIS01b", subject: "Historia", level: "Gymnasiet", description: "Fortsättningskurs i historia.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "religion1", name: "Religionskunskap 1", code: "RELREL01", subject: "Religion", level: "Gymnasiet", description: "Världsreligioner och livsåskådningar.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "geografi1", name: "Geografi 1", code: "GEOGEO01", subject: "Geografi", level: "Gymnasiet", description: "Natur- och kulturgeografi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "psykologi1", name: "Psykologi 1", code: "PSYPSY01", subject: "Psykologi", level: "Gymnasiet", description: "Psykologins grunder och människans utveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "filosofi1", name: "Filosofi 1", code: "FILFIL01", subject: "Filosofi", level: "Gymnasiet", description: "Filosofisk argumentation och etik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  // Högstadiet
+  { id: "matte-ak7", name: "Matematik (åk 7–9)", code: "MAT", subject: "Matematik", level: "Högstadiet", description: "Högstadiematematik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "fysik-ak7", name: "Fysik (åk 7–9)", code: "FYS", subject: "Fysik", level: "Högstadiet", description: "Högstadietfysik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "kemi-ak7", name: "Kemi (åk 7–9)", code: "KEM", subject: "Kemi", level: "Högstadiet", description: "Högstadietkemi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "biologi-ak7", name: "Biologi (åk 7–9)", code: "BIO", subject: "Biologi", level: "Högstadiet", description: "Högstadietbiologi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
+  { id: "teknik-ak7", name: "Teknik (åk 7–9)", code: "TEK", subject: "Teknik", level: "Högstadiet", description: "Högstadietteknik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
 ];
 
 // ============================================================================
@@ -213,6 +235,46 @@ export const useStore = create<StoreState>(() => ({
   loading: false,
   error: null,
 }));
+
+const SUBJECT_KEYWORDS: { [key: string]: string } = {
+  matte: "Matematik",
+  matematik: "Matematik",
+  fysik: "Fysik",
+  kemi: "Kemi",
+  biologi: "Biologi",
+  teknik: "Teknik",
+  programmering: "Programmering",
+  tillämpad: "Programmering",
+  webb: "Programmering",
+  data: "Teknik",
+  naturkunskap: "Naturkunskap",
+  engelska: "Engelska",
+  svenska: "Svenska",
+  samhäll: "Samhällskunskap",
+  historia: "Historia",
+  religion: "Religion",
+  geograf: "Geografi",
+  psykologi: "Psykologi",
+  filosofi: "Filosofi",
+};
+
+export function deriveSubject(name: string): string {
+  const lower = name.toLowerCase();
+  for (const [keyword, subject] of Object.entries(SUBJECT_KEYWORDS)) {
+    if (lower.includes(keyword)) return subject;
+  }
+  return "Övrigt";
+}
+
+export function slugifyKursId(name: string): string {
+  return name
+    .toLowerCase()
+    .replace(/å/g, "a")
+    .replace(/ä/g, "a")
+    .replace(/ö/g, "o")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
 
 // ============================================================================
 // BACKEND <-> FRONTEND MAPPING
@@ -268,6 +330,13 @@ function mapBackendResult(r: import("@/lib/api").BackendGradingResult): StudentR
       feedback: s.feedback ?? undefined,
       studentWork: s.studentWork ?? undefined,
       correctAnswer: s.correctAnswer ?? undefined,
+      found: s.found ?? undefined,
+      transcriptionConfidence: s.transcriptionConfidence ?? undefined,
+      annotation: s.annotation ?? undefined,
+      error: s.error ?? undefined,
+      outsideAnswerKey: s.outsideAnswerKey,
+      mathVerification: s.mathVerification ?? undefined,
+      feedbackProvider: s.feedbackProvider ?? undefined,
     })),
     totalScore: r.totalScore,
     maxScore: r.maxScore,
@@ -277,6 +346,7 @@ function mapBackendResult(r: import("@/lib/api").BackendGradingResult): StudentR
     scannedAt: r.scannedAt,
     gradedAt: r.gradedAt ?? undefined,
     scanPages: r.scanPages ?? [],
+    document: r.document ?? undefined,
   };
 }
 
@@ -312,6 +382,13 @@ export const actions = {
     } catch (error) {
       useStore.setState({ loading: false, error: (error as Error).message, hydrated: true });
     }
+  },
+
+  addKurs: (kurs: Kurs): void => {
+    useStore.setState((state) => {
+      if (state.kurser.some((k) => k.id === kurs.id)) return state;
+      return { kurser: [...state.kurser, kurs] };
+    });
   },
 
   createKlass: async (data: {
@@ -421,6 +498,13 @@ export const actions = {
           feedback: s.feedback,
           studentWork: s.studentWork,
           correctAnswer: s.correctAnswer,
+          found: s.found,
+          transcriptionConfidence: s.transcriptionConfidence,
+          annotation: s.annotation,
+          error: s.error,
+          outsideAnswerKey: s.outsideAnswerKey,
+          mathVerification: s.mathVerification,
+          feedbackProvider: s.feedbackProvider,
         })),
         totalScore,
         maxScore,
@@ -464,7 +548,6 @@ function verdictToStatus(v: string): Step["status"] {
 function mapBatchToStudentResult(
   b: StudentDocumentResult,
   studentId: string,
-  identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id',
 ): StudentResult {
   // 1:1-mappning av backendens kanoniska resultat. Inget fält uppfinns här.
   const steps: Step[] = b.questions.map((q) => ({
@@ -485,6 +568,8 @@ function mapBatchToStudentResult(
     annotation: q.annotation,
     error: q.error,
     outsideAnswerKey: !q.inAnswerKey,
+    mathVerification: q.mathVerification,
+    feedbackProvider: q.feedbackProvider,
   }));
   const totalScore = steps.reduce((s, x) => s + x.earnedPoints, 0);
   const maxScore = steps.reduce((s, x) => s + x.maxPoints, 0);
@@ -495,8 +580,8 @@ function mapBatchToStudentResult(
     provId: b.provId,
     studentId,
     studentName: b.studentName,
-    identificationMethod,
-    identificationConfidence: 0.95,
+    identificationMethod: b.identificationMethod as StudentResult["identificationMethod"],
+    identificationConfidence: b.identificationConfidence,
     steps,
     totalScore,
     maxScore,
@@ -554,16 +639,9 @@ export async function runBatchGrade(opts: {
 
     onPhase?.('saving');
 
-    // Matcha varje resultat mot en klasslista-elev via namn (case-insensitive substring).
-    const klass = useStore.getState().klasser.find((k) => k.id === klassId);
-    const added: StudentResult[] = resp.results.map((b) => {
-      const match = klass?.students.find(
-        (s) => s.name.toLowerCase() === b.studentName.toLowerCase()
-          || s.name.toLowerCase().includes(b.studentName.toLowerCase())
-          || b.studentName.toLowerCase().includes(s.name.toLowerCase()),
-      );
-      return mapBatchToStudentResult(b, match?.id ?? `unknown-${b.id}`, identificationMethod);
-    });
+    const added: StudentResult[] = resp.results.map((b) =>
+      mapBatchToStudentResult(b, b.studentId ?? `unknown-${b.id}`),
+    );
 
     useStore.setState((state) => ({ results: [...state.results, ...added] }));
     actions.updateProvStatus(provId, 'review');

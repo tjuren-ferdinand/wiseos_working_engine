@@ -8,11 +8,14 @@ from __future__ import annotations
 
 import asyncio
 import json
+import logging
 import re
 
 import httpx
 
 from ..config import settings
+
+logger = logging.getLogger("wiseos.gemini")
 
 GENERATE_URL = (
     "https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent"
@@ -29,6 +32,36 @@ _GEMINI_TIMEOUT_SECONDS = 60.0
 
 def gemini_enabled() -> bool:
     return bool(settings.GEMINI_API_KEY)
+
+
+async def ping() -> bool:
+    """Kontrollera att API-nyckel, modellnamn och nätverk är giltiga.
+
+    Returnerar True endast när vi får en lyckad HTTP-respons med kandidater
+    från modellen (tänkande modeller kan ge tomt text-innehåll vid låga
+    maxOutputTokens, så vi kräver inte ett specifikt svar).
+    """
+    if not settings.GEMINI_API_KEY:
+        return False
+    url = GENERATE_URL.format(model=settings.GEMINI_MODEL)
+    payload = {
+        "contents": [{"role": "user", "parts": [{"text": "Svara hej."}]}],
+        "generationConfig": {"maxOutputTokens": 256, "temperature": 0.0},
+    }
+    try:
+        async with httpx.AsyncClient(timeout=_GEMINI_TIMEOUT_SECONDS) as client:
+            response = await client.post(
+                url,
+                headers={"x-goog-api-key": settings.GEMINI_API_KEY, "Content-Type": "application/json"},
+                json=payload,
+            )
+        if response.status_code >= 400:
+            return False
+        data = response.json()
+        return bool(data.get("candidates") or data.get("modelVersion"))
+    except Exception:
+        logger.exception("gemini_ping_failed")
+        return False
 
 
 async def complete_text(

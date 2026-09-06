@@ -33,7 +33,7 @@ export default function ClassPage() {
     );
   }
 
-  const kursName = kurser.find((c) => c.id === klass.kursId)?.name || "Kurs";
+  const kursName = kurser.find((c) => c.id === klass.kursId)?.name || klass.kursId || "Kurs";
 
   return (
     <div className="space-y-8">

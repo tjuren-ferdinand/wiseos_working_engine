@@ -6,6 +6,7 @@ import { useStore } from "@/lib/store";
 import Reveal from "@/components/Reveal";
 import { createClient } from "@/lib/supabase/client";
 import Onboarding from "@/components/Onboarding";
+import DashboardEmptyState from "@/components/DashboardEmptyState";
 
 export default function DashboardPage() {
   const klasser = useStore((s) => s.klasser);
@@ -75,46 +76,44 @@ export default function DashboardPage() {
 
         {/* Metrics — integrated information row, not boxed widgets */}
         <Reveal>
-          <div className="max-w-2xl mx-auto pb-6 mb-6 border-b border-ink-hairline">
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 sm:gap-10">
-            <div className="min-w-0">
-              <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
-                Tid sparad
-              </div>
-              <div className="mt-2 flex items-baseline gap-1.5">
-                <span className={`text-[26px] font-medium tracking-[-0.01em] ${ink}`}>
-                  {hoursSaved > 0 ? hoursSaved : minutesSaved}
-                </span>
-                <span className={`text-[13px] ${inkMuted}`}>
-                  {hoursSaved > 0 ? (hoursSaved === 1 ? "timme" : "timmar") : "min"}
-                </span>
-              </div>
-              <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>den här veckan</div>
-            </div>
-
-            <div className="min-w-0">
-              <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
-                Publicerade resultat
-              </div>
-              <div className="mt-2">
-                <span className={`text-[26px] font-medium tracking-[-0.01em] ${ink}`}>
-                  {totalStudents > 0 ? Math.round((completedThisWeek / totalStudents) * 100) : 0}%
-                </span>
-              </div>
-              <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>av totalt {totalStudents}</div>
-            </div>
-
-            <div className="min-w-0">
-              <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
-                AI-rättade prov
-              </div>
-              <div className="mt-2">
-                <span className={`text-[26px] font-medium tracking-[-0.01em] ${ink}`}>
-                  {aiGradedProv}
-                </span>
-              </div>
-              <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>denna vecka</div>
-            </div>
+          <div className="w-full pb-8 mb-8 border-b border-ink-hairline">
+            <div className="grid grid-cols-1 sm:grid-cols-3">
+              {[
+                {
+                  label: "Tid sparad",
+                  value: hoursSaved > 0 ? hoursSaved : minutesSaved,
+                  unit: hoursSaved > 0 ? (hoursSaved === 1 ? "timme" : "timmar") : "min",
+                  sub: "den här veckan",
+                },
+                {
+                  label: "Publicerade resultat",
+                  value: `${totalStudents > 0 ? Math.round((completedThisWeek / totalStudents) * 100) : 0}%`,
+                  sub: `av totalt ${totalStudents}`,
+                },
+                {
+                  label: "AI-rättade prov",
+                  value: String(aiGradedProv),
+                  sub: "denna vecka",
+                },
+              ].map((stat, i) => (
+                <div
+                  key={stat.label}
+                  className={`min-w-0 px-4 py-6 first:pl-0 last:pr-0 sm:px-6 sm:py-7 ${
+                    i < 2 ? "border-b sm:border-b-0 sm:border-r border-ink-hairline" : ""
+                  }`}
+                >
+                  <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
+                    {stat.label}
+                  </div>
+                  <div className="mt-2 flex items-baseline gap-1.5">
+                    <span className={`text-[28px] font-medium tracking-[-0.01em] ${ink}`}>
+                      {stat.value}
+                    </span>
+                    {stat.unit && <span className={`text-[13px] ${inkMuted}`}>{stat.unit}</span>}
+                  </div>
+                  <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>{stat.sub}</div>
+                </div>
+              ))}
             </div>
           </div>
         </Reveal>
@@ -165,15 +164,7 @@ export default function DashboardPage() {
             </div>
 
             {klasser.length === 0 ? (
-              <div className={`py-8 text-center border-t ${hairline}`}>
-                <div className={`text-[14px] ${inkSecondary}`}>Inga klasser ännu</div>
-                <Link
-                  href="/classes/new"
-                  className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-[10px] text-[13.5px] font-medium bg-ink text-paper hover:bg-ink/90 transition-colors"
-                >
-                  Skapa din första klass
-                </Link>
-              </div>
+              <DashboardEmptyState />
             ) : (
               <div className={`border-t ${hairline}`}>
                 {klasser.map((k) => {
@@ -194,7 +185,7 @@ export default function DashboardPage() {
                         <div className="min-w-0">
                           <div className={`text-[14px] font-medium ${ink} truncate`}>{k.name}</div>
                           <div className={`text-[12.5px] ${inkMuted} truncate`}>
-                            {(kurs?.name || "Kurs")} · {k.students.length} elever · {klassProv.length} prov
+                            {(kurs?.name || k.kursId || "Kurs")} · {k.students.length} elever · {klassProv.length} prov
                           </div>
                         </div>
                       </div>

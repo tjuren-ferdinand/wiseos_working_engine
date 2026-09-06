@@ -308,27 +308,60 @@ async def identify_and_group_pages(
                 candidate.identification_confidence = 0.6
         documents.append(candidate)
 
+    # Slå ihop sidor inom samma uppladdade källa (samma PDF) till elevsegment.
+    #
+    # Säkerhetsinvariant: bara en sida vars namn lästs med name_field-metoden
+    # (confidence >= 0.85) kan ANKRA eller splittra ett segment.
+    #
+    #  - name_field-sida med samma namn som öppet segment = fortsättningssida.
+    #  - name_field-sida med ANNAT namn öppnar ALLTID nytt segment — en
+    #    säkert läst annan elev kan aldrig absorberas in i fel dokument.
+    #  - Sida UTAN säkert namn (unresolved/filename/conflicting) får endast
+    #    haka på ett segment som förankrats av name_field — den är en
+    #    positionell fortsättningssida. Filnamnshärledda namn är
+    #    behållarens namn (alla sidor i samma PDF delar stem) och duger
+    #    aldrig som identitetsbevis.
+    #  - Namnlösa sidor INNAN första namnankaret blir var och en sin egen
+    #    unresolved-post — två namnlösa sidor kan vara olika elever och slås
+    #    aldrig ihop med varandra, aldrig över källgränser.
+    #  - Kvarstående risk: en oläslig sida mitt i en bundle som tillhör nästa
+    #    elev antas vara fortsättning på föregående. Positionellt antagande,
+    #    flaggas alltid för mänsklig granskning via unresolved/needs_review.
     merged: list[StudentDocument] = []
+    current_source: str | None = None
+    open_segment: StudentDocument | None = None
+
+    def _same_student(a: str, b: str) -> bool:
+        return " ".join(a.casefold().split()) == " ".join(b.casefold().split())
+
     for document in documents:
-        previous = merged[-1] if merged else None
-        same_pdf_student = (
-            previous
-            and previous.identification_method == "name_field"
-            and document.identification_method == "name_field"
-            and previous.pages[-1].source_id
-            and previous.pages[-1].source_id == document.pages[0].source_id
-            and " ".join(previous.student_name.casefold().split())
-            == " ".join(document.student_name.casefold().split())
-            and previous.pages[-1].page_number + 1 == document.pages[0].page_number
-        )
-        if same_pdf_student:
-            previous.pages.extend(document.pages)
-            previous.identification_confidence = min(
-                previous.identification_confidence,
-                document.identification_confidence,
-            )
+        source = document.pages[0].source_id
+        if source is None or source != current_source:
+            current_source = source
+            open_segment = None
+        if source is None:
+            # Lös fil (inte PDF-sida) — filnamnsbucketingen ovan gäller redan.
+            merged.append(document)
+            continue
+
+        anchored = document.identification_method == "name_field"
+        if anchored:
+            if open_segment is not None and _same_student(
+                open_segment.student_name, document.student_name
+            ):
+                open_segment.pages.extend(document.pages)
+                open_segment.identification_confidence = min(
+                    open_segment.identification_confidence,
+                    document.identification_confidence,
+                )
+            else:
+                merged.append(document)
+                open_segment = document
+        elif open_segment is not None and open_segment.identification_method == "name_field":
+            open_segment.pages.extend(document.pages)
         else:
             merged.append(document)
+            open_segment = document
 
     return merged
 
@@ -433,7 +466,7 @@ async def apply_feedback_provider(questions: list) -> None:
                 correct_answer=question.correctAnswer,
                 wolfram=wolfram,
             )
-        except RuntimeError:
+        except Exception:
             logger.exception("feedback_provider_failed question=%s provider=%s", question.questionNumber, provider)
             question.feedbackProvider = "gemini-vision" if question.feedback else "unavailable"
             continue

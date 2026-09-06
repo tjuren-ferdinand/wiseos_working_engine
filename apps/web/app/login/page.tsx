@@ -1,9 +1,11 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
+import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { motion, AnimatePresence, useInView, useScroll, useMotionValueEvent } from "framer-motion";
+import { motion, useInView, useScroll, useMotionValueEvent } from "framer-motion";
+import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import LineIcon, { type IconName } from "@/components/LineIcon";
 import { TESTIMONIALS } from "@/lib/data/testimonials";
@@ -271,39 +273,50 @@ function DashboardStack() {
         className="absolute inset-0 rounded-2xl border border-ink-hairline/5 bg-paper-raised shadow-2xl"
         style={{ transform: "rotate(-4deg) translate(-0.5rem, 0.5rem)" }}
       />
-      <div className="relative z-10 flex h-full flex-col rounded-2xl border border-ink-hairline/10 bg-paper-raised p-5 shadow-2xl">
-        <div className="mb-4 flex items-center gap-2">
-          <div className="h-7 w-7 rounded-lg bg-accent/10 p-1 text-accent">
-            <LineIcon name="grid" className="h-5 w-5" />
-          </div>
-          <div className="h-2 w-24 rounded bg-ink/10" />
+      <motion.div
+        initial={{ opacity: 0, y: 24 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+        className="relative z-10 flex h-full flex-col rounded-2xl border border-ink-hairline/10 bg-paper-raised p-5 shadow-2xl"
+      >
+        <div className="mb-3 flex items-center">
+          <LineIcon name="grid" className="h-4 w-4 text-ink-hairline/60" />
         </div>
-        <div className="grid grid-cols-3 gap-2">
-          <div className="rounded-xl bg-ink/5 p-2">
-            <div className="text-[9px] text-ink-secondary">Prov</div>
-            <div className="text-sm font-semibold text-ink">12</div>
+
+        <div className="grid grid-cols-3 gap-3">
+          <div className="rounded-xl bg-ink/5 p-3">
+            <LineIcon name="file" className="mb-1.5 h-4 w-4 text-ink-hairline/70" />
+            <div className="text-[10px] font-medium uppercase tracking-wider text-ink-secondary">Prov</div>
+            <div className="text-[18px] font-semibold text-ink">12</div>
           </div>
-          <div className="rounded-xl bg-ink/5 p-2">
-            <div className="text-[9px] text-ink-secondary">Tid sparad</div>
-            <div className="text-sm font-semibold text-ink">4h</div>
+          <div className="rounded-xl bg-ink/5 p-3">
+            <LineIcon name="chart" className="mb-1.5 h-4 w-4 text-ink-hairline/70" />
+            <div className="text-[10px] font-medium uppercase tracking-wider text-ink-secondary">Tid sparad</div>
+            <div className="text-[18px] font-semibold text-ink">4h</div>
           </div>
-          <div className="rounded-xl bg-accent/10 p-2">
-            <div className="text-[9px] text-accent">AI-rättat</div>
-            <div className="text-sm font-semibold text-ink">89</div>
+          <div className="rounded-xl bg-ink/5 p-3">
+            <LineIcon name="sparkles" className="mb-1.5 h-4 w-4 text-ink-hairline/70" />
+            <div className="text-[10px] font-medium uppercase tracking-wider text-ink-secondary">AI-rättat</div>
+            <div className="text-[18px] font-semibold text-ink">89</div>
           </div>
         </div>
-        <div className="mt-3 space-y-2">
+
+        <div className="mt-4 space-y-2">
           <div className="h-2 w-full rounded bg-ink/5" />
           <div className="h-2 w-5/6 rounded bg-ink/5" />
           <div className="h-2 w-4/6 rounded bg-ink/5" />
         </div>
-        <div className="mt-auto rounded-xl border border-dashed border-ink-hairline/10 bg-ink/[0.02] p-3 text-center">
-          <div className="mx-auto inline-flex items-center gap-1.5 rounded-full bg-ink px-3 py-1 text-[11px] font-medium text-paper">
-            <LineIcon name="check" className="h-3 w-3" />
-            Klart att publicera
-          </div>
+
+        <div className="mt-auto flex items-center justify-center gap-2 rounded-xl bg-gradient-to-b from-ink to-black p-3 shadow-[inset_0_1px_0_rgba(255,255,255,0.06)]">
+          <motion.div
+            animate={{ scale: [1, 1.15, 1] }}
+            transition={{ repeat: Infinity, duration: 1.8, ease: "easeInOut" }}
+          >
+            <LineIcon name="check" className="h-4 w-4 text-paper" />
+          </motion.div>
+          <span className="text-[12px] font-semibold text-paper">Klart att publicera</span>
         </div>
-      </div>
+      </motion.div>
     </div>
   );
 }
@@ -374,188 +387,6 @@ function ProcessSteps() {
   );
 }
 
-function DemoCount({ to }: { to: number }) {
-  const [value, setValue] = useState(0);
-
-  useEffect(() => {
-    const id = window.setInterval(() => {
-      setValue((v) => {
-        if (v >= to) {
-          window.clearInterval(id);
-          return to;
-        }
-        return v + 1;
-      });
-    }, 40);
-    return () => window.clearInterval(id);
-  }, [to]);
-
-  return <span>{value}</span>;
-}
-
-function DemoShowcase() {
-  const ref = useRef<HTMLDivElement>(null);
-  const isInView = useInView(ref, { once: true, amount: 0.6 });
-  const [demoStep, setDemoStep] = useState(0);
-
-  useEffect(() => {
-    if (!isInView) return;
-    const timers: number[] = [];
-    let current = 0;
-    const advance = () => {
-      current += 1;
-      if (current <= 3) {
-        setDemoStep(current);
-        timers.push(window.setTimeout(advance, 2600));
-      }
-    };
-    timers.push(window.setTimeout(advance, 2600));
-    return () => timers.forEach(window.clearTimeout);
-  }, [isInView]);
-
-  return (
-    <section ref={ref} className="mt-20 border-t border-ink-hairline/5 pt-10">
-      <SectionHeading
-        badge="Produktdemo"
-        title="Se hur WiseOS rättar ett prov från start till mål"
-        subtitle="Scrolla ner för att starta demo-sekvensen — ingen knapptryckning krävs."
-      />
-      <div className="mx-auto aspect-[16/10] w-full max-w-4xl overflow-hidden rounded-3xl border border-ink-hairline/10 bg-paper-raised shadow-2xl">
-        <AnimatePresence mode="wait">
-          {demoStep === 0 && (
-            <motion.div
-              key="step0"
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="flex h-full flex-col items-center justify-center gap-6 p-5 md:p-8 text-center"
-            >
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-accent/10 text-accent">
-                <LineIcon name="upload" className="h-8 w-8" />
-              </div>
-              <div>
-                <h3 className="text-xl font-semibold text-ink">Ladda upp provbunten</h3>
-                <p className="text-sm text-ink-secondary">PDF eller bilder fungerar lika bra.</p>
-              </div>
-              <motion.div
-                initial={{ opacity: 0, y: 10 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.4 }}
-                className="flex items-center gap-3 rounded-xl border border-dashed border-ink-hairline/15 bg-ink/5 px-4 py-3"
-              >
-                <LineIcon name="file" className="h-5 w-5 text-accent" />
-                <span className="text-sm text-ink">Provbunt.pdf</span>
-              </motion.div>
-            </motion.div>
-          )}
-
-          {demoStep === 1 && (
-            <motion.div
-              key="step1"
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="flex h-full flex-col items-center justify-center gap-6 p-5 md:p-8 text-center"
-            >
-              <div className="h-12 w-12 animate-spin rounded-full border-2 border-accent/20 border-t-accent" />
-              <div>
-                <h3 className="text-xl font-semibold text-ink">AI rättar på sekunder</h3>
-                <p className="text-sm text-ink-secondary">Steg-för-steg-bedömning av varje lösning.</p>
-              </div>
-              <div className="w-full max-w-xs space-y-2">
-                {["Löser uppgift 1", "Bedömer resonemang", "Kontrollerar enheter"].map((t, i) => (
-                  <motion.div
-                    key={t}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.3 + i * 0.2 }}
-                    className="rounded-lg bg-ink/5 px-3 py-2 text-left text-sm text-ink"
-                  >
-                    <span className="mr-2 inline-flex h-4 w-4 items-center justify-center rounded-full bg-ink text-[10px] text-paper">✓</span>
-                    {t}
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {demoStep === 2 && (
-            <motion.div
-              key="step2"
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="h-full p-5 md:p-8"
-            >
-              <div className="mb-4 flex items-center justify-between">
-                <h3 className="text-lg font-semibold text-ink">Rättningsresultat</h3>
-                <span className="rounded-full bg-accent/10 px-2.5 py-1 text-xs text-accent">12 prov</span>
-              </div>
-              <div className="space-y-3">
-                {[
-                  { name: "Erik Svensson", score: 18, max: 20 },
-                  { name: "Maja Lindqvist", score: 14, max: 20 },
-                  { name: "Oliver Berg", score: 20, max: 20 },
-                  { name: "Saga Norén", score: 17, max: 20 },
-                ].map((s, i) => (
-                  <motion.div
-                    key={s.name}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: 0.2 + i * 0.1 }}
-                    className="flex items-center justify-between rounded-xl bg-ink/5 p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className="flex h-7 w-7 items-center justify-center rounded-full bg-accent/10 text-[10px] font-medium text-accent">
-                        {s.name.charAt(0)}
-                      </div>
-                      <span className="text-sm text-ink">{s.name}</span>
-                    </div>
-                    <div className="text-sm font-semibold text-ink">
-                      <DemoCount to={s.score} />/{s.max}
-                    </div>
-                  </motion.div>
-                ))}
-              </div>
-            </motion.div>
-          )}
-
-          {demoStep === 3 && (
-            <motion.div
-              key="step3"
-              initial={{ opacity: 0, y: 24, scale: 0.98 }}
-              animate={{ opacity: 1, y: 0, scale: 1 }}
-              exit={{ opacity: 0, y: -24, scale: 0.98 }}
-              transition={{ duration: 0.5, ease: [0.22, 1, 0.36, 1] }}
-              className="flex h-full flex-col items-center justify-center gap-6 p-5 md:p-8 text-center"
-            >
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-accent/10 text-accent">
-                <LineIcon name="check" className="h-7 w-7" />
-              </div>
-              <h3 className="text-xl font-semibold text-ink">Klart att publicera</h3>
-              <p className="max-w-sm text-sm text-ink-secondary">
-                Granska, justera eventuella poäng och publicera resultaten till eleverna.
-              </p>
-              <div className="rounded-xl border border-dashed border-ink-hairline/10 bg-ink/5 p-4 text-left">
-                <div className="mb-2 flex items-center gap-2 text-sm text-ink">
-                  <LineIcon name="check" className="h-4 w-4 text-accent" />
-                  12/12 prov granskade
-                </div>
-                <div className="flex items-center gap-2 text-sm text-ink">
-                  <LineIcon name="check" className="h-4 w-4 text-accent" />
-                  0 konflikter kvar
-                </div>
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </div>
-    </section>
-  );
-}
 
 function SocialProof() {
   // TODO: update with real numbers once they are available
@@ -617,22 +448,29 @@ function Finale({
   return (
     <section
       ref={ref}
-      className="relative left-1/2 mt-20 w-screen -translate-x-1/2 overflow-hidden bg-paper md:min-h-[90vh]"
+      className="relative left-1/2 mt-0 w-screen -translate-x-1/2 overflow-hidden bg-paper md:min-h-[90vh]"
     >
-      <motion.img
-        initial={{ opacity: 0, scale: 1.05 }}
-        animate={isInView ? { opacity: 1, scale: 1 } : {}}
-        transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-        src="/front1.jpg"
-        alt="Arbetsplats med papper och laptop"
-        loading="lazy"
-        className="h-[55vh] w-full object-cover md:absolute md:right-0 md:top-0 md:h-full md:w-[75%]"
+      <div
+        className="h-[55vh] w-full md:absolute md:right-0 md:top-0 md:h-full md:w-[75%]"
         style={{
-          maskImage: "linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
-          WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 12%, black 88%, transparent 100%)",
+          WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 15%)",
+          maskImage: "linear-gradient(to right, transparent 0%, black 15%)",
         }}
-      />
-      <div className="pointer-events-none absolute inset-0 hidden bg-gradient-to-r from-paper via-paper/90 via-[40%] to-transparent md:block" />
+      >
+        <motion.img
+          initial={{ opacity: 0, scale: 1.05 }}
+          animate={isInView ? { opacity: 1, scale: 1 } : {}}
+          transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+          src="/front1.jpg"
+          alt="Arbetsplats med papper och laptop"
+          loading="lazy"
+          className="h-full w-full object-cover"
+          style={{
+            maskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)",
+            WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)",
+          }}
+        />
+      </div>
       <div className="relative z-10 flex flex-col justify-center bg-paper px-6 py-16 md:absolute md:inset-y-0 md:left-0 md:w-[45%] md:bg-transparent md:px-12 lg:px-20">
         <motion.div
           initial={{ opacity: 0, y: 24 }}
@@ -667,27 +505,15 @@ function Finale({
   );
 }
 
-
 export default function LoginPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
 
   const { scrollY } = useScroll();
-  const [hidden, setHidden] = useState(false);
   const [scrolled, setScrolled] = useState(false);
-  const lastY = useRef(0);
 
   useMotionValueEvent(scrollY, "change", (latest) => {
-    const prev = lastY.current;
-    lastY.current = latest;
     setScrolled(latest > 32);
-    if (latest < 50) {
-      setHidden(false);
-    } else if (latest > prev + 5) {
-      setHidden(true);
-    } else if (latest < prev - 5) {
-      setHidden(false);
-    }
   });
 
   const openAuth = (mode: AuthMode) => {
@@ -698,16 +524,22 @@ export default function LoginPage() {
   return (<div className="min-h-screen overflow-y-auto overflow-x-hidden bg-paper text-ink">
       {/* Top bar */}
       <motion.header
-        initial={{ y: 0, opacity: 1 }}
-        animate={{ y: hidden ? "-100%" : 0, opacity: hidden ? 0 : 1 }}
-        transition={{ duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
-        className={`fixed top-0 inset-x-0 z-40 h-16 border-b border-equi-800/50 bg-equi-950 backdrop-blur-lg transition-shadow duration-300 ${scrolled ? "shadow-soft" : "shadow-none"}`}
+        initial={{ y: -10, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        transition={{ duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+        className={`fixed top-0 inset-x-0 z-50 h-16 border-b border-ink-hairline bg-paper/80 backdrop-blur-lg transition-shadow duration-300 ${scrolled ? "shadow-soft" : "shadow-none"}`}
       >
-        <div className="mx-auto flex h-full max-w-6xl items-center justify-end px-6">
+        <div className="mx-auto flex h-full max-w-6xl items-center justify-between px-6">
+          <Link href="/" className="group flex h-11 items-center gap-2">
+            <Logo className="h-7 w-7 object-contain" alt="" />
+            <span className="max-w-0 overflow-hidden whitespace-nowrap text-[15px] font-semibold leading-none tracking-tight text-ink opacity-0 transition-all duration-300 group-hover:max-w-[5.5rem] group-hover:opacity-100">
+              WiseOS
+            </span>
+          </Link>
           <div className="flex items-center gap-2">
             <button
               onClick={() => openAuth("login")}
-              className="rounded-full border border-ink-hairline/10 px-4 py-2 text-[13px] font-medium text-white transition-all hover:bg-white/10"
+              className="rounded-full border border-ink-hairline/10 px-4 py-2 text-[13px] font-medium text-ink transition-all hover:bg-ink/5"
             >
               Logga in
             </button>
@@ -721,9 +553,15 @@ export default function LoginPage() {
         </div>
       </motion.header>
 
-      <main className="mx-auto max-w-6xl px-6 pt-32 pb-24">
+      <main className="mx-auto max-w-6xl px-6 pt-0 pb-0">
+        {/* Closing image */}
+        <Finale onStart={() => openAuth("signup")} onLogin={() => openAuth("login")} />
+
+        {/* How it works */}
+        <ProcessSteps />
+
         {/* Hero */}
-        <section className="grid items-center gap-16 lg:grid-cols-2">
+        <section className="mt-28 grid items-center gap-16 lg:grid-cols-2">
           <div>
             <motion.div
               initial={{ opacity: 0, y: 16 }}
@@ -791,12 +629,12 @@ export default function LoginPage() {
               {stats.map((stat, i) => (
                 <div
                   key={stat.label}
-                  className="rounded-2xl border border-accent/15 bg-ink/5 p-4"
+                  className="rounded-2xl border border-ink-hairline/10 bg-paper-raised p-5"
                 >
-                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-accent/10 text-accent">
+                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-ink/5 text-ink-hairline">
                     <LineIcon name={stat.icon} className="h-5 w-5" />
                   </div>
-                  <div className="text-[20px] font-bold text-ink">{stat.value}</div>
+                  <div className="text-[20px] font-semibold text-ink">{stat.value}</div>
                   <div className="mt-1 text-[11.5px] leading-snug text-ink-secondary">{stat.label}</div>
                 </div>
               ))}
@@ -806,14 +644,8 @@ export default function LoginPage() {
           <DashboardStack />
         </section>
 
-        {/* How it works */}
-        <ProcessSteps />
-
-        {/* Interactive product demo */}
-        <DemoShowcase />
-
         {/* Features */}
-        <section className="mt-20 border-t border-ink-hairline/5 pt-10">
+        <section className="mt-28 border-t border-ink-hairline/5 pt-16">
           <SectionHeading
             badge="Funktioner"
             title="Allt du behöver för snabbare rättning"
@@ -827,9 +659,9 @@ export default function LoginPage() {
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                className="group flex h-full flex-col rounded-2xl border border-ink-hairline/10 bg-paper-raised p-6 transition-all duration-300 hover:-translate-y-1 hover:border-accent/30 hover:shadow-soft"
+                className="group flex h-full flex-col rounded-2xl border border-ink-hairline/10 bg-paper-raised p-6 transition-all duration-300 hover:-translate-y-1 hover:border-ink-hairline/30 hover:shadow-soft"
               >
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-accent/10 text-accent transition-colors group-hover:bg-accent/20">
+                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-ink/5 text-ink-hairline transition-colors group-hover:bg-ink/10 group-hover:text-ink">
                   <LineIcon name={f.icon} className="h-6 w-6" />
                 </div>
                 <h3 className="text-[17px] font-semibold text-ink">{f.title}</h3>
@@ -841,11 +673,9 @@ export default function LoginPage() {
 
         {/* Social proof */}
         <SocialProof />
-
-        <Finale onStart={() => openAuth("signup")} onLogin={() => openAuth("login")} />
       </main>
 
-      <footer className="border-t border-ink-hairline/5 py-8 text-center text-[12px] text-ink-secondary">
+      <footer className="mt-28 border-t border-ink-hairline/5 py-8 text-center text-[12px] text-ink-secondary">
         {new Date().getFullYear()} Wisecast AB
       </footer>
 

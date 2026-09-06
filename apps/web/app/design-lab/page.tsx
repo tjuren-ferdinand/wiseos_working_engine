@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import { notFound } from 'next/navigation';
 import {
   tokens,
   DisplayLg,
@@ -48,6 +49,12 @@ import {
  * - Luxury EdTech feel
  */
 export default function DesignLabPage() {
+  // Experimental route — excluded from production builds unless explicitly
+  // enabled via NEXT_PUBLIC_ENABLE_DESIGN_LAB=true (dev/staging only).
+  if (process.env.NEXT_PUBLIC_ENABLE_DESIGN_LAB !== 'true') {
+    notFound();
+  }
+
   const [activeNav, setActiveNav] = React.useState('dashboard');
 
   return (

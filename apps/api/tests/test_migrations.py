@@ -146,16 +146,23 @@ def test_index_migration_preserves_real_data(tmp_path):
     if not real_db.exists():
         pytest.skip("wiseos.db not present — nothing to verify against")
 
+    # Exact expected count from the REAL database (queried dynamically —
+    # never hardcoded, so the test can't silently go stale as data grows).
+    conn = sqlite3.connect(str(real_db))
+    expected_count = conn.execute("SELECT COUNT(*) FROM grading_results").fetchone()[0]
+    conn.close()
+    assert expected_count > 0, "wiseos.db has no grading_results to verify"
+
     copy_db = tmp_path / "wiseos_copy.db"
     shutil.copy2(real_db, copy_db)
 
-    # Snapshot pre-migration rows
+    # Snapshot pre-migration rows on the COPY
     conn = sqlite3.connect(str(copy_db))
     pre_rows = conn.execute(
         "SELECT id, test_id, student_name, student_id, total_score, max_score, steps FROM grading_results ORDER BY id"
     ).fetchall()
     conn.close()
-    assert len(pre_rows) == 12, f"expected 12 grading_results, got {len(pre_rows)}"
+    assert len(pre_rows) == expected_count
 
     # Stamp at baseline, then upgrade head (adds only indexes — no data change)
     cfg = _alembic_cfg(f"sqlite:///{copy_db}")
@@ -163,11 +170,16 @@ def test_index_migration_preserves_real_data(tmp_path):
     command.upgrade(cfg, "head")
 
     conn = sqlite3.connect(str(copy_db))
+    post_count = conn.execute("SELECT COUNT(*) FROM grading_results").fetchone()[0]
     post_rows = conn.execute(
         "SELECT id, test_id, student_name, student_id, total_score, max_score, steps FROM grading_results ORDER BY id"
     ).fetchall()
     conn.close()
 
+    # Exact count preserved AND every row value identical
+    assert post_count == expected_count, (
+        f"row count changed during migration: {expected_count} -> {post_count}"
+    )
     assert pre_rows == post_rows, "grading_results data changed during index migration"
 
     # All 4 planned indexes now exist

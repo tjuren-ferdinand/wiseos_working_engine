@@ -10,7 +10,6 @@ import {
 } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import LineIcon from "./LineIcon";
-import GradingPipeline from "./GradingPipeline";
 
 type Props = {
   result: StudentResult;
@@ -43,7 +42,6 @@ function reviewReason(step: Step): string | null {
 export default function Workbench({ result, prov, klass, onBack, onPrint }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
-  const [showPipeline, setShowPipeline] = useState(false);
   
   // Beräkna total från V2 Step structure
   const total = result.steps.reduce((s, st) => s + st.earnedPoints, 0);
@@ -51,31 +49,10 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
 
   return (
     <>
-      <GradingPipeline
-        open={showPipeline}
-        onClose={() => setShowPipeline(false)}
-        onComplete={() => setShowPipeline(false)}
-        studentName={result.studentName}
-        provTitle={prov.title}
-        questionCount={result.steps.length}
-      />
-      
       <div className="space-y-6 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <button onClick={onBack} className={`text-sm transition-colors ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>← Tillbaka till klassmapp</button>
           <div className="flex items-center gap-3">
-            <button
-              onClick={() => setShowPipeline(true)}
-              className="group relative rounded-full px-4 py-2 text-sm font-semibold text-paper bg-gradient-to-r from-ink to-ink hover:from-ink/80 hover:to-ink/60 shadow-lg shadow-ink/[0.10] transition-all hover:shadow-card hover:shadow-ink/[0.10] hover:scale-[1.02]"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <svg className="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
-                </svg>
-                Rätta om
-              </span>
-              <div className="absolute inset-0 rounded-full bg-gradient-to-r from-ink/80 to-ink/60 opacity-0 group-hover:opacity-20 blur transition-opacity" />
-            </button>
             <button
               onClick={onPrint}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${isDark ? "border-paper-raised/20 bg-paper-raised/5 text-paper hover:bg-paper-raised/10" : "border-ink-hairline bg-paper-raised text-ink hover:bg-paper-secondary"}`}
@@ -99,9 +76,6 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
         {/* Vänster: skannat original */}
         <ScanPanel
           pages={result.scanPages || []}
-          mockPages={result.mockScanPages}
-          studentName={result.studentName}
-          steps={result.steps}
           isDark={isDark}
         />
 
@@ -144,18 +118,12 @@ function ScoreBadge({ total, max, isDark }: { total: number; max: number; isDark
 
 function ScanPanel({
   pages,
-  mockPages,
-  studentName,
-  steps,
   isDark,
 }: {
   pages: string[];
-  mockPages?: string[];
-  studentName: string;
-  steps: Step[];
   isDark: boolean;
 }) {
-  const totalPages = mockPages && mockPages.length > 0 ? mockPages.length : pages.length > 0 ? pages.length : 1;
+  const totalPages = pages.length;
   return (
     <div className={`rounded-[24px] overflow-hidden shadow-lg shadow-ink/5 ${isDark ? "bg-ink/[0.03]" : "bg-paper-raised"}`}>
       <div className={`px-5 py-3 flex items-center justify-between ${isDark ? "bg-ink/[0.02]" : "bg-paper-secondary/50"}`}>
@@ -163,132 +131,46 @@ function ScanPanel({
         <div className={`text-xs ${"text-ink-muted"}`}>{totalPages} sida{totalPages !== 1 ? "or" : ""}</div>
       </div>
       <div className={`p-4 space-y-4 ${isDark ? "" : "bg-[radial-gradient(circle_at_50%_0%,rgb(var(--accent) / 0.04),transparent_60%)]"}`}>
-        {mockPages && mockPages.length > 0 ? (
-          mockPages.map((text, i) => (
-            <MockScanPage
-              key={i}
-              pageIndex={i}
-              totalPages={mockPages.length}
-              text={text}
-              isDark={isDark}
-            />
-          ))
-        ) : pages.length === 0 ? (
-          <MockScan studentName={studentName} steps={steps} isDark={isDark} />
+        {pages.length === 0 ? (
+          <div className="rounded-2xl border border-state-warning/30 bg-state-warning/10 p-6 text-sm text-ink-secondary">
+            Originaldokumentet saknas. Resultatet måste granskas mot den ursprungliga filen.
+          </div>
         ) : (
-          pages.map((src, i) =>
-            src.startsWith("data:image") ? (
-              <div key={i} className="relative rounded-2xl overflow-hidden shadow-md">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={src} alt={`Sida ${i + 1}`} className="w-full" />
-                <div className="absolute top-2 right-2 text-[10px] font-mono bg-ink/80 text-paper px-2 py-0.5 rounded">
-                  sida {i + 1}
+          pages.map((src, i) => {
+            if (src.startsWith("data:image")) {
+              return (
+                <div key={i} className="relative rounded-2xl overflow-hidden shadow-md">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={`Sida ${i + 1}`} className="w-full" />
+                  <div className="absolute top-2 right-2 text-[10px] font-mono bg-ink/80 text-paper px-2 py-0.5 rounded">
+                    sida {i + 1}
+                  </div>
                 </div>
+              );
+            }
+            if (src.startsWith("data:application/pdf")) {
+              return (
+                <object
+                  key={i}
+                  data={src}
+                  type="application/pdf"
+                  aria-label={`Originaldokument sida ${i + 1}`}
+                  className="h-[70vh] w-full rounded-2xl bg-paper-raised shadow-md"
+                >
+                  <a href={src} download={`original-sida-${i + 1}.pdf`} className="text-sm underline">
+                    Öppna originalets PDF-sida
+                  </a>
+                </object>
+              );
+            }
+            return (
+              <div key={i} className="rounded-2xl border border-state-danger/30 bg-state-danger/10 p-6 text-sm text-state-danger">
+                Originalformatet kan inte visas. Ladda ner eller öppna källfilen separat.
               </div>
-            ) : (
-              <MockScan key={i} studentName={studentName} steps={steps} isDark={isDark} />
-            ),
-          )
+            );
+          })
         )}
       </div>
-    </div>
-  );
-}
-
-function MockScanPage({
-  pageIndex,
-  totalPages,
-  text,
-  isDark,
-}: {
-  pageIndex: number;
-  totalPages: number;
-  text: string;
-  isDark: boolean;
-}) {
-  return (
-    <div
-      className={`relative rounded-2xl p-6 overflow-hidden shadow-md ${
-        "bg-paper-raised text-ink"
-      }`}
-    >
-      {/* Handskrivna linjer bakom text */}
-      <div
-        aria-hidden
-        className={`absolute inset-0 pointer-events-none ${
-          isDark ? "opacity-[0.04]" : "opacity-[0.08]"
-        } bg-[linear-gradient(transparent_27px,rgb(var(--hairline)_/_0.12)_28px)] bg-[size:100%_28px]`}
-      />
-      {/* Sido-marginallinje som riktiga rutade block */}
-      <div
-        aria-hidden
-        className={`absolute top-0 bottom-0 left-10 w-px ${"bg-ink-hairline"}`}
-      />
-      <div className="relative">
-        <div className={`flex items-center justify-between text-[10px] uppercase tracking-widest font-sans ${"text-ink-muted"}`}>
-          <span>Sida {pageIndex + 1} av {totalPages}</span>
-          <span>SKANNAT · 300 DPI</span>
-        </div>
-        <pre
-          className={`mt-3 whitespace-pre-wrap text-[19px] leading-[28px] tracking-wide ${
-            "text-ink"
-          }`}
-          style={{ fontFamily: "'Caveat', cursive", fontWeight: 500 }}
-        >
-{text}
-        </pre>
-      </div>
-    </div>
-  );
-}
-
-function MockScan({ studentName, steps, isDark }: { studentName: string; steps: Step[]; isDark: boolean }) {
-  // Handskrivet-liknande elevsvar
-  return (
-    <div className={`relative rounded-2xl p-6 font-serif overflow-hidden shadow-md ${"bg-paper-raised text-ink"}`} style={{ fontFamily: "'Caveat', cursive, serif" }}>
-      <div className={`absolute inset-0 opacity-[0.02] bg-[linear-gradient(transparent_23px,rgb(var(--hairline)_/_0.12)_24px)] bg-[size:100%_24px]`} />
-      <div className="relative">
-        <div className={`text-[10px] uppercase tracking-widest font-sans ${"text-ink-muted"}`}>Elev</div>
-        <div className="text-xl italic mt-1" style={{ fontFamily: "'Caveat', cursive" }}>{studentName}</div>
-        <hr className={`my-3 ${isDark ? "border-paper-raised/10" : "border-ink-hairline"}`} />
-        <div className="space-y-4 text-base leading-relaxed">
-          {steps.map((step) => (
-            <div
-              key={step.id}
-              className={`pb-3 border-b last:border-0 ${
-                isDark ? "border-paper-raised/10" : "border-ink-hairline"
-              }`}
-            >
-              <div
-                className={`text-sm font-sans mb-1 ${
-                  isDark ? "text-paper/50" : "text-ink-secondary"
-                }`}
-              >
-                {step.label}
-              </div>
-              <div
-                className="text-lg pl-2 whitespace-pre-wrap"
-                style={{ fontFamily: "'Caveat', cursive" }}
-              >
-                {step.studentWork ? (
-                  <span>{step.studentWork}</span>
-                ) : (
-                  <span
-                    className={
-                      isDark
-                        ? "text-paper/20 italic"
-                        : "text-ink-muted italic"
-                    }
-                  >
-                    Elevens svar är inte inskannat i denna demo.
-                  </span>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-      <div className={`absolute bottom-2 right-3 text-[8px] font-mono font-sans ${isDark ? "text-paper/20" : "text-ink-muted"}`}>SKANNAT · 300 DPI</div>
     </div>
   );
 }
@@ -524,6 +406,19 @@ function StepCard({
               ))}
             </ul>
           ) : null}
+        </div>
+      )}
+
+      {step.mathVerification && step.mathVerification.status !== "not_applicable" && (
+        <div className="mt-2 rounded-xl border border-ink-hairline bg-paper-secondary/50 p-3 text-xs leading-relaxed text-ink-secondary">
+          <span className="font-semibold text-ink">Matematisk verifiering:</span>{" "}
+          {step.mathVerification.message}
+          <span className="ml-2 text-ink-muted">
+            {step.mathVerification.provider === "wolfram" ? "Wolfram" : "Lokal kontroll"}
+            {step.mathVerification.confidence > 0
+              ? ` · ${Math.round(step.mathVerification.confidence * 100)}%`
+              : ""}
+          </span>
         </div>
       )}
 

@@ -1,10 +1,10 @@
 "use client";
 
 import { useRouter, useSearchParams } from "next/navigation";
-import { Suspense, useState } from "react";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { actions, useStore } from "@/lib/store";
-import LevelAutocomplete from "@/components/LevelAutocomplete";
+import CourseCombobox from "@/components/CourseCombobox";
 
 export default function NewKlassPage() {
   return (
@@ -20,13 +20,16 @@ function NewKlassForm() {
   const kurser = useStore((s) => s.kurser);
   const [form, setForm] = useState({
     name: "",
-    subject: "Matematik",
-    gradeLevel: "Gymnasiet åk 1",
     gradingParams: "",
     kursId: searchParams?.get("kursId") || kurser[0]?.id || "",
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const selectedKurs = useMemo(
+    () => kurser.find((k) => k.id === form.kursId),
+    [kurser, form.kursId]
+  );
 
   const submit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -53,7 +56,7 @@ function NewKlassForm() {
       <p className="mt-2 text-[15px] text-ink-secondary">En klass samlar prov och har egna rättningsparametrar.</p>
 
       <form onSubmit={submit} className="mt-8 space-y-6 rounded-[18px] border border-ink-hairline bg-paper-raised shadow-soft p-7">
-        <Field label="Klassens namn" hint="t.ex. NA22B – Fysik 1">
+        <Field label="Klassens namn" hint="t.ex. NA22B eller TE12">
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -63,39 +66,30 @@ function NewKlassForm() {
           />
         </Field>
 
-        <Field label="Kurs">
-          <select
+        <Field label="Kurs" hint="Sök eller skriv t.ex. Fysik 1, Programmering 1, Matematik 4">
+          <CourseCombobox
             value={form.kursId}
-            onChange={(e) => setForm({ ...form, kursId: e.target.value })}
-            className="input"
-            required
-          >
-            {kurser.map((kurs) => (
-              <option key={kurs.id} value={kurs.id}>
-                {kurs.name}
-              </option>
-            ))}
-          </select>
+            onSelect={(kursId) => setForm({ ...form, kursId })}
+            placeholder="Sök kurs..."
+          />
         </Field>
 
-        <div className="grid sm:grid-cols-2 gap-5">
-          <Field label="Ämne">
-            <select value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="input">
-              <option>Matematik</option>
-              <option>Fysik</option>
-              <option>Kemi</option>
-              <option>Biologi</option>
-              <option>Teknik</option>
-            </select>
-          </Field>
-          <Field label="Nivå" hint="Skriv fritt eller välj från fördefinierade alternativ">
-            <LevelAutocomplete
-              value={form.gradeLevel}
-              onChange={(value) => setForm({ ...form, gradeLevel: value })}
-              placeholder="t.ex. Gymnasiet åk 2"
-            />
-          </Field>
-        </div>
+        {selectedKurs && (
+          <div className="flex flex-wrap items-center gap-2 -mt-2">
+            <span className="text-[12.5px] text-ink-muted">Vald kurs:</span>
+            <span className="inline-flex items-center rounded-full border border-ink-hairline/10 bg-paper px-3 py-1 text-[12.5px] font-medium text-ink">
+              {selectedKurs.name}
+            </span>
+            <span className="inline-flex items-center rounded-full bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
+              {selectedKurs.subject}
+            </span>
+            {selectedKurs.level && (
+              <span className="inline-flex items-center rounded-full bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
+                {selectedKurs.level}
+              </span>
+            )}
+          </div>
+        )}
 
         <Field
           label="Permanenta rättningsparametrar & noteringar"

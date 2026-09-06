@@ -55,9 +55,10 @@ export default function GradePage() {
   // Processing
   if (prov.status === "grading") {
     return (
-      <div className="space-y-6">
-        <Link href={`/classes/${klass.id}`} className="text-sm text-ink-secondary hover:text-ink">← {klass.name}</Link>
-        <ProcessingScene prov={prov} />
+      <div className="-mx-5 -mt-6 flex min-h-[calc(100vh-8rem)] items-center justify-center px-5">
+        <div className="w-full max-w-2xl">
+          <ProcessingScene prov={prov} klass={klass} onBack={() => router.push(`/classes/${klass.id}`)} />
+        </div>
       </div>
     );
   }

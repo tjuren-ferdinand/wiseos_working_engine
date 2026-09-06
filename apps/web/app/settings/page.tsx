@@ -10,6 +10,7 @@ import {
 } from "@/lib/theme";
 import { useOnboarding } from "@/components/Onboarding";
 import { createClient } from "@/lib/supabase/client";
+import { useRouter } from "next/navigation";
 import PageHeader from "@/components/ui/PageHeader";
 import Surface from "@/components/ui/Surface";
 import ReviewLayoutPreview from "@/components/ui/ReviewLayoutPreview";
@@ -45,6 +46,18 @@ export default function SettingsPage() {
   const displayName = userName || "lärare";
   const email = userEmail || "—";
   const initial = (displayName[0] || "?").toUpperCase();
+  const router = useRouter();
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const supabase = createClient();
+      await supabase.auth.signOut();
+    } finally {
+      router.push("/login");
+    }
+  };
 
   return (
     <div className="space-y-10 max-w-2xl">
@@ -227,6 +240,21 @@ export default function SettingsPage() {
               AI-driven rättningsassistent för svenska STEM-lärare
             </p>
           </div>
+        </Surface>
+      </section>
+
+      {/* Session */}
+      <section>
+        <SectionTitle>Session</SectionTitle>
+        <Surface padding="p-5">
+          <button
+            type="button"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="w-full rounded-[10px] border border-ink-hairline bg-paper-elevated px-5 py-2.5 text-[13px] font-medium text-red-600 transition-all hover:bg-red-50 hover:text-red-700 active:scale-[0.98] disabled:opacity-50"
+          >
+            {isLoggingOut ? "Loggar ut..." : "Logga ut"}
+          </button>
         </Surface>
       </section>
     </div>

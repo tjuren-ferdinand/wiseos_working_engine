@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 import type { AnswerKeyItem } from "@/lib/api";
 import { actions, runBatchGrade, type GradingParams, type StudentResult } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
+import LineIcon from "./LineIcon";
 
 // ============================================================================
 // TYPES
@@ -35,15 +37,16 @@ interface BatchGradingPipelineProps {
 
 const OCR_LABELS: Record<string, string> = {
   mathpix: "Mathpix OCR",
-  gemini: "Gemini Vision OCR",
-  openrouter: "OpenRouter Vision OCR",
-  groq: "Groq Vision OCR",
-  mock: "OCR (demo-läge)",
+  "gemini-vision": "Gemini Vision",
+  gemini: "Gemini Vision",
+  openrouter: "OpenRouter Vision",
+  groq: "Groq Vision",
+  unavailable: "Dokumentanalys ej konfigurerad",
 };
 
 const PHASE_LABEL: Record<Exclude<Phase, "idle">, string> = {
   uploading: "Laddar upp och sektionerar",
-  processing: "OCR + Wolfram + AI arbetar",
+  processing: "Dokumentanalys och bedömning pågår",
   saving: "Sparar resultat",
   complete: "Klar",
   error: "Fel",
@@ -149,70 +152,73 @@ export default function BatchGradingPipeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return;
+    const original = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = original;
+    };
+  }, [open]);
+
   const completedCount = results.length;
   const totalScore = results.reduce((s, r) => s + r.totalScore, 0);
   const totalMaxScore = results.reduce((s, r) => s + r.maxScore, 0);
   const percent = totalMaxScore > 0 ? Math.round((totalScore / totalMaxScore) * 100) : 0;
 
-  if (!open) return null;
+  if (!open || typeof document === "undefined") return null;
 
-  return (
+  const modal = (
     <AnimatePresence>
       <motion.div
+        key="batch-overlay"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="fixed inset-0 z-[200] flex items-center justify-center"
+        className="fixed inset-0 z-[300] flex items-center justify-center"
       >
-        <div className="absolute inset-0 bg-paper backdrop-blur-2xl" />
+        <div className="absolute inset-0 bg-ink/20 backdrop-blur-sm" />
 
         <motion.div
-          initial={{ opacity: 0, scale: 0.95, y: 20 }}
+          initial={{ opacity: 0, scale: 0.96, y: 16 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 20 }}
+          exit={{ opacity: 0, scale: 0.96, y: 16 }}
           transition={{ type: "spring", damping: 30, stiffness: 300 }}
-          className="relative z-10 w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto"
+          className="relative z-10 w-full max-w-3xl mx-4 max-h-[90vh] overflow-y-auto"
         >
-          <div className={`relative rounded-[32px] border backdrop-blur-2xl shadow-card ${
+          <div className={`rounded-[24px] border shadow-card ${
             isDark
-              ? "bg-paper-elevated/95 border-ink-hairline shadow-ink/[0.12]"
-              : "bg-paper-elevated/95 border-ink-hairline shadow-ink/[0.08]"
+              ? "bg-paper-elevated border-ink-hairline shadow-ink/[0.12]"
+              : "bg-paper-elevated border-ink-hairline shadow-ink/[0.08]"
           }`}>
-            <div className={`absolute -top-40 -right-40 w-96 h-96 rounded-full blur-3xl ${
-              isDark ? "bg-gradient-to-br from-paper-raised/20 to-paper-raised/10" : "bg-gradient-to-br from-paper-secondary/30 to-paper-secondary/20"
-            }`} />
-            <div className={`absolute -bottom-40 -left-40 w-96 h-96 rounded-full blur-3xl ${
-              isDark ? "bg-gradient-to-tr from-accent/10 to-accent/5" : "bg-gradient-to-tr from-blue-400/20 to-cyan-400/20"
-            }`} />
-
             {/* Header */}
-            <div className="relative px-10 pt-10 pb-6 border-b border-ink-hairline">
+            <div className="px-8 pt-8 pb-6 border-b border-ink-hairline">
               <div className="flex items-center gap-3 mb-2">
                 <div className={`h-2.5 w-2.5 rounded-full ${
-                  phase === "error" ? "bg-rose-500" : phase === "complete" ? "bg-state-success" : "bg-state-success animate-pulse"
+                  phase === "error" ? "bg-state-danger" : phase === "complete" ? "bg-state-success" : "bg-state-success animate-pulse"
                 }`} />
-                <span className="text-xs font-semibold uppercase tracking-[0.15em] text-ink-secondary">
+                <span className="text-[11px] font-semibold uppercase tracking-[0.15em] text-ink-secondary">
                   {phase === "error"
                     ? "Kontakt med backend misslyckades"
                     : "wiseOS rättar hela klassen"}
                 </span>
               </div>
-              <h1 className="text-3xl font-semibold tracking-tight text-ink">{provTitle}</h1>
-              <div className="mt-2 flex items-center gap-4 text-sm text-ink-secondary">
+              <h1 className="text-[26px] font-semibold tracking-tight text-ink">{provTitle}</h1>
+              <div className="mt-2 flex items-center gap-4 text-[13px] text-ink-secondary">
                 <span>{files.length} fil{files.length !== 1 ? "er" : ""}</span>
-                <span className="h-1 w-1 rounded-full bg-paper-secondary" />
+                <span className="h-1 w-1 rounded-full bg-ink-hairline" />
                 <span>
                   {completedCount} / {expectedStudents || files.length} klara
                 </span>
                 {phase !== "idle" && phase !== "complete" && phase !== "error" && (
                   <>
-                    <span className="h-1 w-1 rounded-full bg-paper-secondary" />
-                    <span className="text-ink-secondary font-medium">{PHASE_LABEL[phase]}</span>
+                    <span className="h-1 w-1 rounded-full bg-ink-hairline" />
+                    <span className="font-medium text-ink">{PHASE_LABEL[phase]}</span>
                   </>
                 )}
               </div>
 
-              <div className="mt-4 h-2 rounded-full bg-paper-secondary overflow-hidden">
+              <div className="mt-5 h-2 rounded-full bg-paper-secondary overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
                   animate={{
@@ -231,71 +237,62 @@ export default function BatchGradingPipeline({
                   }}
                   transition={{ type: "spring", damping: 30, stiffness: 60 }}
                   className={`h-full rounded-full ${
-                    phase === "error"
-                      ? "bg-rose-500"
-                      : "bg-gradient-to-r from-ink to-paper-raised"
+                    phase === "error" ? "bg-state-danger" : "bg-ink"
                   }`}
                 />
               </div>
             </div>
 
             {/* Pipeline visualization */}
-            <div className="relative px-10 py-6 border-b border-ink-hairline">
-              <div className="flex items-center justify-between">
+            <div className="px-8 py-7 border-b border-ink-hairline">
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-6 sm:gap-4">
                 {[
                   {
-                    id: "mathpix",
-                    label: OCR_LABELS[String(integrations.ocrProvider ?? "")] ?? "OCR",
-                    desc: "Läser handskrift",
-                    live: Boolean(integrations.ocr ?? integrations.mathpix),
+                    id: "document-analysis",
+                    label: OCR_LABELS[String(integrations.ocrProvider ?? "unavailable")] ?? "Dokumentanalys",
+                    desc: "Läser och segmenterar svar",
+                    live: integrations.ocrProvider !== "unavailable",
                   },
-                  { id: "wolfram", label: "Wolfram", desc: "Verifierar matematik", live: Boolean(integrations.wolfram) },
                   {
-                    id: "generative-ai",
-                    label: integrations.gemini ? "Gemini AI" : integrations.groq ? "Groq AI" : integrations.anthropic ? "Claude AI" : "Generativ AI",
-                    desc: "Genererar feedback",
-                    live: Boolean(integrations.gemini || integrations.groq || integrations.anthropic),
+                    id: "math-verification",
+                    label: integrations.mathVerificationProvider === "wolfram" ? "Wolfram" : "Lokal matematikkontroll",
+                    desc: integrations.mathVerificationProvider === "wolfram" ? "Verifierar relevanta uttryck" : "Degraderat utvecklingsläge",
+                    live: integrations.mathVerificationProvider === "wolfram",
+                  },
+                  {
+                    id: "feedback",
+                    label: integrations.feedbackProvider === "anthropic" ? "Claude feedback" : `${String(integrations.feedbackProvider ?? "Ingen")} feedback`,
+                    desc: "Strukturerad återkoppling",
+                    live: integrations.feedbackProvider !== "unavailable",
                   },
                 ].map((step, i) => {
                   const done = phase === "complete";
-                  const activeStage =
-                    (step.id === "mathpix" && phase === "processing") ||
-                    (step.id === "wolfram" && phase === "processing") ||
-                    (step.id === "generative-ai" && phase === "saving");
+                  const activeStage = phase === "processing";
+                  const isActive = done || activeStage;
                   return (
-                    <div key={step.id} className="flex items-center">
-                      <div className="text-center">
-                        <div
-                          className={`h-12 w-12 mx-auto rounded-2xl flex items-center justify-center transition-all ${
-                            done || activeStage
-                              ? "bg-gradient-to-br from-ink to-ink text-paper shadow-lg shadow-ink/[0.12]"
-                              : "bg-paper-secondary text-ink-muted"
-                          }`}
-                        >
-                          {done ? (
-                            <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                              <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                            </svg>
-                          ) : (
-                            <span className="text-lg font-bold">{i + 1}</span>
-                          )}
-                        </div>
-                        <div className="mt-2 text-sm font-semibold text-ink">{step.label}</div>
-                        <div className="text-xs text-ink-secondary">{step.desc}</div>
-                        {phase !== "idle" && phase !== "error" && step.live && (
-                          <div className="mt-1 text-[10px] uppercase tracking-wider font-semibold text-state-success">
-                            Live
-                          </div>
+                    <div key={step.id} className={`relative text-center px-2 py-4 rounded-2xl border transition-colors ${
+                      isActive
+                        ? "border-ink-hairline/20 bg-paper-raised"
+                        : "border-transparent bg-transparent"
+                    }`}>
+                      <div
+                        className={`h-11 w-11 mx-auto rounded-2xl flex items-center justify-center transition-all ${
+                          isActive
+                            ? "bg-ink text-paper"
+                            : "bg-paper-secondary text-ink-muted"
+                        }`}
+                      >
+                        {done ? (
+                          <LineIcon name="check" className="h-5 w-5" />
+                        ) : (
+                          <span className="text-[15px] font-semibold">{i + 1}</span>
                         )}
                       </div>
-                      {i < 2 && (
-                        <div className="w-20 h-0.5 mx-4 rounded-full bg-paper-secondary relative overflow-hidden">
-                          <motion.div
-                            initial={{ scaleX: 0 }}
-                            animate={{ scaleX: done ? 1 : 0 }}
-                            transition={{ duration: 0.5 }}
-                            className="absolute inset-0 bg-gradient-to-r from-ink to-paper-raised origin-left"
-                          />
+                      <div className="mt-3 text-[13.5px] font-semibold text-ink">{step.label}</div>
+                      <div className="text-[12px] text-ink-secondary mt-0.5">{step.desc}</div>
+                      {phase !== "idle" && phase !== "error" && step.live && (
+                        <div className="mt-1.5 text-[10px] uppercase tracking-wider font-semibold text-state-success">
+                          Live
                         </div>
                       )}
                     </div>
@@ -305,23 +302,23 @@ export default function BatchGradingPipeline({
             </div>
 
             {/* Body */}
-            <div className="relative px-10 py-6 max-h-[30vh] overflow-y-auto">
+            <div className="px-8 py-6 max-h-[26vh] overflow-y-auto">
               {phase === "error" && error && (
-                <div className={`rounded-2xl border p-5 text-sm ${
+                <div className={`rounded-2xl border p-5 text-[13.5px] ${
                   isDark
-                    ? "bg-rose-950/30 border-rose-500/20 text-rose-200"
-                    : "bg-rose-50 border-rose-200 text-rose-800"
+                    ? "bg-state-danger/10 border-state-danger/20 text-state-danger"
+                    : "bg-state-danger/10 border-state-danger/20 text-state-danger"
                 }`}>
                   <div className="font-semibold">Backend-fel</div>
-                  <div className="mt-1 whitespace-pre-wrap font-mono text-xs opacity-90">{error}</div>
-                  <div className="mt-2 text-xs opacity-80">
+                  <div className="mt-1 whitespace-pre-wrap font-mono text-[12px] opacity-90">{error}</div>
+                  <div className="mt-2 text-[12px] opacity-80">
                     Kontrollera att API-tjänsten körs på {process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"} och försök igen.
                   </div>
                 </div>
               )}
 
               {phase !== "error" && results.length === 0 && (
-                <div className="text-sm text-ink-secondary">
+                <div className="text-[13.5px] text-ink-secondary leading-relaxed">
                   wiseOS analyserar {files.length} inskannade prov. Detta tar normalt 4–8 sekunder per elev.
                 </div>
               )}
@@ -331,26 +328,24 @@ export default function BatchGradingPipeline({
                   {results.map((r, i) => (
                     <motion.div
                       key={r.id}
-                      initial={{ opacity: 0, x: -20 }}
+                      initial={{ opacity: 0, x: -12 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: i * 0.03 }}
-                      className="flex items-center justify-between p-4 rounded-2xl bg-state-success/10 ring-1 ring-state-success/20"
+                      className="flex items-center justify-between p-3.5 rounded-2xl bg-state-success/[0.08] ring-1 ring-state-success/15"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 rounded-full flex items-center justify-center text-sm font-semibold bg-state-success text-paper">
-                          <svg className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
+                      <div className="flex items-center gap-3.5">
+                        <div className="h-9 w-9 rounded-full flex items-center justify-center bg-state-success text-paper">
+                          <LineIcon name="check" className="h-4 w-4" />
                         </div>
                         <div>
-                          <div className="font-semibold text-ink">{r.studentName}</div>
-                          <div className="text-xs text-ink-secondary">
+                          <div className="text-[14px] font-semibold text-ink">{r.studentName}</div>
+                          <div className="text-[12px] text-ink-secondary">
                             {r.totalScore.toFixed(1)} / {r.maxScore.toFixed(0)} poäng · {r.steps.length} uppgifter
                           </div>
                         </div>
                       </div>
                       <div
-                        className={`px-3 py-1 rounded-full text-sm font-semibold ${
+                        className={`px-2.5 py-1 rounded-full text-[12.5px] font-semibold ${
                           r.percentage >= 70
                             ? "bg-state-success/10 text-state-success"
                             : r.percentage >= 50
@@ -375,36 +370,36 @@ export default function BatchGradingPipeline({
                   exit={{ opacity: 0, height: 0 }}
                   className="border-t border-ink-hairline"
                 >
-                  <div className="px-10 py-8">
+                  <div className="px-8 py-7">
                     <div className="flex items-center justify-between gap-6 flex-wrap">
                       {phase === "complete" && (
-                        <div className="flex items-center gap-8">
+                        <div className="flex items-center gap-6 sm:gap-8">
                           <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
+                            <div className="text-[11px] font-medium uppercase tracking-wider text-ink-muted mb-1">
                               Elever rättade
                             </div>
-                            <div className="text-4xl font-semibold tracking-tight text-ink">
+                            <div className="text-3xl font-semibold tracking-tight text-ink">
                               {completedCount}
-                              <span className="text-ink-muted">/{expectedStudents || files.length}</span>
+                              <span className="text-ink-muted text-2xl">/{expectedStudents || files.length}</span>
                             </div>
                           </div>
-                          <div className="h-12 w-px bg-paper-secondary" />
+                          <div className="h-10 w-px bg-paper-secondary" />
                           <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
+                            <div className="text-[11px] font-medium uppercase tracking-wider text-ink-muted mb-1">
                               Klassmedel
                             </div>
-                            <div className="text-4xl font-semibold tracking-tight text-state-success">
+                            <div className="text-3xl font-semibold tracking-tight text-state-success">
                               {percent}%
                             </div>
                           </div>
-                          <div className="h-12 w-px bg-paper-secondary" />
+                          <div className="h-10 w-px bg-paper-secondary" />
                           <div>
-                            <div className="text-xs font-medium uppercase tracking-wider text-ink-muted mb-1">
+                            <div className="text-[11px] font-medium uppercase tracking-wider text-ink-muted mb-1">
                               Total tid
                             </div>
-                            <div className="text-4xl font-semibold tracking-tight text-ink">
+                            <div className="text-3xl font-semibold tracking-tight text-ink">
                               {analysisTime}
-                              <span className="text-lg text-ink-muted ml-1">sek</span>
+                              <span className="text-[15px] text-ink-muted ml-1">sek</span>
                             </div>
                           </div>
                         </div>
@@ -413,14 +408,14 @@ export default function BatchGradingPipeline({
                       <div className="flex items-center gap-3">
                         <button
                           onClick={onClose}
-                          className="px-6 py-3 rounded-2xl text-sm font-semibold text-ink-secondary bg-paper-secondary hover:bg-paper-secondary transition-colors"
+                          className="px-5 py-2.5 rounded-[10px] text-[13.5px] font-medium text-ink-secondary bg-paper-secondary hover:bg-paper transition-colors"
                         >
                           Stäng
                         </button>
                         {phase === "complete" && (
                           <button
                             onClick={() => onComplete(results)}
-                            className="px-6 py-3 rounded-2xl text-sm font-semibold text-paper bg-gradient-to-r from-ink to-paper-secondary hover:from-paper-secondary hover:to-paper-secondary hover:text-ink shadow-lg shadow-card transition-all"
+                            className="px-5 py-2.5 rounded-[10px] text-[13.5px] font-semibold text-paper bg-ink hover:bg-ink/90 transition-colors"
                           >
                             Granska resultat
                           </button>
@@ -429,7 +424,7 @@ export default function BatchGradingPipeline({
                     </div>
 
                     {phase === "complete" && activeRules.length > 0 && (
-                      <div className="mt-6 text-xs text-ink-secondary">
+                      <div className="mt-5 text-[12px] text-ink-secondary">
                         Aktiva klassregler: {activeRules.join(", ")}
                       </div>
                     )}
@@ -442,4 +437,6 @@ export default function BatchGradingPipeline({
       </motion.div>
     </AnimatePresence>
   );
+
+  return createPortal(modal, document.body);
 }

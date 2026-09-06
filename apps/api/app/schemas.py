@@ -77,19 +77,6 @@ class GradeResponse(BaseModel):
     feedback: str
 
 
-class QuickGradeRequest(BaseModel):
-    problem: str
-    correct_answer: str
-    student_answer: str
-
-
-class QuickGradeResponse(BaseModel):
-    score: int
-    is_correct: bool
-    feedback: str
-    wolfram: WolframResult
-
-
 class OcrRequest(BaseModel):
     image_base64: str
 
@@ -98,13 +85,19 @@ class OcrResponse(BaseModel):
     latex: str
     text: str
     confidence: float
+    provider: str
+    status: Literal["completed", "degraded"] = "completed"
 
 
 class AnswerKeyItem(BaseModel):
     question_number: str
     question_text: str = ""
     final_answer: str
+    acceptable_answers: list[str] = []
     derivation_steps: list[str] = []
+    important_concepts: list[str] = []
+    reasoning_requirements: list[str] = []
+    mathematical_verification: bool | None = None
     max_points: float = 1.0
     # Valfri poängmatris, t.ex. {"2": "Fullständig härledning + rätt svar",
     # "1": "Rätt metod men räknefel", "0": "Fel metod"}.
@@ -156,6 +149,14 @@ class Assessment(BaseModel):
     confidence: float = 0.0
 
 
+class MathVerification(BaseModel):
+    provider: str = "none"
+    status: Literal["not_applicable", "verified", "not_equivalent", "degraded", "unavailable", "failed"] = "not_applicable"
+    isEquivalent: bool | None = None
+    confidence: float = 0.0
+    message: str = ""
+
+
 class QuestionResult(BaseModel):
     """Kanoniskt per-uppgift-resultat. Ämnesagnostiskt."""
 
@@ -173,6 +174,8 @@ class QuestionResult(BaseModel):
     feedback: str = ""
     annotation: Annotation = Annotation()
     sourceRegions: list[SourceRegion] = []
+    mathVerification: MathVerification = MathVerification()
+    feedbackProvider: str = "vision-analysis"
     # Sätts när ett tekniskt fel hindrade bedömning (aldrig maskerat som "fel svar").
     error: str | None = None
 
@@ -180,6 +183,10 @@ class QuestionResult(BaseModel):
     pointsTeacher: float | None = None
     teacherComment: str | None = None
     reviewStatus: str = "ai_suggested"
+    # --- AI verdict exposed to frontend. "error" means technical/API failure.
+    aiVerdict: str = ""
+    # --- Human-readable summary/annotation shown to the teacher.
+    baseAnnotation: str = ""
 
 
 class DocumentMeta(BaseModel):
@@ -202,6 +209,9 @@ class StudentDocumentResult(BaseModel):
     id: str
     provId: str
     studentName: str
+    studentId: str | None = None
+    identificationMethod: str = "unresolved"
+    identificationConfidence: float = 0.0
     scanPages: list[str] = []   # data-URL per sida, i sidordning
     document: DocumentMeta = DocumentMeta()
     questions: list[QuestionResult] = []
@@ -331,14 +341,24 @@ class GradingStepSchema(BaseModel):
     feedback: str | None = None
     studentWork: str | None = None
     correctAnswer: str | None = None
+    found: bool | None = None
+    transcriptionConfidence: float | None = None
+    annotation: Annotation | None = None
+    error: str | None = None
+    outsideAnswerKey: bool = False
+    sourceRegions: list[SourceRegion] = []
+    mathVerification: MathVerification | None = None
+    feedbackProvider: str | None = None
 
 
 class GradingResultCreate(BaseModel):
     testId: str
     studentName: str
     studentId: str | None = None
-    identificationMethod: str = "name_field"
-    identificationConfidence: float = 1.0
+    identificationMethod: str = "unresolved"
+    identificationConfidence: float = 0.0
+    scanPages: list[str] = []
+    document: DocumentMeta | None = None
     steps: list[GradingStepSchema]
     totalScore: float
     maxScore: float
@@ -365,6 +385,8 @@ class GradingResultOut(BaseModel):
     studentName: str = Field(validation_alias="student_name", serialization_alias="studentName")
     identificationMethod: str = Field(validation_alias="identification_method", serialization_alias="identificationMethod")
     identificationConfidence: float = Field(validation_alias="identification_confidence", serialization_alias="identificationConfidence")
+    scanPages: list[str] = Field(default=[], validation_alias="scan_pages", serialization_alias="scanPages")
+    document: dict[str, Any] | None = None
     steps: list[dict[str, Any]] = []
     totalScore: float = Field(validation_alias="total_score", serialization_alias="totalScore")
     maxScore: float = Field(validation_alias="max_score", serialization_alias="maxScore")

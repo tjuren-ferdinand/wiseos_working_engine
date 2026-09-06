@@ -58,6 +58,8 @@ def create_result(
         student_id=payload.studentId,
         identification_method=payload.identificationMethod,
         identification_confidence=payload.identificationConfidence,
+        scan_pages=payload.scanPages,
+        document=payload.document.model_dump() if payload.document else None,
         steps=[s.model_dump() for s in payload.steps],
         total_score=payload.totalScore,
         max_score=payload.maxScore,

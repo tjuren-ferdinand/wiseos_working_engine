@@ -208,6 +208,33 @@ async def test_feedback_provider_unavailable():
     assert question.feedbackProvider == "unavailable"
 
 
+async def test_feedback_provider_non_runtime_error_graceful():
+    """A feedback adapter raising a non-RuntimeError (e.g. Anthropic
+    AuthenticationError when ANTHROPIC_API_KEY is empty) must not crash
+    apply_feedback_provider — the question keeps its existing feedback."""
+    question = QuestionResult(
+        questionNumber="1", found=True, studentWork="svar",
+        assessment=Assessment(status="correct", points=1.0, maxPoints=1.0),
+        feedback="Befintlig feedback",
+        feedbackProvider="gemini-vision",
+    )
+
+    class FakeAuthError(Exception):
+        """Simulates anthropic.AuthenticationError — not a RuntimeError."""
+
+    with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
+        mock_fb = AsyncMock()
+        mock_fb.generate_feedback = AsyncMock(side_effect=FakeAuthError("401 Unauthorized"))
+        mock_fb.name = "anthropic"
+        mock_get.return_value = mock_fb
+
+        await apply_feedback_provider([question])
+
+    # Feedback preserved, no crash — the pipeline continues
+    assert question.feedbackProvider == "gemini-vision"
+    assert question.feedback == "Befintlig feedback"
+
+
 async def test_feedback_provider_error_keeps_existing_feedback():
     """If feedback already exists (from vision), a provider error keeps it."""
     question = QuestionResult(

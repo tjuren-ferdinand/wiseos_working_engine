@@ -186,6 +186,10 @@ KOPPLING TILL RÄTT UPPGIFT
 - Om samma uppgiftsnummer förekommer flera gånger i dokumentet (t.ex. två
   fotograferade ark) ska du slå ihop det till EN uppgift och ta med allt
   elevarbete. Lista då en source_region per förekomst.
+- Om flera olika uppgiftsnummer syns på samma sida (1., 2., 3., ...) ska varje
+  uppgift få EGET student_work. Blanda aldrig svaret till uppgift 2 in i
+  student_work för uppgift 1. student_work ska endast innehålla det eleven
+  skrivit för det aktuella question_number.
 - Om en uppgift börjar på en sida och fortsätter på nästa: EN uppgift, ett
   samlat student_work, flera source_regions.
 
@@ -242,6 +246,10 @@ def normalize_mime(mime_type: str) -> str:
 
 def is_supported_image(mime_type: str) -> bool:
     return normalize_mime(mime_type) in IMAGE_MIME_TYPES
+
+
+def is_supported_document(mime_type: str) -> bool:
+    return is_supported_image(mime_type) or normalize_mime(mime_type) == "application/pdf"
 
 
 def available() -> bool:
@@ -507,10 +515,16 @@ def _format_question_brief(item: AnswerKeyItem) -> str:
     lines.append(f"  Max poäng: {item.max_points}")
     if item.final_answer.strip():
         lines.append(f"  Facit/förväntat svar: {item.final_answer.strip()}")
+    if item.acceptable_answers:
+        lines.append(f"  Godtagbara alternativ: {'; '.join(item.acceptable_answers)}")
     if item.derivation_steps:
         steps = "; ".join(s.strip() for s in item.derivation_steps if s.strip())
         if steps:
             lines.append(f"  Förväntade lösningssteg: {steps}")
+    if item.important_concepts:
+        lines.append(f"  Viktiga begrepp: {'; '.join(item.important_concepts)}")
+    if item.reasoning_requirements:
+        lines.append(f"  Resonemangskrav: {'; '.join(item.reasoning_requirements)}")
     if item.rubric:
         lines.append("  Poängmatris:")
         for level in sorted(item.rubric, key=lambda k: _coerce_float(k, 0.0), reverse=True):
@@ -569,9 +583,11 @@ def _build_prompt(
         f"Facitets frågetext är en ledtråd, inte ett krav på exakt match. "
         f"Hittar du rätt nummer: found=true.\n"
         f"2. Transkribera exakt vad eleven skrivit (student_work).\n"
-        f"3. Ange source_regions för elevens arbete.\n"
-        f"4. Bedöm mot facit/poängmatris och sätt status och points.\n"
-        f"5. Skriv feedback till eleven samt strukturerad annotering.\n\n"
+        f"3. student_work får ENDAST innehålla texten för det aktuella question_number. "
+        f"Blanda aldrig in svar från andra uppgiftsnummer.\n"
+        f"4. Ange source_regions för elevens arbete.\n"
+        f"5. Bedöm mot facit/poängmatris och sätt status och points.\n"
+        f"6. Skriv feedback till eleven samt strukturerad annotering.\n\n"
         f"Lägg uppgifter som syns i dokumentet men INTE finns i listan ovan "
         f"i 'unlisted_questions'. Bedöm dem inte.\n"
         f"Om ingen sådan finns: returnera en tom lista."
@@ -677,6 +693,29 @@ def _question_from_payload(
         # Full status kräver full poäng, annars är det delpoäng.
         status = "partial" if points > 0 else "incorrect"
 
+    # --- Upptäck uppenbar svarsblandning (t.ex. svaret till uppgift 2 i uppgift 1) ---
+    contaminated = False
+    if student_work:
+        match = re.search(r"^\s*(\d+)(?:[a-zA-Z])?[.\)]", student_work, re.MULTILINE)
+        if match:
+            current_num = re.match(r"(\d+)", str(item.question_number))
+            if current_num and match.group(1) != current_num.group(1):
+                contaminated = True
+    if contaminated:
+        status = "needs_review"
+        points = 0.0
+        feedback = (
+            "Potentiell svarsblandning: text från flera uppgifter hittades i samma fält. "
+            "Lärargranskning krävs."
+        )
+        annotation = Annotation(
+            summary=feedback,
+            issues=["Text som kan tillhöra en annan uppgift hittades i student_work."],
+        )
+
+    ai_verdict = status
+    base_annotation = (annotation.summary or feedback).strip()
+
     return QuestionResult(
         questionNumber=str(item.question_number).strip(),
         found=found,
@@ -694,6 +733,8 @@ def _question_from_payload(
         feedback=feedback,
         annotation=annotation,
         sourceRegions=regions,
+        aiVerdict=ai_verdict,
+        baseAnnotation=base_annotation,
     )
 
 
@@ -702,6 +743,11 @@ def _unlisted_from_payload(raw: dict, page_count: int) -> QuestionResult | None:
     if not number:
         return None
     student_work = _clean_line(raw.get("student_work"), 8000)
+    unlisted_feedback = (
+        "Uppgiften hittades i dokumentet men saknas i facit. "
+        "Lägg till den i facit för att kunna poängsätta den."
+    )
+    unlisted_base = "Uppgift utan motsvarighet i facit – kräver lärarbeslut."
     return QuestionResult(
         questionNumber=number,
         found=True,
@@ -711,19 +757,19 @@ def _unlisted_from_payload(raw: dict, page_count: int) -> QuestionResult | None:
         transcriptionConfidence=_clamp(_coerce_float(raw.get("transcription_confidence"))),
         correctAnswer="",
         assessment=Assessment(status="needs_review", points=0.0, maxPoints=0.0),
-        feedback=(
-            "Uppgiften hittades i dokumentet men saknas i facit. "
-            "Lägg till den i facit för att kunna poängsätta den."
-        ),
+        feedback=unlisted_feedback,
         annotation=Annotation(
-            summary="Uppgift utan motsvarighet i facit – kräver lärarbeslut.",
+            summary=unlisted_base,
         ),
         sourceRegions=_normalize_regions(raw.get("source_regions"), page_count),
+        aiVerdict="needs_review",
+        baseAnnotation=unlisted_base,
     )
 
 
 def _failed_question(item: AnswerKeyItem, error: str) -> QuestionResult:
     """Tekniskt fel: yta det ärligt i stället för att gissa ett resultat."""
+    base = f"Teknisk analys misslyckades: {error}"
     return QuestionResult(
         questionNumber=str(item.question_number).strip(),
         found=False,
@@ -736,8 +782,10 @@ def _failed_question(item: AnswerKeyItem, error: str) -> QuestionResult:
             status="needs_review", points=0.0, maxPoints=float(item.max_points or 1.0)
         ),
         feedback="Uppgiften kunde inte bedömas automatiskt. Manuell granskning krävs.",
-        annotation=Annotation(summary=f"Teknisk analys misslyckades: {error}"),
+        annotation=Annotation(summary=base),
         error=error,
+        aiVerdict="error",
+        baseAnnotation=base,
     )
 
 
@@ -839,6 +887,13 @@ async def analyze_document(
         "grade_start request_id=%s student=%s pages=%d questions=%d model=%s",
         request_id, student_label or "-", len(pages), len(answer_key), settings.GEMINI_MODEL,
     )
+    if pages:
+        total_bytes = sum(len(data) for data, _ in pages)
+        mime_types = [mime for _, mime in pages]
+        logger.info(
+            "grade_payload request_id=%s total_bytes=%d mime_types=%s",
+            request_id, total_bytes, mime_types,
+        )
 
     if not pages:
         meta.latencyMs = int((time.perf_counter() - started) * 1000)

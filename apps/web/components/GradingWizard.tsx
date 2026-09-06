@@ -533,22 +533,23 @@ export default function GradingWizard({
                 >
                   <div className="grid grid-cols-2 gap-2">
                     {[
-                      { value: 'name_field', label: 'Namnfält', desc: 'OCR läser elevens namn' },
-                      { value: 'qr_code', label: 'QR-kod', desc: 'Förtryckt QR per elev' },
-                      { value: 'barcode', label: 'Streckkod', desc: 'Förtryckt streckkod' },
-                      { value: 'student_id', label: 'Elev-ID', desc: 'Skrivet elev-ID' },
+                      { value: 'name_field', label: 'Namnfält', desc: 'OCR läser elevens namn', available: true },
+                      { value: 'qr_code', label: 'QR-kod', desc: 'Kommer i en senare version', available: false },
+                      { value: 'barcode', label: 'Streckkod', desc: 'Kommer i en senare version', available: false },
+                      { value: 'student_id', label: 'Elev-ID', desc: 'Kommer i en senare version', available: false },
                     ].map((opt) => (
                       <button
                         key={opt.value}
                         type="button"
+                        disabled={!opt.available}
                         onClick={() => setIdentificationMethod(opt.value as typeof identificationMethod)}
-                        className={`rounded-xl border-2 p-3 text-left transition-all ${
+                        className={`rounded-xl border-2 p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                           identificationMethod === opt.value
                             ? 'border-accent bg-paper'
                             : 'border-ink-hairline hover:border-ink-hairline'
                         }`}
                       >
-                        <div className={`text-sm font-semibold ${identificationMethod === opt.value ? 'text-ink' : 'text-ink'}`}>
+                        <div className="text-sm font-semibold text-ink">
                           {opt.label}
                         </div>
                         <div className="text-xs text-ink-secondary mt-0.5">{opt.desc}</div>
