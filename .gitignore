@@ -60,3 +60,9 @@ coverage/
 *.db
 *.db.bak.*
 apps/api/wiseos.db
+
+# Tesseract data (module unused — OCR via Gemini)
+apps/api/tessdata/
+
+# Test images at repo root
+sluttest.png
