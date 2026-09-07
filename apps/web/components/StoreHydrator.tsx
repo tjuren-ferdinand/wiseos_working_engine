@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
+import { usePathname } from "next/navigation";
 import { actions, useStore } from "@/lib/store";
 
 /**
@@ -8,14 +9,18 @@ import { actions, useStore } from "@/lib/store";
  * Renderar inget - lägg i root layout ovanför sidorna som konsumerar store:n.
  */
 export default function StoreHydrator() {
+  const pathname = usePathname();
   const hydrated = useStore((s) => s.hydrated);
   const error = useStore((s) => s.error);
+  const isolated = pathname === "/design-lab" || pathname.startsWith("/design-lab/");
 
   useEffect(() => {
-    if (!hydrated) {
+    if (!isolated && !hydrated) {
       actions.hydrate();
     }
-  }, [hydrated]);
+  }, [hydrated, isolated]);
+
+  if (isolated) return null;
 
   if (error && !hydrated) {
     return (

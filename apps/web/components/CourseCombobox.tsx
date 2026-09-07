@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { actions, DEFAULT_GRADE_THRESHOLDS, deriveSubject, useStore, type Kurs } from "@/lib/store";
+import { actions, deriveSubject, useStore, type Kurs } from "@/lib/store";
 import LineIcon from "./LineIcon";
 
 interface CourseComboboxProps {
@@ -58,19 +58,12 @@ export default function CourseCombobox({ value, onSelect, placeholder = "Sök el
     onSelect(kurs.id, kurs.subject);
   };
 
-  const createCustomCourse = (name: string) => {
+  const createCustomCourse = async (name: string) => {
     const subject = deriveSubject(name);
-    const id = name;
-    const newKurs: Kurs = {
-      id,
-      name,
-      code: "",
-      subject,
-      description: "",
-      gradeThresholds: DEFAULT_GRADE_THRESHOLDS,
-    };
-    actions.addKurs(newKurs);
-    onSelect(id, subject);
+    const course = await actions.createKurs({ name, subject });
+    setInputValue(course.name);
+    setIsOpen(false);
+    onSelect(course.id, course.subject);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {

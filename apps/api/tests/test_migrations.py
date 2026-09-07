@@ -80,7 +80,7 @@ def test_baseline_creates_all_tables(tmp_path):
 
     expected = {
         "users", "teachers", "assignments", "submissions",
-        "classes", "students", "tests", "grading_results", "answer_keys",
+        "classes", "students", "tests", "grading_results", "answer_keys", "courses",
     }
     assert _tables(db) == expected
 
@@ -118,6 +118,7 @@ def test_indexes_exist_after_upgrade(tmp_path):
     assert "ix_students_klass_id" in _indexes(db, "students")
     assert "ix_grading_results_scanned_at" in _indexes(db, "grading_results")
     assert "ix_grading_results_student_id" in _indexes(db, "grading_results")
+    assert "ix_courses_teacher_id" in _indexes(db, "courses")
 
 
 def test_student_id_fk_present_on_fresh_create_all(tmp_path):

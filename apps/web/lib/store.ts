@@ -20,6 +20,7 @@ export interface Kurs {
   level?: string;
   description: string;
   gradeThresholds: GradeThresholds;
+  isCustom?: boolean;
 }
 
 export interface Student {
@@ -145,8 +146,7 @@ export const DEFAULT_GRADE_THRESHOLDS: GradeThresholds = {
 };
 
 // ============================================================================
-// KURSKATALOG - Statisk lista över kurser läraren kan koppla klasser till.
-// (Kurser är läroplansreferenser, inte elevdata - hanteras inte i backend DB.)
+// KURSKATALOG - Statisk baslista som kompletteras med lärarens egna backendlagrade kurser.
 // ============================================================================
 
 // Svensk kurskatalog (gymnasiet + högstadiet). Kurskoder följer Skolverkets
@@ -295,6 +295,19 @@ function mapBackendClass(c: import("@/lib/api").BackendClass): Klass {
   };
 }
 
+function mapBackendCourse(c: import("@/lib/api").BackendCourse): Kurs {
+  return {
+    id: c.id,
+    name: c.name,
+    code: c.code,
+    subject: c.subject,
+    level: c.level ?? undefined,
+    description: c.description,
+    gradeThresholds: c.gradeThresholds ?? { ...DEFAULT_GRADE_THRESHOLDS },
+    isCustom: true,
+  };
+}
+
 function mapBackendTest(t: import("@/lib/api").BackendTest): Prov {
   return {
     id: t.id,
@@ -360,25 +373,41 @@ export const actions = {
   hydrate: async (): Promise<void> => {
     useStore.setState({ loading: true, error: null });
     try {
-      const backendClasses = await api.listClasses();
-      const klasser = backendClasses.map(mapBackendClass);
+      const [backendClasses, backendTests, backendCourses] = await Promise.all([
+        api.listClasses(),
+        api.listAllTests(),
+        api.listCourses(),
+      ]);
+      const loadedClasses = backendClasses.map(mapBackendClass);
+      const loadedTests = backendTests.map(mapBackendTest);
+      const customCourses = backendCourses.map(mapBackendCourse);
 
-      const testsPerClass = await Promise.all(
-        backendClasses.map((c) => api.listTests(c.id).catch(() => [])),
-      );
-      const prov = testsPerClass.flat().map(mapBackendTest);
-
-      const backendResults = await api.listGradingResults();
-      const results = backendResults.map(mapBackendResult);
-
-      useStore.setState({
-        klasser,
-        prov,
-        results,
+      useStore.setState((state) => ({
+        kurser: [...KURSER, ...customCourses.filter((c) => !KURSER.some((base) => base.id === c.id))],
+        klasser: [
+          ...loadedClasses,
+          ...state.klasser.filter((current) => !loadedClasses.some((loaded) => loaded.id === current.id)),
+        ],
+        prov: [
+          ...loadedTests,
+          ...state.prov.filter((current) => !loadedTests.some((loaded) => loaded.id === current.id)),
+        ],
         hydrated: true,
         loading: false,
         error: null,
-      });
+      }));
+
+      void api.listGradingResults()
+        .then((backendResults) => {
+          const loadedResults = backendResults.map(mapBackendResult);
+          useStore.setState((state) => ({
+            results: [
+              ...loadedResults,
+              ...state.results.filter((current) => !loadedResults.some((loaded) => loaded.id === current.id)),
+            ],
+          }));
+        })
+        .catch((error) => useStore.setState({ error: (error as Error).message }));
     } catch (error) {
       useStore.setState({ loading: false, error: (error as Error).message, hydrated: true });
     }
@@ -389,6 +418,29 @@ export const actions = {
       if (state.kurser.some((k) => k.id === kurs.id)) return state;
       return { kurser: [...state.kurser, kurs] };
     });
+  },
+
+  createKurs: async (data: {
+    name: string;
+    code?: string;
+    subject: string;
+    level?: string;
+    description?: string;
+  }): Promise<Kurs> => {
+    const backendCourse = await api.createCourse({
+      ...data,
+      code: data.code ?? "",
+      description: data.description ?? "",
+      gradeThresholds: { ...DEFAULT_GRADE_THRESHOLDS },
+    });
+    const course = mapBackendCourse(backendCourse);
+    useStore.setState((state) => ({ kurser: [...state.kurser, course] }));
+    return course;
+  },
+
+  deleteKurs: async (kursId: string): Promise<void> => {
+    await api.deleteCourse(kursId);
+    useStore.setState((state) => ({ kurser: state.kurser.filter((k) => k.id !== kursId) }));
   },
 
   createKlass: async (data: {
@@ -410,8 +462,34 @@ export const actions = {
       gradeThresholds: { ...DEFAULT_GRADE_THRESHOLDS },
     });
     const newKlass = mapBackendClass(backendKlass);
-    useStore.setState((state) => ({ klasser: [...state.klasser, newKlass] }));
+    useStore.setState((state) => ({
+      klasser: state.klasser.some((k) => k.id === newKlass.id)
+        ? state.klasser.map((k) => (k.id === newKlass.id ? newKlass : k))
+        : [...state.klasser, newKlass],
+    }));
     return newKlass;
+  },
+
+  loadKlass: async (klassId: string): Promise<Klass> => {
+    const klass = mapBackendClass(await api.getClass(klassId));
+    useStore.setState((state) => ({
+      klasser: state.klasser.some((k) => k.id === klass.id)
+        ? state.klasser.map((k) => (k.id === klass.id ? klass : k))
+        : [...state.klasser, klass],
+    }));
+    return klass;
+  },
+
+  deleteKlass: async (klassId: string): Promise<void> => {
+    await api.deleteClass(klassId);
+    useStore.setState((state) => {
+      const testIds = new Set(state.prov.filter((p) => p.klassId === klassId).map((p) => p.id));
+      return {
+        klasser: state.klasser.filter((k) => k.id !== klassId),
+        prov: state.prov.filter((p) => p.klassId !== klassId),
+        results: state.results.filter((r) => !testIds.has(r.provId)),
+      };
+    });
   },
 
   updateKlassParams: async (klassId: string, params: GradingParams): Promise<void> => {

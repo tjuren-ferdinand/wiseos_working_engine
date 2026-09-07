@@ -6,7 +6,7 @@ from .config import settings
 from .db import engine, init_db
 from .logging_config import configure_logging
 from .middleware.request_id import RequestIDMiddleware
-from .routers import admin, ocr, wolfram_test, batch, auth, classes, results, claude, supabase_auth
+from .routers import admin, ocr, wolfram_test, batch, auth, classes, courses, results, claude, supabase_auth
 from .services.batch_pipeline import integration_status
 from .services.gemini_client import ping as gemini_ping
 
@@ -86,6 +86,7 @@ app.include_router(ocr.router)
 app.include_router(wolfram_test.router)
 app.include_router(batch.router)
 app.include_router(classes.router)
+app.include_router(courses.router)
 app.include_router(results.router)
 app.include_router(claude.router)
 app.include_router(supabase_auth.router)

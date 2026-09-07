@@ -84,6 +84,47 @@ html.dark {
 }
 
 /* ============================================================ */
+/*  Cream theme — varmare och mjukare än light.                 */
+/*  Samma mörka ink för läsbarhet, varm off-white ytor.         */
+/* ============================================================ */
+html.cream {
+  --wiseos-bg: #FAF5EC;
+  --wiseos-fg: #2B2620;
+  --background: 250 245 236;   /* #FAF5EC app background */
+  --surface: 255 253 248;      /* #FFFDF8 primary surface */
+  --surface-2: 243 237 225;    /* #F3EDE1 secondary surface */
+  --surface-elevated: 255 253 248; /* #FFFDF8 elevated/floating surface */
+  --card: 255 253 248;
+  --foreground: 34 31 26;      /* #221F1A soft warm ink */
+  --muted: 122 111 95;         /* #7A6F5F secondary text */
+  --muted-2: 176 166 147;      /* #B0A693 tertiary text */
+  --hairline: 34 31 26;        /* used with .08 alpha for subtle borders */
+  --accent: 160 139 109;       /* #A08B6D warm sand */
+  --accent-soft: 185 165 134;  /* #B9A586 */
+  --state-success: 94 124 96;  /* #5e7c60 — unchanged */
+  --state-warning: 191 160 90; /* #bfa05a — unchanged */
+  --state-danger: 154 90 90;   /* #9a5a5a — unchanged */
+
+  --equi-bg: #faf5ec;
+  --equi-surface: #fffdf8;
+  --equi-surface-2: #f3ede1;
+  --equi-ink: #221f1a;
+  --equi-muted: #7a6f5f;
+  --equi-subtle: #ddd2bf;
+  --equi-brand: #a08b6d;
+  --equi-brand-2: #8a7658;
+  --equi-accent: #b9a586;
+  --equi-success: #5e7c60;
+  --equi-warning: #bfa05a;
+  --equi-danger: #9a5a5a;
+  --equi-ring: #b0a693;
+
+  --arc-subtle: 34 31 26;
+  --arc-gold: 122 111 95;
+  --arc-copper: 185 165 134;
+}
+
+/* ============================================================ */
 /*  Accent color themes — swap only the brand/accent hue.        */
 /*  Backgrounds & text stay on the neutral Equi scale so every   */
 /*  theme guarantees the same proven contrast in light & dark.   */

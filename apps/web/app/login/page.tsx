@@ -143,7 +143,7 @@ function AuthModal({
                 setSignupDone(false);
                 setMode("login");
               }}
-              className="text-[13px] font-medium text-accent hover:underline"
+              className="text-[13px] font-medium text-ink hover:underline"
             >
               Tillbaka till inloggning
             </button>
@@ -162,7 +162,7 @@ function AuthModal({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="namn@skola.se"
-                className="w-full rounded-xl border border-ink-hairline/10 bg-paper-raised px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-muted outline-none transition-all focus:border-accent focus:ring-1 focus:ring-ink"
+                className="w-full rounded-xl border border-ink-hairline/10 bg-paper-raised px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-muted outline-none transition-all focus:border-ink focus:ring-1 focus:ring-ink"
               />
             </div>
 
@@ -179,7 +179,7 @@ function AuthModal({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full rounded-xl border border-ink-hairline/10 bg-paper-raised px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-muted outline-none transition-all focus:border-accent focus:ring-1 focus:ring-ink"
+                className="w-full rounded-xl border border-ink-hairline/10 bg-paper-raised px-3.5 py-2.5 text-[14px] text-ink placeholder:text-ink-muted outline-none transition-all focus:border-ink focus:ring-1 focus:ring-ink"
               />
             </div>
 
@@ -234,7 +234,7 @@ function AuthModal({
                     setError(null);
                     setMode("signup");
                   }}
-                  className="font-medium text-accent hover:underline"
+                  className="font-medium text-ink hover:underline"
                 >
                   Skapa ett här
                 </button>
@@ -248,7 +248,7 @@ function AuthModal({
                     setError(null);
                     setMode("login");
                   }}
-                  className="font-medium text-accent hover:underline"
+                  className="font-medium text-ink hover:underline"
                 >
                   Logga in
                 </button>
@@ -338,7 +338,7 @@ function SectionHeading({
       transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
       className="mb-10 text-center"
     >
-      <span className="mb-3 inline-flex items-center rounded-full border border-accent/25 bg-accent/5 px-3 py-1 text-[12px] font-medium text-accent">
+      <span className="mb-3 inline-flex items-center rounded-xl border border-ink-hairline bg-ink/5 px-3 py-1 text-[12px] font-medium text-ink">
         {badge}
       </span>
       <h2 className="text-[24px] md:text-[30px] font-semibold tracking-tight text-ink">{title}</h2>
@@ -374,7 +374,7 @@ function ProcessSteps() {
               transition={{ duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
               className="relative z-10 text-center"
             >
-              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-accent/15 bg-accent/10 text-accent">
+              <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-ink-hairline bg-ink/5 text-ink">
                 <LineIcon name={s.icon} className="h-7 w-7" />
               </div>
               <h3 className="mt-5 text-[16px] font-semibold text-ink">{s.title}</h3>
@@ -488,13 +488,13 @@ function Finale({
           <div className="mt-8 flex flex-wrap gap-3">
             <button
               onClick={onStart}
-              className="rounded-full bg-ink px-7 py-3.5 text-[14px] font-semibold text-paper shadow-soft transition-all hover:shadow-soft hover:scale-[1.02] active:scale-[0.98]"
+              className="rounded-xl bg-ink px-7 py-3.5 text-[14px] font-semibold text-paper shadow-soft transition-all hover:shadow-soft hover:scale-[1.02] active:scale-[0.98]"
             >
               Kom igång gratis
             </button>
             <button
               onClick={onLogin}
-              className="rounded-full border border-ink/15 px-7 py-3.5 text-[14px] font-medium text-ink transition-all hover:bg-ink/5"
+              className="rounded-xl border border-ink/15 px-7 py-3.5 text-[14px] font-medium text-ink transition-all hover:bg-ink/5"
             >
               Logga in
             </button>
@@ -539,13 +539,13 @@ export default function LoginPage() {
           <div className="flex items-center gap-2">
             <button
               onClick={() => openAuth("login")}
-              className="rounded-full border border-ink-hairline/10 px-4 py-2 text-[13px] font-medium text-ink transition-all hover:bg-ink/5"
+              className="rounded-xl border border-ink-hairline/10 px-4 py-2 text-[13px] font-medium text-ink transition-all hover:bg-ink/5"
             >
               Logga in
             </button>
             <button
               onClick={() => openAuth("signup")}
-              className="rounded-full bg-ink px-4 py-2 text-[13px] font-semibold text-paper transition-all hover:shadow-soft active:scale-[0.98]"
+              className="rounded-xl bg-ink px-4 py-2 text-[13px] font-semibold text-paper transition-all hover:shadow-soft active:scale-[0.98]"
             >
               Kom igång gratis
             </button>
@@ -567,11 +567,11 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="mb-4 inline-flex w-fit items-center gap-2 rounded-full border border-accent/25 bg-accent/5 px-3 py-1.5 text-[12px] font-medium text-accent"
+              className="mb-4 inline-flex w-fit items-center gap-2 rounded-xl border border-ink-hairline bg-ink/5 px-3 py-1.5 text-[12px] font-medium text-ink"
             >
               <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-ink opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-full bg-ink" />
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-xl bg-ink opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-xl bg-ink" />
               </span>
               AI-driven rättning för svenska lärare
             </motion.div>
@@ -608,13 +608,13 @@ export default function LoginPage() {
             >
               <button
                 onClick={() => openAuth("signup")}
-                className="rounded-full bg-ink px-7 py-3 text-[14px] font-semibold text-paper shadow-soft transition-all hover:shadow-soft hover:scale-[1.02] active:scale-[0.98]"
+                className="rounded-xl bg-ink px-7 py-3 text-[14px] font-semibold text-paper shadow-soft transition-all hover:shadow-soft hover:scale-[1.02] active:scale-[0.98]"
               >
                 Kom igång gratis
               </button>
               <button
                 onClick={() => openAuth("login")}
-                className="rounded-full border border-ink-hairline/10 px-7 py-3 text-[14px] font-medium text-ink transition-all hover:bg-ink/5"
+                className="rounded-xl border border-ink-hairline/10 px-7 py-3 text-[14px] font-medium text-ink transition-all hover:bg-ink/5"
               >
                 Logga in
               </button>

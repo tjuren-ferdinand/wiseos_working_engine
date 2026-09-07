@@ -2,9 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { LOGO_MARK } from "@/lib/logo";
 import { ThemeProvider } from "@/lib/theme";
-import Header from "@/components/Header";
-import BottomNav from "@/components/BottomNav";
-import MainContainer from "@/components/MainContainer";
+import Shell from "@/components/shell/Shell";
 import Splash from "@/components/Splash";
 import StoreHydrator from "@/components/StoreHydrator";
 
@@ -36,9 +34,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <ThemeProvider>
           <StoreHydrator />
           <Splash>
-            <Header />
-            <MainContainer>{children}</MainContainer>
-            <BottomNav />
+            <Shell>{children}</Shell>
           </Splash>
         </ThemeProvider>
       </body>

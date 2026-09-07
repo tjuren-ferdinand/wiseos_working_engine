@@ -2,7 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 
-type Theme = "light" | "dark";
+export type Theme = "light" | "cream" | "dark";
 
 export type AccentTheme = "mono" | "alabaster" | "slate" | "violet" | "mint" | "ice";
 
@@ -77,7 +77,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (mounted) {
       localStorage.setItem("wiseos-theme", theme);
-      document.documentElement.classList.remove("light", "dark");
+      document.documentElement.classList.remove("light", "cream", "dark");
       document.documentElement.classList.add(theme);
     }
   }, [theme, mounted]);
@@ -100,7 +100,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
   };
 
   const toggleTheme = () => {
-    setThemeState((prev) => (prev === "dark" ? "light" : "dark"));
+    setThemeState((prev) => (prev === "light" ? "cream" : prev === "cream" ? "dark" : "light"));
   };
 
   const setAccentTheme = (newAccentTheme: AccentTheme) => {

@@ -68,6 +68,21 @@ export default function SettingsPanel() {
                 </button>
                 <button
                   type="button"
+                  onClick={() => setTheme("cream")}
+                  className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border py-2 text-[12.5px] font-medium transition-all ${
+                    theme === "cream"
+                      ? "border-accent bg-accent-tint text-ink"
+                      : "border-ink-hairline text-ink-secondary hover:bg-paper-secondary"
+                  }`}
+                >
+                  <span
+                    className="h-3.5 w-3.5 rounded-full border border-ink-hairline"
+                    style={{ backgroundColor: "#FAF5EC" }}
+                  />
+                  Cream
+                </button>
+                <button
+                  type="button"
                   onClick={() => setTheme("dark")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border py-2 text-[12.5px] font-medium transition-all ${
                     theme === "dark"

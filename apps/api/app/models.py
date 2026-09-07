@@ -89,9 +89,22 @@ class Submission(Base):
 # ============================================================================
 
 
+class Course(Base):
+    __tablename__ = "courses"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    teacher_id: Mapped[str] = mapped_column(String(255), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(255))
+    code: Mapped[str] = mapped_column(String(100))
+    subject: Mapped[str] = mapped_column(String(100))
+    level: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    description: Mapped[str] = mapped_column(Text)
+    grade_thresholds: Mapped[dict] = mapped_column(JSON)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
 class Klass(Base):
-    """En klass/grupp av elever knuten till en kurs (kursId är en fri textkod,
-    t.ex. 'fysik2', eftersom kurser hanteras som statisk katalog i frontend)."""
+    """En klass/grupp av elever knuten till en katalogkurs eller en ägarbunden egen kurs."""
 
     __tablename__ = "classes"
 

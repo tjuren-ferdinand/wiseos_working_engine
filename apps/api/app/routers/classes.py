@@ -67,6 +67,20 @@ def create_class(
     return klass
 
 
+@router.get("/all-tests", response_model=list[schemas.TestOut], tags=["tests"])
+def list_all_tests(
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    return (
+        db.query(models.Test)
+        .join(models.Klass, models.Test.klass_id == models.Klass.id)
+        .filter(models.Klass.teacher_id == _user.id)
+        .order_by(models.Test.created_at.desc())
+        .all()
+    )
+
+
 @router.get("/{class_id}", response_model=schemas.ClassOut)
 def get_class(
     class_id: str,

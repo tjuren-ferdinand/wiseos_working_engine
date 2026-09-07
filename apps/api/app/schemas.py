@@ -250,6 +250,38 @@ class GradeThresholdsSchema(BaseModel):
     F: float = 0
 
 
+class CourseCreate(BaseModel):
+    name: str
+    code: str
+    subject: str
+    level: str | None = None
+    description: str
+    gradeThresholds: GradeThresholdsSchema
+
+
+class CourseUpdate(BaseModel):
+    name: str | None = None
+    code: str | None = None
+    subject: str | None = None
+    level: str | None = None
+    description: str | None = None
+    gradeThresholds: GradeThresholdsSchema | None = None
+
+
+class CourseOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    teacher_id: str
+    name: str
+    code: str
+    subject: str
+    level: str | None = None
+    description: str
+    gradeThresholds: dict[str, Any] = Field(validation_alias="grade_thresholds", serialization_alias="gradeThresholds")
+    createdAt: datetime = Field(validation_alias="created_at", serialization_alias="createdAt")
+
+
 class StudentIn(BaseModel):
     name: str
     identifier: str | None = None

@@ -26,6 +26,7 @@ async function jsonFetch<T>(path: string, init?: RequestInit, fallbackKey?: stri
       cache: "no-store",
     });
     if (!res.ok) throw new Error(`API ${res.status}: ${await res.text()}`);
+    if (res.status === 204) return undefined as T;
     return res.json() as Promise<T>;
   } catch (err) {
     throw err;
@@ -175,6 +176,17 @@ export type BackendClass = {
   createdAt: string;
 };
 
+export type BackendCourse = {
+  id: string;
+  name: string;
+  code: string;
+  subject: string;
+  level: string | null;
+  description: string;
+  gradeThresholds: BackendGradeThresholds;
+  createdAt: string;
+};
+
 export type BackendQuestion = { id: string; number: string; maxPoints: number };
 
 export type BackendTest = {
@@ -264,7 +276,22 @@ export const api = {
     classId: string,
     data: { name?: string; gradingParams?: BackendGradingParams; gradeThresholds?: BackendGradeThresholds },
   ) => jsonFetch<BackendClass>(`/api/v1/classes/${classId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  deleteClass: (classId: string) =>
+    jsonFetch<void>(`/api/v1/classes/${classId}`, { method: "DELETE" }),
+  // --- Courses ---
+  listCourses: () => jsonFetch<BackendCourse[]>("/api/v1/courses"),
+  createCourse: (data: {
+    name: string;
+    code?: string;
+    subject: string;
+    level?: string;
+    description?: string;
+    gradeThresholds?: BackendGradeThresholds;
+  }) => jsonFetch<BackendCourse>("/api/v1/courses", { method: "POST", body: JSON.stringify(data) }),
+  deleteCourse: (courseId: string) =>
+    jsonFetch<void>(`/api/v1/courses/${courseId}`, { method: "DELETE" }),
   // --- Tests / Prov ---
+  listAllTests: () => jsonFetch<BackendTest[]>("/api/v1/classes/all-tests"),
   listTests: (classId: string) =>
     jsonFetch<BackendTest[]>(`/api/v1/classes/${classId}/tests`, undefined, "tests").then((arr) =>
       arr.filter((t) => t.klassId === classId),

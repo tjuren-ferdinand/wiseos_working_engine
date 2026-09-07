@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore, actions, type Prov, type StudentResult, type GradingParams } from "@/lib/store";
 import GradingWizard from "@/components/GradingWizard";
 import LineIcon from "@/components/LineIcon";
@@ -18,17 +18,47 @@ export default function ClassPage() {
   const allProv = useStore((s) => s.prov);
   const results = useStore((s) => s.results);
   const kurser = useStore((s) => s.kurser);
+  const hydrated = useStore((s) => s.hydrated);
 
   const klass = useMemo(() => klasser.find((k) => k.id === params.id), [klasser, params.id]);
   const prov = useMemo(() => allProv.filter((p) => p.klassId === params.id), [allProv, params.id]);
 
   const [tab, setTab] = useState<"prov" | "overview" | "params">("prov");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [loadingClass, setLoadingClass] = useState(false);
+  const [classError, setClassError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated || klass || loadingClass || classError) return;
+    setLoadingClass(true);
+    actions.loadKlass(params.id)
+      .catch((error) => setClassError((error as Error).message))
+      .finally(() => setLoadingClass(false));
+  }, [classError, hydrated, klass, loadingClass, params.id]);
+
+  const deleteClass = async () => {
+    setDeleting(true);
+    setClassError(null);
+    try {
+      await actions.deleteKlass(params.id);
+      router.replace("/classes");
+    } catch (error) {
+      setClassError((error as Error).message);
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   if (!klass) {
+    if (!hydrated || loadingClass) {
+      return <div className="py-20 text-center text-[13px] text-ink-muted">Hämtar klassen…</div>;
+    }
     return (
       <div className="text-center py-20 text-ink-secondary">
-        Klassen kunde inte hittas. <Link href="/" className="text-ink underline">Till klasslistan</Link>
+        Klassen kunde inte hittas. <Link href="/classes" className="text-ink underline">Till klasslistan</Link>
+        {classError && <div className="mt-3 text-[12.5px] text-state-danger">{classError}</div>}
       </div>
     );
   }
@@ -55,9 +85,26 @@ export default function ClassPage() {
               {klass.name}
             </h1>
           </div>
-          <button onClick={() => setWizardOpen(true)} className="btn-primary">
-            Rätta nytt prov
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {confirmDelete ? (
+              <div className="flex items-center gap-2 rounded-xl border border-state-danger/20 bg-state-danger/[0.06] p-1.5 pl-3">
+                <span className="text-[12px] text-state-danger">Radera klass och all provdata?</span>
+                <button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting} className="rounded-lg px-3 py-1.5 text-[12px] text-ink-secondary hover:bg-ink/[0.05]">
+                  Avbryt
+                </button>
+                <button type="button" onClick={deleteClass} disabled={deleting} className="rounded-lg bg-state-danger px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50">
+                  {deleting ? "Raderar…" : "Ja, radera"}
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-ink-hairline px-3.5 py-2 text-[12.5px] text-ink-muted transition-colors hover:border-state-danger/30 hover:text-state-danger">
+                Ta bort klass
+              </button>
+            )}
+            <button onClick={() => setWizardOpen(true)} className="btn-primary">
+              Rätta nytt prov
+            </button>
+          </div>
         </div>
 
         <div className="mt-6 flex gap-1 border-b border-ink-hairline">
