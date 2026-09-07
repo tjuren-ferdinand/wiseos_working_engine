@@ -123,7 +123,7 @@ export default function DashboardPage() {
           <Reveal delay={60}>
             <div className="mb-8 flex items-center justify-between gap-6 rounded-[16px] bg-paper-elevated border border-ink-hairline shadow-card px-5 py-4">
               <div className="flex items-start gap-3.5">
-                <span className="mt-1.5 h-[6px] w-[6px] rounded-full bg-accent shrink-0" />
+                <span className="mt-1.5 h-[6px] w-[6px] rounded-full bg-ink shrink-0" />
                 <div>
                   <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
                     Uppmärksamhet
@@ -224,7 +224,7 @@ export default function DashboardPage() {
                       <div className="flex items-center justify-between">
                         <span className={`text-[13.5px] font-medium ${ink}`}>{result.studentName}</span>
                         <span className={`text-[12.5px] font-medium tabular-nums ${
-                          percentage >= 80 ? "text-accent" :
+                          percentage >= 80 ? "text-state-success" :
                           percentage >= 50 ? inkSecondary :
                           "text-state-danger"
                         }`}>
