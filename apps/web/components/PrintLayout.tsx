@@ -71,6 +71,27 @@ export default function PrintLayout({
         <PrintFooter />
       </section>
 
+      {/* === Originalsidor === */}
+      {(result.scanPages?.length ?? 0) > 0 && (
+        <section className="print-page">
+          <h2 className="print-h2">Originaldokument – elevens handskrivna svar</h2>
+          {result.scanPages!.map((src, i) => (
+            <div key={i} className="print-scan-page">
+              <div className="print-scan-header">
+                <span>Sida {i + 1} av {result.scanPages!.length}</span>
+                <span>ORIGINAL · {result.studentName}</span>
+              </div>
+              {src.startsWith("data:image") ? (
+                <img src={src} alt={`Sida ${i + 1}`} className="print-scan" />
+              ) : (
+                <div>PDF-originalet finns sparat digitalt i WiseOS.</div>
+              )}
+            </div>
+          ))}
+          <PrintFooter />
+        </section>
+      )}
+
       {/* === Sida 2+: Stegvis genomgång === */}
       <section className="print-page">
         <h2 className="print-h2">Stegvis genomgång</h2>
@@ -107,22 +128,6 @@ export default function PrintLayout({
         <PrintFooter />
       </section>
 
-      {/* === Originalsidor === */}
-      {result.mockScanPages && result.mockScanPages.length > 0 && (
-        <section className="print-page">
-          <h2 className="print-h2">Originaldokument – elevens handskrivna svar</h2>
-          {result.mockScanPages.map((text, i) => (
-            <div key={i} className="print-scan-page">
-              <div className="print-scan-header">
-                <span>Sida {i + 1} av {result.mockScanPages!.length}</span>
-                <span>SKANNAT · 300 DPI · {result.studentName}</span>
-              </div>
-              <pre className="print-scan-text">{text}</pre>
-            </div>
-          ))}
-          <PrintFooter />
-        </section>
-      )}
     </div>
   );
 }

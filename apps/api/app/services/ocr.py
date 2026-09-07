@@ -1,59 +1,84 @@
-"""Mathpix OCR-service med mock-fallback."""
+"""OCR-service med konfigurerbara Mathpix- och utvecklingsproviders."""
 from __future__ import annotations
+
+import base64
+import binascii
+from typing import Protocol
 
 import httpx
 
 from ..config import settings
 from ..schemas import OcrResponse
+from . import vision_ocr
 
 
-async def process_image(image_base64: str) -> OcrResponse:
-    if not (settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY):
-        # Mock: realistiska fysik 1 elevarbeten för demo
-        samples = [
-            # Korrekt svar
-            ("v = 19.6 m/s", r"v = 19.6 \, \text{m/s}"),
-            # Delvis korrekt (fel enhet)
-            ("v = 19.6", r"v = 19.6"),
-            # Felaktigt (räkningsfel)
-            ("v = 9.8 m/s", r"v = 9.8 \, \text{m/s}"),
-            # Korrekt med gällande siffror
-            ("F = 1470 N", r"F = 1470 \, \text{N}"),
-            # Saknar enhet
-            ("a = 2.5", r"a = 2.5"),
-            # Korrekt beräkning
-            ("t = 2.0 s", r"t = 2.0 \, \text{s}"),
-        ]
-        idx = (len(image_base64) // 1000) % len(samples)
-        text, latex = samples[idx]
-        # Variera confidence för realism
-        confidence = 0.85 if idx in [0, 3, 5] else 0.65
-        return OcrResponse(latex=latex, text=text, confidence=confidence)
+class OCRProvider(Protocol):
+    name: str
 
-    src = image_base64
-    if not src.startswith("data:"):
-        src = f"data:image/png;base64,{src}"
+    async def extract(self, source: str, image_bytes: bytes, mime_type: str) -> OcrResponse: ...
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            r = await client.post(
+
+class DevelopmentVisionOCRProvider:
+    name = "development-vision"
+
+    async def extract(self, source: str, image_bytes: bytes, mime_type: str) -> OcrResponse:
+        text = await vision_ocr.read_image(image_bytes, mime_type)
+        if not text:
+            raise RuntimeError("Utvecklingsprovidern kunde inte läsa dokumentet.")
+        return OcrResponse(
+            latex=text,
+            text=text,
+            confidence=0.8,
+            provider=vision_ocr.provider_name(),
+            status="degraded",
+        )
+
+
+class MathpixOCRProvider:
+    name = "mathpix"
+
+    async def extract(self, source: str, image_bytes: bytes, mime_type: str) -> OcrResponse:
+        async with httpx.AsyncClient(timeout=30.0) as client:
+            response = await client.post(
                 "https://api.mathpix.com/v3/text",
                 headers={
                     "app_id": settings.MATHPIX_APP_ID,
                     "app_key": settings.MATHPIX_APP_KEY,
                     "Content-Type": "application/json",
                 },
-                json={
-                    "src": src,
-                    "formats": ["text", "latex_styled"],
-                    "data_options": {"include_latex": True},
-                },
+                json={"src": source, "formats": ["text", "latex_styled"], "data_options": {"include_latex": True}},
             )
-            data = r.json()
-            return OcrResponse(
-                latex=data.get("latex_styled") or data.get("text", ""),
-                text=data.get("text", ""),
-                confidence=float(data.get("confidence", 0.0) or 0.0),
-            )
-    except Exception:
-        return OcrResponse(latex="", text="", confidence=0.0)
+        response.raise_for_status()
+        data = response.json()
+        return OcrResponse(
+            latex=data.get("latex_styled") or data.get("text", ""),
+            text=data.get("text", ""),
+            confidence=float(data.get("confidence", 0.0) or 0.0),
+            provider=self.name,
+        )
+
+
+def get_ocr_provider() -> OCRProvider:
+    """Delegates to the provider registry for the active OCR provider."""
+    from .providers.registry import get_ocr_provider as _registry_get
+
+    return _registry_get()
+
+
+def _decode_data_url(src: str) -> tuple[bytes, str] | None:
+    if not src.startswith("data:") or ";base64," not in src:
+        return None
+    header, payload = src.split(";base64,", 1)
+    mime = header[len("data:") :] or "image/png"
+    try:
+        return base64.b64decode(payload, validate=True), mime
+    except (binascii.Error, ValueError):
+        return None
+
+
+async def process_image(image_base64: str) -> OcrResponse:
+    source = image_base64 if image_base64.startswith("data:") else f"data:image/png;base64,{image_base64}"
+    decoded = _decode_data_url(source)
+    if not decoded:
+        raise ValueError("Ogiltig bilddata (inte giltig base64).")
+    return await get_ocr_provider().extract(source, decoded[0], decoded[1])

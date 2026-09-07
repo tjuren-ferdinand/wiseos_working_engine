@@ -11,6 +11,7 @@ Prioriterad ordning när vi verifierar att elevens svar ≡ korrekt svar:
 """
 from __future__ import annotations
 
+import logging
 import re
 from typing import Any
 
@@ -18,6 +19,9 @@ import httpx
 
 from ..config import settings
 from ..schemas import WolframResult
+from .anonymize import scrub_pii
+
+logger = logging.getLogger("wiseos.grading")
 
 
 def _normalize(expr: str) -> str:
@@ -183,7 +187,62 @@ class WolframVerifier:
                 notes=f"wolfram-short: {text}" if text else "wolfram: inget svar",
             )
 
+    async def raw_query(self, input_expr: str) -> dict:
+        """Skickar en rå fråga till Wolfram|Alpha Full Results API v2.
+
+        Används av den diagnostiska endpointen GET /api/v1/wolfram/raw.
+        Returnerar queryresult.success + pod-titlar.
+        """
+        if not self.app_id:
+            raise RuntimeError("WOLFRAM_APP_ID är inte konfigurerat i .env")
+
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            r = await client.get(
+                "https://api.wolframalpha.com/v2/query",
+                params={
+                    "input": input_expr,
+                    "appid": self.app_id,
+                    "output": "JSON",
+                    "format": "plaintext",
+                    "scantimeout": "10",
+                    "podtimeout": "10",
+                },
+            )
+
+        if r.status_code != 200:
+            return {"http_status": r.status_code, "body": r.text[:500]}
+
+        data = r.json()
+        qr = data.get("queryresult", {})
+        pods = qr.get("pods", []) or []
+        return {
+            "http_status": r.status_code,
+            "success": qr.get("success"),
+            "error": qr.get("error"),
+            "numpods": qr.get("numpods"),
+            "pods": [
+                {
+                    "id": p.get("id"),
+                    "title": p.get("title"),
+                    "plaintext": [sp.get("plaintext") for sp in p.get("subpods", [])],
+                }
+                for p in pods
+            ],
+        }
+
     async def verify_equation(self, student_answer: str, correct_answer: str) -> WolframResult:
+        # GDPR-anonymiseringssköld: skrubba personnummer/e-post/telefon INNAN
+        # något av dessa strängar lämnar backend till Wolfram (cloud/full
+        # results/short answers). Matematiska uttryck påverkas inte.
+        raw_student, raw_correct = student_answer, correct_answer
+        student_answer = scrub_pii(student_answer)
+        correct_answer = scrub_pii(correct_answer)
+        if (student_answer, correct_answer) != (raw_student, raw_correct):
+            logger.warning("pii_scrubbed_from_wolfram_input")
+        logger.debug(
+            "wolfram_outgoing student=%r correct=%r", student_answer, correct_answer,
+        )
+
         # 1) Egen Wolfram Cloud-funktion
         if self.api_url:
             try:
@@ -264,8 +323,5 @@ def _interpret_result(result_text: str) -> tuple[bool, float]:
         return True, 0.99
     if norm in {"false", "no", "0"}:
         return False, 0.99
-    # Wolfram kan returnera ett oevaluerat uttryck — om det reduceras till
-    # samma sak på båda sidor antar vi True. Detta är defensive heuristics.
-    if "==" not in norm and norm not in {"undefined", "indeterminate"}:
-        return True, 0.7  # Sannolikt förenklat till ett gemensamt uttryck
+    # Oevaluerat / tvetydigt svar – anta inte korrekt; läraren kan granska.
     return False, 0.4

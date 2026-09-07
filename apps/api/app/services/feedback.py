@@ -1,9 +1,23 @@
 """Pedagogisk feedback-generator (Claude med mock-fallback)."""
 from __future__ import annotations
 
+import logging
+import re
+
+import httpx
+
 from ..config import settings
 from ..schemas import WolframResult
+from . import gemini_client
 from .anonymize import scrub_pii
+
+logger = logging.getLogger(__name__)
+
+
+def _safe_output(text: str) -> str:
+    text = re.sub(r"<(?:think|thinking)>.*?</(?:think|thinking)>", "", text, flags=re.DOTALL | re.IGNORECASE)
+    text = re.sub(r"```(?:json)?|```", "", text, flags=re.IGNORECASE)
+    return text.strip()[:2000]
 
 
 SYSTEM_PROMPT = (
@@ -17,19 +31,85 @@ SYSTEM_PROMPT = (
 )
 
 
-def _mock_feedback(problem: str, student: str, correct: str, w: WolframResult) -> str:
-    if w.is_correct:
-        return (
-            f"Snyggt jobbat! Ditt svar **{student}** stämmer. "
-            f"Du har visat att du behärskar metoden. "
-            f"Försök gärna en liknande uppgift för att befästa kunskapen."
-        )
+def _feedback_message(problem: str, student: str, correct: str, wolfram: WolframResult) -> str:
     return (
-        f"Inte riktigt rätt – du svarade **{student}** men korrekt svar är **{correct}**. "
-        f"Gå tillbaka och kontrollera varje steg, särskilt teckenhantering och förenklingar. "
-        f"Tips: skriv om uppgiften steg för steg och verifiera varje led. "
-        f"Du är på god väg – fortsätt öva!"
+        f"Uppgift: {problem}\n"
+        f"Korrekt svar: {correct}\n"
+        f"Elevens svar: {student}\n"
+        f"Wolfram-verifiering: korrekt={wolfram.is_correct}, konfidens={wolfram.confidence}\n"
+        f"Anteckningar: {wolfram.notes or '-'}"
     )
+
+
+async def _generate_with_groq(user_msg: str) -> str:
+    async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+            json={
+                "model": settings.GROQ_MODEL,
+                "temperature": 0.2,
+                "max_tokens": 400,
+                "messages": [
+                    {"role": "system", "content": SYSTEM_PROMPT},
+                    {"role": "user", "content": user_msg},
+                ],
+            },
+        )
+        response.raise_for_status()
+        content = response.json()["choices"][0]["message"]["content"]
+        return _safe_output(content)
+
+
+async def _generate_with_anthropic(user_msg: str) -> str:
+    from anthropic import AsyncAnthropic
+
+    client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
+    msg = await client.messages.create(
+        model=settings.ANTHROPIC_MODEL,
+        max_tokens=400,
+        system=SYSTEM_PROMPT,
+        messages=[{"role": "user", "content": user_msg}],
+    )
+    return _safe_output("\n".join(b.text for b in msg.content if getattr(b, "type", None) == "text"))
+
+
+def provider_name() -> str:
+    configured = settings.FEEDBACK_PROVIDER.strip().lower()
+    if configured != "auto":
+        return configured
+    if settings.ANTHROPIC_API_KEY:
+        return "anthropic"
+    if settings.GROQ_API_KEY:
+        return "groq"
+    if settings.GEMINI_API_KEY:
+        return "gemini"
+    return "unavailable"
+
+
+async def generate_feedback_detailed(
+    problem: str,
+    student_answer: str,
+    correct_answer: str,
+    wolfram: WolframResult,
+) -> tuple[str, str]:
+    """Delegates to the active feedback provider via the registry."""
+    from .providers.registry import get_feedback_provider
+
+    safe_problem = scrub_pii(problem)
+    safe_student = scrub_pii(student_answer)
+    safe_correct = scrub_pii(correct_answer)
+
+    provider = get_feedback_provider()
+    text, used = await provider.generate_feedback(
+        problem=safe_problem,
+        student_answer=safe_student,
+        correct_answer=safe_correct,
+        wolfram=wolfram,
+    )
+    if not text:
+        raise RuntimeError(f"Feedback-provider {used} returnerade ett tomt svar")
+    return text, used
 
 
 async def generate_feedback(
@@ -38,33 +118,5 @@ async def generate_feedback(
     correct_answer: str,
     wolfram: WolframResult,
 ) -> str:
-    if not settings.ANTHROPIC_API_KEY:
-        return _mock_feedback(problem, student_answer, correct_answer, wolfram)
-
-    # GDPR: skrubba PII (personnummer, e-post, telefon) innan vi skickar till Claude.
-    safe_problem = scrub_pii(problem)
-    safe_student = scrub_pii(student_answer)
-    safe_correct = scrub_pii(correct_answer)
-
-    try:
-        # Lat import så servern startar även utan paket
-        from anthropic import AsyncAnthropic
-
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        user_msg = (
-            f"Uppgift: {safe_problem}\n"
-            f"Korrekt svar: {safe_correct}\n"
-            f"Elevens svar: {safe_student}\n"
-            f"Wolfram-verifiering: korrekt={wolfram.is_correct}, konfidens={wolfram.confidence}\n"
-            f"Anteckningar: {wolfram.notes or '-'}"
-        )
-        msg = await client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=400,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": user_msg}],
-        )
-        parts = [b.text for b in msg.content if getattr(b, "type", None) == "text"]
-        return "\n".join(parts).strip() or _mock_feedback(problem, student_answer, correct_answer, wolfram)
-    except Exception:
-        return _mock_feedback(problem, student_answer, correct_answer, wolfram)
+    text, _provider_used = await generate_feedback_detailed(problem, student_answer, correct_answer, wolfram)
+    return text

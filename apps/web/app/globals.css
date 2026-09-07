@@ -3,17 +3,177 @@
 @tailwind utilities;
 
 :root {
-  --background: 245 245 247; /* #F5F5F7 */
-  --foreground: 29 29 31; /* #1D1D1F */
-  --card: 255 255 255;
-  --muted: 110 110 115; /* #6E6E73 */
+  /* WiseOS Equi design system — premium, calm, near-monochrome OS.
+     Light theme by default; dark theme is a re-tint of the same visual hierarchy. */
+  --background: 242 239 234;   /* #F2EFEA app background */
+  --surface: 255 255 255;      /* #ffffff primary surface */
+  --surface-2: 245 243 240;    /* #f5f3f0 secondary surface */
+  --surface-elevated: 255 255 255; /* #ffffff elevated/floating surface */
+  --card: 255 255 255;         /* alias — kept for legacy usages */
+  --foreground: 28 29 32;      /* #1c1d20 soft ink */
+  --muted: 109 100 90;         /* #6d645a secondary text */
+  --muted-2: 168 161 153;      /* #a8a199 tertiary text */
+  --hairline: 28 29 32;        /* used with .08 alpha for subtle borders */
+  --accent: 138 131 123;       /* #8a837b brand */
+  --accent-soft: 160 148 134;  /* #a09486 */
+  --state-success: 94 124 96;  /* #5e7c60 */
+  --state-warning: 191 160 90;  /* #bfa05a */
+  --state-danger: 154 90 90;   /* #9a5a5a */
+
+  /* Equi canonical hex tokens ( Tailwind scales mirror these in tailwind.config.ts ) */
+  --equi-bg: #fbfaf9;
+  --equi-surface: #ffffff;
+  --equi-surface-2: #f5f3f0;
+  --equi-ink: #1c1d20;
+  --equi-muted: #6d645a;
+  --equi-subtle: #d1ccc4;
+  --equi-brand: #8a837b;
+  --equi-brand-2: #6d6860;
+  --equi-accent: #a09486;
+  --equi-success: #5e7c60;
+  --equi-warning: #bfa05a;
+  --equi-danger: #9a5a5a;
+  --equi-ring: #a8a199;
+
+  /* Legacy arc aliases kept for backward compatibility within this branch */
+  --arc-subtle: 28 29 32;
+  --arc-gold: 109 100 90;
+  --arc-copper: 160 148 134;
+
+  /* WiseOSIcon ring colors (hex, used directly as stroke — not rgb()-wrapped) */
+  --wiseos-bg: #F2EFEA;
+  --wiseos-fg: #333538;
 }
 
 html.dark {
-  --background: 10 10 10; /* #0a0a0a */
-  --foreground: 255 255 255;
-  --card: 26 26 26; /* #1a1a1a */
-  --muted: 255 255 255;
+  --wiseos-bg: #1A1C20;
+  --wiseos-fg: #E2E5E9;
+  --background: 26 28 32;      /* #1A1C20 */
+  --surface: 28 29 32;         /* #1c1d20 primary surface */
+  --surface-2: 37 36 33;       /* #252421 secondary surface */
+  --surface-elevated: 28 29 32;/* #1c1d20 elevated/floating surface */
+  --card: 28 29 32;
+  --foreground: 245 243 240;   /* #f5f3f0 soft white */
+  --muted: 185 178 170;        /* #b9b2aa secondary text */
+  --muted-2: 145 138 130;      /* #918a82 tertiary text */
+  --hairline: 245 243 240;     /* used with .07 alpha for subtle borders */
+  --accent: 185 175 162;       /* #b9afa2 brand */
+  --accent-soft: 209 204 196;  /* #d1ccc4 */
+  --accent-fg: 28 29 32;       /* dark ink text guaranteed to read on any accent chip */
+  --state-success: 125 168 127;/* #7da87f */
+  --state-warning: 214 185 106;/* #d6b96a */
+  --state-danger: 201 126 126; /* #c97e7e */
+
+  --equi-bg: #151412;
+  --equi-surface: #1c1d20;
+  --equi-surface-2: #252421;
+  --equi-ink: #f5f3f0;
+  --equi-muted: #a8a199;
+  --equi-subtle: #3b3834;
+  --equi-brand: #b9afa2;
+  --equi-brand-2: #d1ccc4;
+  --equi-accent: #c8c9cd;
+  --equi-success: #7da87f;
+  --equi-warning: #d6b96a;
+  --equi-danger: #c97e7e;
+  --equi-ring: #6d645a;
+
+  --arc-subtle: 245 243 240;
+  --arc-gold: 168 161 153;
+  --arc-copper: 209 204 196;
+}
+
+/* ============================================================ */
+/*  Cream theme — varmare och mjukare än light.                 */
+/*  Samma mörka ink för läsbarhet, varm off-white ytor.         */
+/* ============================================================ */
+html.cream {
+  --wiseos-bg: #FAF5EC;
+  --wiseos-fg: #2B2620;
+  --background: 250 245 236;   /* #FAF5EC app background */
+  --surface: 255 253 248;      /* #FFFDF8 primary surface */
+  --surface-2: 243 237 225;    /* #F3EDE1 secondary surface */
+  --surface-elevated: 255 253 248; /* #FFFDF8 elevated/floating surface */
+  --card: 255 253 248;
+  --foreground: 34 31 26;      /* #221F1A soft warm ink */
+  --muted: 122 111 95;         /* #7A6F5F secondary text */
+  --muted-2: 176 166 147;      /* #B0A693 tertiary text */
+  --hairline: 34 31 26;        /* used with .08 alpha for subtle borders */
+  --accent: 160 139 109;       /* #A08B6D warm sand */
+  --accent-soft: 185 165 134;  /* #B9A586 */
+  --state-success: 94 124 96;  /* #5e7c60 — unchanged */
+  --state-warning: 191 160 90; /* #bfa05a — unchanged */
+  --state-danger: 154 90 90;   /* #9a5a5a — unchanged */
+
+  --equi-bg: #faf5ec;
+  --equi-surface: #fffdf8;
+  --equi-surface-2: #f3ede1;
+  --equi-ink: #221f1a;
+  --equi-muted: #7a6f5f;
+  --equi-subtle: #ddd2bf;
+  --equi-brand: #a08b6d;
+  --equi-brand-2: #8a7658;
+  --equi-accent: #b9a586;
+  --equi-success: #5e7c60;
+  --equi-warning: #bfa05a;
+  --equi-danger: #9a5a5a;
+  --equi-ring: #b0a693;
+
+  --arc-subtle: 34 31 26;
+  --arc-gold: 122 111 95;
+  --arc-copper: 185 165 134;
+}
+
+/* ============================================================ */
+/*  Accent color themes — swap only the brand/accent hue.        */
+/*  Backgrounds & text stay on the neutral Equi scale so every   */
+/*  theme guarantees the same proven contrast in light & dark.   */
+/*  --accent-fg is intentionally left constant (dark ink) since  */
+/*  every accent below is a pale/mid tone chip, never near-black.*/
+/* ============================================================ */
+html[data-theme="alabaster"] {
+  --accent: 176 138 78;      /* #B08A4E warm champagne gold */
+  --accent-soft: 199 168 118;/* #C7A876 */
+}
+html.dark[data-theme="alabaster"] {
+  --accent: 216 190 138;     /* #D8BE8A */
+  --accent-soft: 230 211 174;/* #E6D3AE */
+}
+
+html[data-theme="slate"] {
+  --accent: 100 116 139;     /* #64748B cool blue-gray */
+  --accent-soft: 133 146 166;/* #8592A6 */
+}
+html.dark[data-theme="slate"] {
+  --accent: 154 170 194;     /* #9AAAC2 */
+  --accent-soft: 183 196 214;/* #B7C4D6 */
+}
+
+html[data-theme="violet"] {
+  --accent: 139 111 176;     /* #8B6FB0 */
+  --accent-soft: 168 143 199;/* #A88FC7 */
+}
+html.dark[data-theme="violet"] {
+  --accent: 195 174 222;     /* #C3AEDE */
+  --accent-soft: 214 198 234;/* #D6C6EA */
+}
+
+html[data-theme="mint"] {
+  --accent: 79 158 130;      /* #4F9E82 */
+  --accent-soft: 124 187 164;/* #7CBBA4 */
+}
+html.dark[data-theme="mint"] {
+  --accent: 143 203 179;     /* #8FCBB3 */
+  --accent-soft: 181 222 205;/* #B5DECD */
+}
+
+html[data-theme="ice"] {
+  --accent: 78 146 168;      /* #4E92A8 */
+  --accent-soft: 122 178 196;/* #7AB2C4 */
+}
+html.dark[data-theme="ice"] {
+  --accent: 154 208 224;     /* #9AD0E0 */
+  --accent-soft: 195 228 236;/* #C3E4EC */
 }
 
 * {
@@ -21,12 +181,12 @@ html.dark {
 }
 
 ::selection {
-  background: rgb(232 176 228 / 0.35);
+  background: rgb(var(--accent) / 0.22);
   color: inherit;
 }
 
 html.dark ::selection {
-  background: rgb(232 176 228 / 0.3);
+  background: rgb(var(--accent) / 0.28);
 }
 
 html, body {
@@ -54,45 +214,213 @@ html, body {
 }
 
 ::-webkit-scrollbar-thumb {
-  background: rgb(148 163 184 / 0.3);
+  background: rgb(var(--foreground) / 0.12);
   border-radius: 4px;
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: rgb(148 163 184 / 0.5);
-}
-
-html.dark ::-webkit-scrollbar-thumb {
-  background: rgb(255 255 255 / 0.1);
-}
-
-html.dark ::-webkit-scrollbar-thumb:hover {
-  background: rgb(255 255 255 / 0.2);
+  background: rgb(var(--foreground) / 0.22);
 }
 
 /* ============================================================ */
 /*  Shared input / form-control                                  */
 /* ============================================================ */
 @layer components {
+  /* Input — adapts via CSS variables: surfaces, borders, focus */
   .input {
-    @apply block w-full rounded-xl border border-slate-200 bg-white px-3.5 py-2.5 text-sm text-slate-900
-           placeholder:text-slate-400 shadow-soft transition-all
-           focus:outline-none focus:ring-2 focus:ring-slate-900/5 focus:border-slate-300;
+    @apply block w-full rounded-[10px] border border-[rgb(var(--hairline)/0.10)] bg-[rgb(var(--surface-2))] px-3.5 py-2.5 text-sm text-[rgb(var(--foreground))]
+           placeholder:text-[rgb(var(--muted-2))] transition-all
+           focus:outline-none focus:ring-2 focus:ring-[rgb(var(--foreground)/0.05)] focus:border-[rgb(var(--foreground)/0.16)];
   }
   textarea.input { @apply leading-relaxed; }
   select.input { @apply pr-9; }
-  
-  /* Primary button - soft pink accent */
+
+  /* Primary button — high-contrast: light bg dark text in light, white bg dark text in dark */
   .btn-primary {
-    @apply rounded-full bg-wise-300 px-5 py-2.5 text-sm font-semibold text-[#3f2a3f] 
-           transition-all hover:bg-wise-400 active:scale-[0.98];
+    @apply rounded-[10px] bg-[rgb(var(--foreground))] px-5 py-2.5 text-sm font-medium text-[rgb(var(--background))]
+           transition-all hover:bg-[rgb(var(--foreground)/0.85)] active:scale-[0.98];
   }
-  
-  /* Secondary button - dark slate */
+
+  /* Secondary button — elevated tinted surface with subtle border */
   .btn-secondary {
-    @apply rounded-full bg-slate-900 px-5 py-2.5 text-sm font-semibold text-white 
-           transition-all hover:bg-slate-800 active:scale-[0.98];
+    @apply rounded-[10px] bg-[rgb(var(--surface-elevated))] border border-[rgb(var(--hairline)/0.08)] px-5 py-2.5 text-sm font-medium text-[rgb(var(--foreground))]
+           transition-all hover:bg-[rgb(var(--surface-2))] active:scale-[0.98];
   }
+
+  /* Tertiary button — text/icon only */
+  .btn-tertiary {
+    @apply rounded-[10px] px-3 py-2 text-sm font-medium text-[rgb(var(--muted))]
+           transition-all hover:text-[rgb(var(--foreground))] hover:bg-[rgb(var(--foreground)/0.04)];
+  }
+}
+
+/* ============================================================ */
+/*  ARC INTRO SYSTEM — splash + scroll reveal (13-08-26 branch)  */
+/*  Inspired by NobleArc's intro feel, re-themed light/beige     */
+/* ============================================================ */
+@keyframes arc-flow {
+  0% { background-position: 0% 0; }
+  100% { background-position: 200% 0; }
+}
+
+@keyframes arc-text-in {
+  0% {
+    opacity: 0;
+    transform: translateY(12px) scale(0.98);
+  }
+  100% {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.arc-splash {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgb(var(--background));
+  transition: opacity 0.8s ease, transform 0.85s ease, filter 0.85s ease, visibility 0.8s ease;
+}
+
+.arc-splash.arc-fade-out {
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transform: scale(1.04);
+  filter: blur(4px);
+}
+
+.arc-splash-text {
+  font-family: 'Poppins', 'Inter', sans-serif;
+  font-weight: 300;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  text-align: center;
+  white-space: nowrap;
+  font-size: clamp(1.75rem, 7vw, 3.5rem);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: geometricPrecision;
+  background: linear-gradient(
+    90deg,
+    rgb(var(--foreground)) 0%,
+    rgb(var(--muted)) 45%,
+    rgb(var(--foreground)) 100%
+  );
+  background-size: 300% 100%;
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  color: transparent;
+  will-change: background-position, transform, opacity;
+  animation:
+    arc-text-in 0.9s cubic-bezier(0.22, 1, 0.36, 1) 0.15s both,
+    arc-flow 4s ease-in-out 1s infinite alternate;
+}
+
+.arc-splash-mark {
+  width: min(45vmin, 260px);
+  height: auto;
+  filter: drop-shadow(0 0 22px rgba(255, 255, 255, 0.28));
+}
+
+.arc-splash-mark .arc-w {
+  fill: none;
+  stroke: rgba(255, 255, 255, 0.95);
+  stroke-width: 14;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-dasharray: 1;
+  stroke-dashoffset: 1;
+  animation: arc-w-draw 1.4s cubic-bezier(0.45, 0, 0.2, 1) forwards;
+}
+
+.arc-splash-mark .arc-dot {
+  fill: rgba(255, 255, 255, 0.95);
+  opacity: 0;
+  transform-origin: 155px 55px;
+  transform: scale(0);
+  animation: arc-dot-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) 1.05s forwards;
+}
+
+@keyframes arc-w-draw {
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes arc-dot-in {
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.arc-splash-glass {
+  padding: clamp(2.5rem, 8vmin, 4.5rem);
+  border-radius: 2.5rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 0 60px rgba(255, 255, 255, 0.05), inset 0 0 30px rgba(255, 255, 255, 0.02);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  animation: arc-glass-in 0.7s ease-out 0.1s both;
+}
+
+@keyframes arc-glass-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+.arc-main {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.75s ease, transform 0.75s ease;
+  transition-delay: 0.15s;
+}
+
+.arc-main.arc-reveal {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.arc-section {
+  opacity: 0;
+  transform: translateY(24px);
+  transition: opacity 0.8s ease, transform 0.8s ease;
+}
+
+.arc-section.arc-in-view {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.arc-line {
+  fill: none;
+  stroke: rgb(var(--muted));
+  stroke-width: 1;
+  stroke-dasharray: 500;
+  stroke-dashoffset: 500;
+  transition: stroke-dashoffset 1.8s ease;
+}
+
+.arc-line.arc-in-view {
+  stroke-dashoffset: 0;
+}
+
+.arc-eyebrow {
+  font-size: 0.7rem;
+  font-weight: 400;
+  letter-spacing: 0.15em;
+  text-transform: uppercase;
+  color: rgb(var(--muted));
 }
 
 /* ============================================================ */
@@ -274,4 +602,135 @@ html.dark ::-webkit-scrollbar-thumb:hover {
 
 /* Dölj print-doc på skärm */
 .print-doc { display: none; }
+
+/* ============================================================ */
+/*  WiseOS SVG icon — potrace draw/flood animation              */
+/* ============================================================ */
+
+/* 1. Konturen ritas upp ur intet */
+@keyframes wiseos-draw {
+  from { stroke-dashoffset: 1; }
+  to   { stroke-dashoffset: 0; }
+}
+
+/* 2. Fyllningen flödar in och hårlinjen löses upp */
+@keyframes wiseos-flood {
+  from { fill-opacity: 0; stroke-opacity: 1; }
+  70%  { fill-opacity: 1; stroke-opacity: 0.6; }
+  to   { fill-opacity: 1; stroke-opacity: 0; }
+}
+
+/* 3. Hela märket landar med mjuk spring */
+@keyframes wiseos-settle {
+  0%   { opacity: 0; transform: translateY(14px) scale(0.94); }
+  60%  { opacity: 1; transform: translateY(0) scale(1.015); }
+  100% { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.wiseos-mark {
+  overflow: visible;
+  transform-origin: 50% 60%;
+  animation: wiseos-settle 1.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+.wiseos-link {
+  fill: currentColor;              /* följer ljust/mörkt tema */
+  stroke: currentColor;
+  stroke-width: 14;                /* i potrace-enheter (=1.4px efter skala) */
+  stroke-linejoin: round;
+  stroke-linecap: round;
+  vector-effect: non-scaling-stroke;
+}
+
+/* animerat läge – stagger via --d */
+.wiseos-link[class*="wiseos-link-"] {
+  fill-opacity: 0;
+  stroke-dasharray: 1;             /* funkar tack vare pathLength={1} */
+  stroke-dashoffset: 1;
+  animation:
+    wiseos-draw  1.05s cubic-bezier(0.65, 0, 0.35, 1) var(--d) forwards,
+    wiseos-flood 0.75s ease-out calc(var(--d) + 0.8s) forwards;
+}
+
+.wiseos-link-1 { --d: 0.1s; }
+.wiseos-link-2 { --d: 0.4s; }
+.wiseos-link-3 { --d: 0.7s; }
+
+/* ============================================================ */
+/*  WiseOS splash title — letter-by-letter animation            */
+/* ============================================================ */
+:root {
+  --wise-stroke: #333538;
+}
+html.dark {
+  --wise-stroke: #E2E5E9;
+}
+
+.wise-splash-title {
+  display: flex;
+  overflow: hidden;
+  font-size: 2.5rem;
+  font-weight: 600;
+  letter-spacing: 0.22em;
+  font-family: 'Poppins', 'Inter', sans-serif;
+  background-image: linear-gradient(90deg, var(--wise-stroke) 0%, #8a8f96 50%, var(--wise-stroke) 100%);
+  background-clip: text;
+  -webkit-background-clip: text;
+  color: transparent;
+  background-size: 200% 100%;
+}
+
+.wise-splash-letter {
+  display: inline-block;
+  min-width: 0.55em;
+  opacity: 0;
+  transform: translateY(18px) scale(0.96);
+  animation: wise-letter-in 0.55s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+
+@keyframes wise-letter-in {
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wiseos-mark,
+  .wiseos-link[class*="wiseos-link-"] {
+    animation: none;
+    opacity: 1;
+    transform: none;
+    fill-opacity: 1;
+    stroke-opacity: 0;
+    stroke-dashoffset: 0;
+  }
+
+  .wise-splash-title,
+  .wise-splash-letter {
+    animation: none;
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.wiseos-logo-label {
+  background: linear-gradient(90deg, #FFFFFF 0%, #E8ECF0 50%, #D1D5DB 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  color: transparent;
+}
+
+html:not(.dark) .wiseos-logo-label {
+  background: linear-gradient(90deg, #1C1A1E 0%, #57525A 50%, #8A858D 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
+
+.dark .wiseos-logo-label {
+  background: linear-gradient(90deg, #FFFFFF 0%, #E8ECF0 50%, #D1D5DB 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+}
 

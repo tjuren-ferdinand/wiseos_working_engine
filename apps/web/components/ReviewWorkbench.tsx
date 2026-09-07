@@ -1,222 +1,365 @@
 "use client";
 
-import { useState, useMemo } from "react";
-import { useStore, type Prov, type StudentResult, type Klass } from "@/lib/store";
-import PublishResultsModal from "./PublishResultsModal";
+import { useEffect, useState } from "react";
+import { useStore, actions, type Prov, type StudentResult, type Klass, type Question } from "@/lib/store";
+import { useTheme, type ReviewLayout } from "@/lib/theme";
+import Surface from "./ui/Surface";
+import EmptyState from "./ui/EmptyState";
+import StatusBadge from "./ui/StatusBadge";
 import LineIcon from "./LineIcon";
+import PublishResultsModal from "./PublishResultsModal";
 
 export default function ReviewWorkbench() {
+  const { reviewLayout } = useTheme();
   const prov = useStore((s) => s.prov);
   const results = useStore((s) => s.results);
   const klasser = useStore((s) => s.klasser);
   const [selectedProv, setSelectedProv] = useState<Prov | null>(null);
-  const [showPublishModal, setShowPublishModal] = useState(false);
+  const [showPublish, setShowPublish] = useState(false);
+  const [editingStep, setEditingStep] = useState<{ resultId: string; stepId: string } | null>(null);
+  const [editPoints, setEditPoints] = useState<string>("");
 
-  // Get completed prov (status = "ready")
-  const completedProv = prov.filter((p) => p.status === "ready");
-  
-  // Get results for selected prov
-  const selectedResults = selectedProv 
-    ? results.filter((r) => r.provId === selectedProv.id)
-    : [];
+  // Prov in the review pipeline: currently grading or ready for review.
+  // Published prov does not appear here — it is shown on the results/elev side.
+  const completedProv = prov.filter((p) => p.status === "grading" || p.status === "review");
 
-  const getKlassForProv = (provId: string): Klass | undefined => {
+  useEffect(() => {
+    if (selectedProv && !completedProv.some((p) => p.id === selectedProv.id)) {
+      setSelectedProv(null);
+      setShowPublish(false);
+    }
+  }, [completedProv, selectedProv]);
+
+  useEffect(() => {
+    // Poll while any prov is still being graded so the list becomes
+    // clickable as soon as AI grading completes — no page reload needed.
+    if (!completedProv.some((p) => p.status === "grading")) return;
+
+    const timer = setInterval(() => {
+      actions.hydrate().catch(() => {});
+    }, 5000);
+
+    return () => clearInterval(timer);
+  }, [completedProv]);
+
+  const getKlass = (provId: string): Klass | undefined => {
     const p = prov.find((pr) => pr.id === provId);
     return p ? klasser.find((k) => k.id === p.klassId) : undefined;
   };
 
-  const getTotalPoints = (result: StudentResult): { points: number; maxPoints: number } => {
-    const klass = getKlassForProv(result.provId);
-    const provData = prov.find((p) => p.id === result.provId);
-    
-    const points = result.steps.reduce((sum, step) => {
-      const { displayedPoints } = deriveStep(step, klass?.gradingParams || "", provData?.customParams || "");
-      return sum + displayedPoints;
-    }, 0);
-    const maxPoints = result.steps.reduce((sum, step) => sum + step.pointsMax, 0);
-    return { points, maxPoints };
+  const getProvResults = (provId: string): StudentResult[] =>
+    results.filter((r) => r.provId === provId);
+
+  const startEditStep = (result: StudentResult, stepId: string) => {
+    const step = result.steps.find((s) => s.id === stepId);
+    if (!step) return;
+    setEditingStep({ resultId: result.id, stepId });
+    setEditPoints(String(step.earnedPoints));
   };
 
-  const getGrade = (points: number, maxPoints: number): string => {
-    const percentage = (points / maxPoints) * 100;
-    if (percentage >= 90) return "A";
-    if (percentage >= 80) return "B";
-    if (percentage >= 70) return "C";
-    if (percentage >= 60) return "D";
-    if (percentage >= 50) return "E";
-    return "F";
-  };
-
-  const getGradeColor = (grade: string): string => {
-    switch (grade) {
-      case "A": return "bg-green-100 text-green-800";
-      case "B": return "bg-green-50 text-green-700";
-      case "C": return "bg-amber-50 text-amber-700";
-      case "D": return "bg-amber-100 text-amber-800";
-      case "E": return "bg-orange-50 text-orange-700";
-      case "F": return "bg-red-50 text-red-700";
-      default: return "bg-slate-50 text-slate-700";
-    }
-  };
-
-  // Import deriveStep temporarily for this component
-  const deriveStep = (step: any, klassParams: string, provParams: string) => {
-    const RULE_DEFS: Record<string, { match: RegExp; penalty: number; label: string }> = {
-      unit_penalty: { match: /enhet/i, penalty: 0.25, label: "Enhet saknas (−0.25)" },
-      sigfig_strict: { match: /gällande siffror|sig.?fig/i, penalty: 0, label: "Fel antal gällande siffror" },
-    };
-    
-    const active = new Set<string>();
-    const effectiveRules = step.appliedRules.filter((r: string) => active.has(r));
-    const penaltySum = effectiveRules.reduce((sum: number, r: string) => sum + RULE_DEFS[r].penalty, 0);
-    const aiSuggested = Math.max(0, step.pointsBase - penaltySum);
-    const displayedPoints = step.status === "edited" && step.pointsTeacher !== null
-      ? step.pointsTeacher
-      : aiSuggested;
-    
-    return { displayedPoints, aiSuggested, effectiveRules };
+  const saveStep = () => {
+    if (!editingStep) return;
+    const points = Number(editPoints);
+    if (Number.isNaN(points) || points < 0) return;
+    actions.updateStep(editingStep.resultId, editingStep.stepId, { earnedPoints: points });
+    setEditingStep(null);
   };
 
   if (completedProv.length === 0) {
     return (
-      <div className="rounded-3xl border border-dashed border-slate-200 bg-white p-16 text-center">
-        <div className="mx-auto h-16 w-16 rounded-2xl bg-wise-50 text-wise-600 grid place-items-center mb-4">
-          <LineIcon name="clipboard" className="h-8 w-8" />
-        </div>
-        <h3 className="text-xl font-semibold text-slate-900 mb-2">Inga rättade prov än</h3>
-        <p className="text-slate-600">När prov är rättade kommer de att dyka upp här för granskning.</p>
-      </div>
+      <EmptyState
+        icon="edit"
+        title="Inga rättade prov att granska"
+        description="När ett prov har rättats dyker det upp här för granskning och publicering."
+      />
     );
   }
 
   return (
     <div className="space-y-8">
-      {/* Prov Selection */}
-      <div>
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">Rättade prov</h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {completedProv.map((p) => {
-            const klass = getKlassForProv(p.id);
-            const provResults = results.filter((r) => r.provId === p.id);
-            const publishedCount = provResults.filter((r) => r.isPublished).length;
-            
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        {completedProv.map((p) => {
+          const klass = getKlass(p.id);
+          const provResults = getProvResults(p.id);
+          const isGrading = p.status === "grading";
+
+          return (
+            <Surface
+              key={p.id}
+              onClick={isGrading ? undefined : () => setSelectedProv(p)}
+              interactive={!isGrading}
+              className={isGrading ? "opacity-60" : ""}
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div>
+                  <h3 className="text-[15px] font-medium text-ink">{p.title}</h3>
+                  <p className="mt-0.5 text-[13px] text-ink-secondary">{klass?.name}</p>
+                </div>
+                <StatusBadge status={p.status} />
+              </div>
+              <div className="mt-4 flex items-center gap-2 text-[13px] text-ink-muted">
+                <LineIcon name="users" className="h-3.5 w-3.5" />
+                {isGrading ? "Rättar..." : `${provResults.length} elever`}
+              </div>
+            </Surface>
+          );
+        })}
+      </div>
+
+      {selectedProv && (
+        <div className="space-y-6">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <h3 className="text-[20px] font-medium tracking-[-0.01em] text-ink">
+                {selectedProv.title}
+              </h3>
+              <p className="mt-1 text-[13.5px] text-ink-secondary">
+                {getProvResults(selectedProv.id).length} elever ·{" "}
+                {selectedProv.status === "published" ? "publicerat" : "redo för granskning"}
+              </p>
+            </div>
+            {selectedProv.status === "review" && (
+              <button onClick={() => setShowPublish(true)} className="btn-primary">
+                <LineIcon name="check" className="h-4 w-4" />
+                Publicera resultat
+              </button>
+            )}
+          </div>
+
+          <div className="space-y-4">
+            {(() => {
+              const provResults = getProvResults(selectedProv.id);
+              const questions = deriveQuestions(provResults);
+              return provResults.map((result) => (
+                <ResultCard
+                  key={result.id}
+                  result={result}
+                  questions={questions}
+                  klass={getKlass(selectedProv.id)}
+                  editingStep={editingStep}
+                  editPoints={editPoints}
+                  onEditStep={startEditStep}
+                  onPointsChange={setEditPoints}
+                  onSave={saveStep}
+                  onCancel={() => setEditingStep(null)}
+                  layout={reviewLayout}
+                />
+              ));
+            })()}
+          </div>
+        </div>
+      )}
+
+      {selectedProv && (
+        <PublishResultsModal
+          isOpen={showPublish}
+          onClose={() => setShowPublish(false)}
+          prov={selectedProv}
+          results={getProvResults(selectedProv.id)}
+        />
+      )}
+    </div>
+  );
+}
+
+function deriveQuestions(results: StudentResult[]): Question[] {
+  const seen = new Map<string, Question>();
+  for (const result of results) {
+    for (const step of result.steps) {
+      if (!seen.has(step.questionId)) {
+        seen.set(step.questionId, {
+          id: `q-${step.questionId}`,
+          number: step.questionId,
+          maxPoints: step.maxPoints,
+        });
+      }
+    }
+  }
+  return Array.from(seen.values());
+}
+
+function ResultCard({
+  result,
+  questions,
+  klass,
+  editingStep,
+  editPoints,
+  onEditStep,
+  onPointsChange,
+  onSave,
+  onCancel,
+  layout = "split",
+}: {
+  result: StudentResult;
+  questions: Question[];
+  klass?: Klass;
+  editingStep: { resultId: string; stepId: string } | null;
+  editPoints: string;
+  onEditStep: (result: StudentResult, stepId: string) => void;
+  onPointsChange: (v: string) => void;
+  onSave: () => void;
+  onCancel: () => void;
+  layout?: ReviewLayout;
+}) {
+  const isImage = (url: string) => /^data:image\/(png|jpeg|jpg|webp|gif);/.test(url);
+  const scanPage = result.scanPages?.[0];
+  const showScan = layout !== "compact" && !!scanPage;
+
+  const scanBlock = scanPage ? (
+    <div className={layout === "stacked" ? "border-t border-ink-hairline pt-4" : "border-t border-ink-hairline pt-4"}>
+      <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-2">
+        Originalskanning
+      </div>
+      {isImage(scanPage) ? (
+        <img
+          src={scanPage}
+          alt="Elevens originalskanning"
+          className={`rounded-xl border border-ink-hairline object-contain ${
+            layout === "stacked" ? "max-h-64 w-full" : "max-h-96"
+          }`}
+        />
+      ) : (
+        <a
+          href={scanPage}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-blue-600 hover:underline"
+        >
+          Visa originalfil
+        </a>
+      )}
+    </div>
+  ) : null;
+
+  return (
+    <Surface padding="p-5">
+      <div className="flex items-center gap-4">
+        <div className="h-10 w-10 rounded-[12px] bg-ink/[0.04] border border-ink-hairline grid place-items-center text-[15px] font-medium text-ink">
+          {result.studentName.charAt(0)}
+        </div>
+        <div>
+          <h4 className="text-[15px] font-medium text-ink">{result.studentName}</h4>
+          <p className="text-[13px] text-ink-secondary">
+            {result.totalScore}/{result.maxScore} poäng · {result.percentage}%
+          </p>
+        </div>
+      </div>
+
+      {layout === "stacked" && showScan && <div className="mt-5">{scanBlock}</div>}
+
+      <div className={layout === "split" ? "mt-5 grid grid-cols-1 lg:grid-cols-2 gap-5" : "mt-0"}>
+      {layout === "split" && showScan && scanBlock}
+
+      <div className="mt-5 border-t border-ink-hairline pt-4">
+        <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted mb-3">
+          Uppgifter
+        </div>
+        <div className={layout === "compact" ? "space-y-2" : "space-y-3"}>
+          {questions.map((q) => {
+            const step = result.steps.find((s) => s.questionId === q.number);
+            const status = step?.status ?? "pending";
+            const label = step?.label ?? `Uppgift ${q.number}`;
+            const maxPoints = step?.maxPoints ?? q.maxPoints;
+            const earnedPoints = step?.earnedPoints ?? 0;
+            const isEditing =
+              step && editingStep?.resultId === result.id && editingStep?.stepId === step.id;
             return (
-              <button
-                key={p.id}
-                onClick={() => setSelectedProv(p)}
-                className={`rounded-3xl border p-6 text-left transition-all hover:-translate-y-0.5 hover:shadow-lg ${
-                  selectedProv?.id === p.id
-                    ? "border-wise-300 bg-wise-50/50 shadow-lg"
-                    : "border-slate-200 bg-white hover:border-wise-200"
+              <div
+                key={step ? step.id : `q-${q.id}`}
+                className={`flex items-start justify-between gap-4 rounded-[10px] bg-paper-secondary border border-ink-hairline ${
+                  layout === "compact" ? "p-2.5" : "p-3"
                 }`}
               >
-                <div className="flex items-start justify-between mb-3">
-                  <div>
-                    <h3 className="font-semibold text-slate-900 group-hover:text-wise-700 transition-colors">
-                      {p.title}
-                    </h3>
-                    <p className="text-sm text-slate-600 mt-1">{klass?.name}</p>
-                  </div>
-                  {publishedCount > 0 && (
-                    <span className="rounded-full bg-green-100 text-green-800 px-2 py-1 text-xs font-medium">
-                      {publishedCount}/{provResults.length} publicerade
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="text-[13px] font-medium text-ink">{label}</span>
+                    <span
+                      className={`shrink-0 inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium ${
+                        status === "correct"
+                          ? "bg-state-success/10 text-state-success border-state-success/20"
+                          : status === "partial"
+                            ? "bg-state-warning/10 text-state-warning border-state-warning/20"
+                            : status === "incorrect"
+                              ? "bg-state-danger/10 text-state-danger border-state-danger/20"
+                              : status === "needs_review"
+                                ? "bg-state-warning/10 text-state-warning border-state-warning/20"
+                                : "bg-ink/[0.04] text-ink-muted border-ink-hairline"
+                      }`}
+                    >
+                      {status === "correct"
+                        ? "Rätt"
+                        : status === "partial"
+                          ? "Delvis"
+                          : status === "incorrect"
+                            ? "Fel"
+                            : status === "needs_review"
+                              ? "Behöver granskas"
+                              : "Väntar"}
                     </span>
+                  </div>
+                  {layout !== "compact" && (
+                    <>
+                      {step?.questionText && (
+                        <p className="mt-1.5 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">Fråga:</span> {step.questionText}
+                        </p>
+                      )}
+                      {step?.studentWork !== undefined && (
+                        <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">Elevens svar:</span> {step.studentWork || "(inte extraherat)"}
+                        </p>
+                      )}
+                      {step?.correctAnswer && (
+                        <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">Facit:</span> {step.correctAnswer}
+                        </p>
+                      )}
+                      {step?.feedback && (
+                        <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
+                          <span className="font-medium text-ink">AI-analys:</span> {step.feedback}
+                        </p>
+                      )}
+                    </>
                   )}
                 </div>
-                
-                <div className="flex items-center gap-4 text-sm text-slate-500">
-                  <span>{provResults.length} elever</span>
-                  <span className="h-1 w-1 rounded-full bg-slate-300" />
-                  <span>Rättad</span>
+
+                <div className="flex items-center gap-3">
+                  {isEditing ? (
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        value={editPoints}
+                        onChange={(e) => onPointsChange(e.target.value)}
+                        className="input w-20 h-8 py-1 text-center"
+                        min={0}
+                        max={maxPoints}
+                      />
+                      <span className="text-[13px] text-ink-muted">/ {maxPoints}</span>
+                      <button onClick={onSave} className="btn-primary h-8 px-2.5">
+                        <LineIcon name="check" className="h-3.5 w-3.5" />
+                      </button>
+                      <button onClick={onCancel} className="btn-secondary h-8 px-2.5">
+                        <LineIcon name="x" className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  ) : step ? (
+                    <button
+                      onClick={() => onEditStep(result, step.id)}
+                      className="flex items-center gap-2 text-[13px] text-ink-secondary hover:text-ink"
+                    >
+                      <LineIcon name="pen" className="h-3.5 w-3.5" />
+                      {earnedPoints} / {maxPoints}
+                    </button>
+                  ) : (
+                    <span className="text-[13px] text-ink-muted">— / {maxPoints}</span>
+                  )}
                 </div>
-              </button>
+              </div>
             );
           })}
         </div>
       </div>
-
-      {/* Selected Prov Results */}
-      {selectedProv && (
-        <div className="space-y-6">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-xl font-semibold text-slate-900">{selectedProv.title}</h3>
-              <p className="text-slate-600">
-                {selectedResults.length} elever · {selectedResults.filter((r) => r.isPublished).length} publicerade
-              </p>
-            </div>
-            
-            <button
-              onClick={() => setShowPublishModal(true)}
-              className="relative rounded-full bg-wise-600 px-6 py-3 text-sm font-semibold text-white transition-all hover:bg-wise-700 hover:shadow-lg hover:shadow-wise-600/20 active:scale-[0.98] overflow-hidden"
-            >
-              <span className="relative z-10 flex items-center gap-2">
-                <LineIcon name="send" className="h-4 w-4" />
-                Publicera resultat
-              </span>
-              {/* Pulse animation */}
-              <span className="absolute inset-0 bg-wise-700 animate-ping opacity-20" />
-            </button>
-          </div>
-
-          <div className="grid gap-4">
-            {selectedResults.map((result) => {
-              const { points, maxPoints } = getTotalPoints(result);
-              const grade = getGrade(points, maxPoints);
-              const gradeColorClass = getGradeColor(grade);
-              
-              return (
-                <div
-                  key={result.id}
-                  className={`rounded-3xl border p-6 transition-all ${
-                    result.isPublished
-                      ? "border-green-200 bg-green-50/30"
-                      : "border-slate-200 bg-white"
-                  }`}
-                >
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <div className="flex h-12 w-12 items-center justify-center rounded-2xl bg-wise-100 text-wise-600 font-semibold text-lg">
-                        {result.studentName.charAt(0)}
-                      </div>
-                      
-                      <div>
-                        <h4 className="font-semibold text-slate-900">{result.studentName}</h4>
-                        <p className="text-sm text-slate-600">
-                          {points}/{maxPoints} poäng
-                        </p>
-                      </div>
-                    </div>
-                    
-                    <div className="flex items-center gap-3">
-                      <span className={`rounded-full px-3 py-1 text-sm font-medium ${gradeColorClass}`}>
-                        Betyg: {grade}
-                      </span>
-                      
-                      {result.isPublished && (
-                        <span className="rounded-full bg-green-100 text-green-800 px-3 py-1 text-xs font-medium flex items-center gap-1">
-                          <LineIcon name="check" className="h-3 w-3" />
-                          Publicerad
-                        </span>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      )}
-
-      {/* Publish Modal */}
-      {selectedProv && (
-        <PublishResultsModal
-          isOpen={showPublishModal}
-          onClose={() => setShowPublishModal(false)}
-          prov={selectedProv}
-          results={selectedResults}
-        />
-      )}
     </div>
+    </Surface>
   );
 }

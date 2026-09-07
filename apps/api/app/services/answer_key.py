@@ -3,82 +3,45 @@ from __future__ import annotations
 
 import base64
 import json
+import re
 
 from ..config import settings
 from ..schemas import AnswerKeyItem
+from . import groq_client, vision_ocr
 
 
-SYSTEM_PROMPT = """You are the core extraction engine of wiseOS, an advanced AI grading assistant for STEM teachers. Your task is to analyze the uploaded answer key (facit/lösningsförslag) and convert it into a structured, machine-readable format for the grading workbench. Analyze the provided document and extract every single question. For each question, identify and isolate: 1. The question number. 2. The final analytical answer including correct SI units, e.g., N, m/s, kg. 3. The deterministic step-by-step mathematical or physical derivation required for full marks. You must handle complex notation, sub-steps, and formulas with absolute precision. Do not hallucinate or simplify. Respond ONLY with a valid JSON array in the following format. Do not include any conversational prose, markdown blocks outside of the JSON, or explanations.
+SYSTEM_PROMPT = """Du är facit-extraheraren i wiseOS. Analysera det uppladdade facitdokumentet och extrahera varje uppgift som ett JSON-objekt. För varje uppgift, fång:
+1. Nummer (question_number).
+2. Själva frågan/uppdraget (question_text) – ordagrant eller en kort sammanfattning om texten är lång.
+3. Förväntat korrekt svar (final_answer).
+4. Godtagbara alternativa svar (acceptable_answers).
+5. Eventuella lösningssteg (derivation_steps), viktiga begrepp (important_concepts) och resonemangskrav (reasoning_requirements).
+6. Om matematisk verifiering är relevant (mathematical_verification).
+7. Maxpoäng (max_points) – 1.0 om inget poängantal syns.
+
+Svara ENDAST med en giltig JSON-array. Inga förklaringar, inga kodblock, ingen annan text.
+
 [
-{
-"question_number": "1",
-"final_answer": "x = 3",
-"derivation_steps": [
-"2x + 4 = 10",
-"2x = 6",
-"x = 3"
-]
-},
-{
-"question_number": "2",
-"final_answer": "F = 24 N",
-"derivation_steps": [
-"m = 2.4 kg",
-"g = 9.81 m/s^2",
-"F = m * g",
-"F = 2.4 * 9.81 = 23.544 N",
-"Rounded to significant figures: 24 N"
-]
-}
+  {
+    "question_number": "1",
+    "question_text": "Hur många meter är 1 km?",
+    "final_answer": "1000 m",
+    "derivation_steps": [],
+    "max_points": 1
+  },
+  {
+    "question_number": "2",
+    "question_text": "Sveriges huvudstad?",
+    "final_answer": "Stockholm",
+    "derivation_steps": [],
+    "max_points": 1
+  }
 ]"""
 
 
 def _mock_answer_key(size: int) -> list[AnswerKeyItem]:
-    # Realistisk fysik 1 demo för investerare
-    return [
-        AnswerKeyItem(
-            question_number="1a",
-            final_answer="v = 19.6 m/s",
-            derivation_steps=[
-                "Ett föremål släpps från vila (v₀ = 0)",
-                "Fallhöjd: h = 19.6 m",
-                "Energilagen: mgh = ½mv²",
-                "gh = ½v² → v² = 2gh",
-                "v = √(2 × 9.82 × 19.6) = √384.9 ≈ 19.6 m/s"
-            ],
-        ),
-        AnswerKeyItem(
-            question_number="1b",
-            final_answer="t = 2.0 s",
-            derivation_steps=[
-                "Falltid från höjden",
-                "h = ½gt²",
-                "t² = 2h/g = 2×19.6/9.82 = 3.99",
-                "t = √3.99 ≈ 2.0 s"
-            ],
-        ),
-        AnswerKeyItem(
-            question_number="2",
-            final_answer="F = 1470 N",
-            derivation_steps=[
-                "Lyftkraft behövs för att motverka tyngdkraften",
-                "Massa: m = 150 kg",
-                "Tyngdacceleration: g = 9.82 m/s²",
-                "F = mg = 150 × 9.82 = 1473 N",
-                "Avrundat till 3 gällande siffror: 1470 N"
-            ],
-        ),
-        AnswerKeyItem(
-            question_number="3",
-            final_answer="a = 2.5 m/s²",
-            derivation_steps=[
-                "Newtons 2a lag: F = ma",
-                "Resultantkraft: F_net = 500 N - 250 N = 250 N",
-                "Massa: m = 100 kg",
-                "a = F_net/m = 250/100 = 2.5 m/s²"
-            ],
-        ),
-    ]
+    """Vi använder aldrig ett statiskt demo-facit."""
+    raise RuntimeError("Inget facit tillgängligt. Kontrollera API-nycklar eller uppladdat facit.")
 
 
 def _extract_json_array(text: str) -> list[dict]:
@@ -89,41 +52,98 @@ def _extract_json_array(text: str) -> list[dict]:
         start = raw.find("[")
         end = raw.rfind("]")
         if start == -1 or end == -1 or end <= start:
-            raise ValueError("Vision model returned no JSON array")
+            raise ValueError("Modellen returnerade ingen JSON-array")
         data = json.loads(raw[start : end + 1])
 
+    # JSON-läget på Groq kräver ett objekt, så facit levereras som {"items": [...]}.
+    if isinstance(data, dict):
+        for key in ("items", "answer_key", "questions", "facit"):
+            if isinstance(data.get(key), list):
+                data = data[key]
+                break
+
     if not isinstance(data, list):
-        raise ValueError("Vision model JSON response was not an array")
+        raise ValueError("JSON-svaret innehöll ingen lista med uppgifter")
     return data
+
+
+GENERATE_PROMPT = (
+    "Du är wiseOS facitmotor för svenska prov i olika ämnen. "
+    "Konstruera ett rimligt facit utifrån provets beskrivning. "
+    "Varje uppgift ska innehålla frågan, förväntat svar, godtagbara alternativ, lösningssteg, viktiga begrepp, resonemangskrav, matematisk verifiering och maxpoäng. "
+    'Svara enbart med JSON på formen '
+    '{"items": [{"question_number": "1", "question_text": "Frågan", "final_answer": "Svar", '
+    '"acceptable_answers": [], "derivation_steps": [], "important_concepts": [], '
+    '"reasoning_requirements": [], "mathematical_verification": false, "max_points": 1}]}'
+)
+
+
+def _normalize_question_number(qn: str) -> str:
+    """Ta bort vanliga prefix/suffix kring numret, t.ex. 'Uppgift 1.', '1)', 'Q1'."""
+    s = str(qn).strip()
+    # Matcha "Uppgift 1" / "1." / "1)" / "Q1" etc.
+    m = re.search(r"([A-Za-z]*)(\d+[A-Za-z]?)", s)
+    if m:
+        return m.group(2).lower()
+    return s
+
+
+def _parse_items(text: str) -> list[AnswerKeyItem]:
+    items = [AnswerKeyItem.model_validate(item) for item in _extract_json_array(text)]
+    for item in items:
+        item.question_number = _normalize_question_number(item.question_number)
+    return items
+
+
+async def _extract_with_vision(file_bytes: bytes, mime_type: str) -> list[AnswerKeyItem] | None:
+    """Läser facit från bild via den gratis vision-providern som är konfigurerad."""
+    try:
+        text = await vision_ocr.read_image(
+            file_bytes,
+            mime_type,
+            prompt=f"{SYSTEM_PROMPT}\n\nExtrahera facit från den här bilden.",
+        )
+        if not text:
+            return None
+        items = _parse_items(text)
+        return items or None
+    except Exception:
+        return None
+
+
+async def generate_answer_key(description: str, question_count: int = 4) -> list[AnswerKeyItem]:
+    """Skapar ett facit från en textbeskrivning när läraren inte laddat upp något."""
+    if not groq_client.groq_enabled():
+        return _mock_answer_key(question_count)
+
+    prompt = (
+        f"Skapa ett facit med {question_count} uppgifter för följande prov.\n\n"
+        f"Provbeskrivning: {description.strip() or 'Fysik 1, blandade uppgifter.'}"
+    )
+    try:
+        text = await groq_client.complete_text(
+            GENERATE_PROMPT,
+            prompt,
+            max_tokens=1400,
+            temperature=0.3,
+            json_mode=True,
+        )
+        items = _parse_items(text)
+        return items or _mock_answer_key(question_count)
+    except Exception:
+        return _mock_answer_key(question_count)
 
 
 async def extract_answer_key(file_bytes: bytes, mime_type: str) -> list[AnswerKeyItem]:
     if not settings.ANTHROPIC_API_KEY:
-        return _mock_answer_key(len(file_bytes))
+        items = await _extract_with_vision(file_bytes, mime_type)
+        return items if items else _mock_answer_key(len(file_bytes))
 
     try:
-        from anthropic import AsyncAnthropic
+        from .providers.registry import get_claude_vision_provider
 
-        client = AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-        encoded = base64.b64encode(file_bytes).decode("ascii")
-        if mime_type == "application/pdf":
-            media_block = {
-                "type": "document",
-                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
-            }
-        else:
-            media_block = {
-                "type": "image",
-                "source": {"type": "base64", "media_type": mime_type, "data": encoded},
-            }
-
-        msg = await client.messages.create(
-            model=settings.ANTHROPIC_MODEL,
-            max_tokens=4000,
-            system=SYSTEM_PROMPT,
-            messages=[{"role": "user", "content": [media_block, {"type": "text", "text": "Extract this answer key."}]}],
-        )
-        text = "\n".join(block.text for block in msg.content if getattr(block, "type", None) == "text")
-        return [AnswerKeyItem.model_validate(item) for item in _extract_json_array(text)]
+        adapter = get_claude_vision_provider()
+        return await adapter.extract_answer_key(file_bytes, mime_type)
     except Exception:
-        return _mock_answer_key(len(file_bytes))
+        items = await _extract_with_vision(file_bytes, mime_type)
+        return items if items else _mock_answer_key(len(file_bytes))

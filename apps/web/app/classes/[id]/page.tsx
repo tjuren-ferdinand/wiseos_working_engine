@@ -2,11 +2,14 @@
 
 import Link from "next/link";
 import { useParams, useRouter } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore, actions, type Prov, type StudentResult, type GradingParams } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
 import GradingWizard from "@/components/GradingWizard";
 import LineIcon from "@/components/LineIcon";
+import Breadcrumb from "@/components/ui/Breadcrumb";
+import Surface from "@/components/ui/Surface";
+import EmptyState from "@/components/ui/EmptyState";
+import StatusBadge from "@/components/ui/StatusBadge";
 
 export default function ClassPage() {
   const params = useParams<{ id: string }>();
@@ -15,76 +18,107 @@ export default function ClassPage() {
   const allProv = useStore((s) => s.prov);
   const results = useStore((s) => s.results);
   const kurser = useStore((s) => s.kurser);
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const hydrated = useStore((s) => s.hydrated);
 
   const klass = useMemo(() => klasser.find((k) => k.id === params.id), [klasser, params.id]);
   const prov = useMemo(() => allProv.filter((p) => p.klassId === params.id), [allProv, params.id]);
 
   const [tab, setTab] = useState<"prov" | "overview" | "params">("prov");
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [loadingClass, setLoadingClass] = useState(false);
+  const [classError, setClassError] = useState<string | null>(null);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+
+  useEffect(() => {
+    if (!hydrated || klass || loadingClass || classError) return;
+    setLoadingClass(true);
+    actions.loadKlass(params.id)
+      .catch((error) => setClassError((error as Error).message))
+      .finally(() => setLoadingClass(false));
+  }, [classError, hydrated, klass, loadingClass, params.id]);
+
+  const deleteClass = async () => {
+    setDeleting(true);
+    setClassError(null);
+    try {
+      await actions.deleteKlass(params.id);
+      router.replace("/classes");
+    } catch (error) {
+      setClassError((error as Error).message);
+      setDeleting(false);
+      setConfirmDelete(false);
+    }
+  };
 
   if (!klass) {
+    if (!hydrated || loadingClass) {
+      return <div className="py-20 text-center text-[13px] text-ink-muted">Hämtar klassen…</div>;
+    }
     return (
-      <div className={`text-center py-20 ${isDark ? "text-white/50" : "text-slate-500"}`}>
-        Klassen kunde inte hittas. <Link href="/" className="underline">Till klasslistan</Link>
+      <div className="text-center py-20 text-ink-secondary">
+        Klassen kunde inte hittas. <Link href="/classes" className="text-ink underline">Till klasslistan</Link>
+        {classError && <div className="mt-3 text-[12.5px] text-state-danger">{classError}</div>}
       </div>
     );
   }
 
+  const kursName = kurser.find((c) => c.id === klass.kursId)?.name || klass.kursId || "Kurs";
+
   return (
     <div className="space-y-8">
       <div>
-        {/* Breadcrumb */}
-        <nav className="flex items-center gap-2 text-sm">
-          <Link 
-            href="/courses" 
-            className={`hover:underline ${isDark ? "text-white/60" : "text-slate-500"}`}
-          >
-            Kurser
-          </Link>
-          <span className={isDark ? "text-white/40" : "text-slate-400"}>/</span>
-          <Link 
-            href={`/courses/${klass.kursId}`}
-            className={`hover:underline ${isDark ? "text-white/60" : "text-slate-500"}`}
-          >
-            {kurser.find((c) => c.id === klass.kursId)?.name || "Kurs"}
-          </Link>
-          <span className={isDark ? "text-white/40" : "text-slate-400"}>/</span>
-          <span className={isDark ? "text-white" : "text-slate-900"}>{klass.name}</span>
-        </nav>
-        
+        <Breadcrumb
+          items={[
+            { label: "Kurser", href: "/courses" },
+            { label: kursName, href: `/courses/${klass.kursId}` },
+            { label: klass.name },
+          ]}
+        />
+
         <div className="mt-6 flex flex-wrap items-start justify-between gap-4">
           <div>
-            <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${isDark ? "text-white/40" : "text-slate-400"}`}>
-              {kurser.find((c) => c.id === klass.kursId)?.name || "Kurs"} · {klass.students.length} elever
+            <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted">
+              {kursName} · {klass.students.length} elever
             </div>
-            <h1 className={`mt-1 text-[40px] font-bold tracking-[-0.02em] ${isDark ? "text-white" : "text-slate-900"}`}>
+            <h1 className="mt-1.5 text-[28px] font-medium tracking-[-0.02em] text-ink">
               {klass.name}
             </h1>
           </div>
-          <button
-            onClick={() => setWizardOpen(true)}
-            className="rounded-xl px-6 py-3 text-sm font-semibold bg-[#e8b0e4] text-slate-900 hover:bg-[#d89dd3] transition-all active:scale-[0.98]"
-          >
-            + Rätta nytt prov
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            {confirmDelete ? (
+              <div className="flex items-center gap-2 rounded-xl border border-state-danger/20 bg-state-danger/[0.06] p-1.5 pl-3">
+                <span className="text-[12px] text-state-danger">Radera klass och all provdata?</span>
+                <button type="button" onClick={() => setConfirmDelete(false)} disabled={deleting} className="rounded-lg px-3 py-1.5 text-[12px] text-ink-secondary hover:bg-ink/[0.05]">
+                  Avbryt
+                </button>
+                <button type="button" onClick={deleteClass} disabled={deleting} className="rounded-lg bg-state-danger px-3 py-1.5 text-[12px] font-medium text-white disabled:opacity-50">
+                  {deleting ? "Raderar…" : "Ja, radera"}
+                </button>
+              </div>
+            ) : (
+              <button type="button" onClick={() => setConfirmDelete(true)} className="rounded-lg border border-ink-hairline px-3.5 py-2 text-[12.5px] text-ink-muted transition-colors hover:border-state-danger/30 hover:text-state-danger">
+                Ta bort klass
+              </button>
+            )}
+            <button onClick={() => setWizardOpen(true)} className="btn-primary">
+              Rätta nytt prov
+            </button>
+          </div>
         </div>
 
-        <div className={`mt-6 flex gap-1 border-b ${isDark ? "border-white/10" : "border-slate-200"}`}>
-          <Tab active={tab === "prov"} onClick={() => setTab("prov")} isDark={isDark}>Prov ({prov.length})</Tab>
-          <Tab active={tab === "overview"} onClick={() => setTab("overview")} isDark={isDark}>Kursöversikt</Tab>
-          <Tab active={tab === "params"} onClick={() => setTab("params")} isDark={isDark}>Inställningar</Tab>
+        <div className="mt-6 flex gap-1 border-b border-ink-hairline">
+          <Tab active={tab === "prov"} onClick={() => setTab("prov")}>Prov ({prov.length})</Tab>
+          <Tab active={tab === "overview"} onClick={() => setTab("overview")}>Kursöversikt</Tab>
+          <Tab active={tab === "params"} onClick={() => setTab("params")}>Inställningar</Tab>
         </div>
       </div>
 
       {tab === "prov" && (
-        <ProvTab klassId={klass.id} prov={prov} results={results} onOpenWizard={() => setWizardOpen(true)} isDark={isDark} />
+        <ProvTab klassId={klass.id} prov={prov} results={results} onOpenWizard={() => setWizardOpen(true)} />
       )}
-      {tab === "overview" && (
-        <CourseOverviewTab prov={prov} results={results} isDark={isDark} />
-      )}
-      {tab === "params" && <ParamsTab klassId={klass.id} initial={klass.gradingParams} isDark={isDark} />}
+      {tab === "overview" && <CourseOverviewTab prov={prov} results={results} />}
+      {tab === "params" && <ParamsTab klassId={klass.id} initial={klass.gradingParams} />}
 
       <GradingWizard
         klass={klass}
@@ -96,18 +130,16 @@ export default function ClassPage() {
   );
 }
 
-function Tab({ active, onClick, children, isDark }: { active: boolean; onClick: () => void; children: React.ReactNode; isDark: boolean }) {
+function Tab({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
   return (
     <button
       onClick={onClick}
-      className={`relative px-4 py-2.5 text-sm font-medium transition-colors ${
-        active 
-          ? isDark ? "text-white" : "text-slate-900"
-          : isDark ? "text-white/50 hover:text-white" : "text-slate-500 hover:text-slate-800"
+      className={`relative px-4 py-2.5 text-[13.5px] font-medium transition-colors ${
+        active ? "text-ink" : "text-ink-muted hover:text-ink-secondary"
       }`}
     >
       {children}
-      {active && <span className={`absolute left-2 right-2 -bottom-px h-0.5 rounded-full ${isDark ? "bg-white" : "bg-slate-900"}`} />}
+      {active && <span className="absolute left-2 right-2 -bottom-px h-0.5 rounded-full bg-ink" />}
     </button>
   );
 }
@@ -117,37 +149,24 @@ function ProvTab({
   prov,
   results,
   onOpenWizard,
-  isDark,
 }: {
   klassId: string;
   prov: Prov[];
   results: StudentResult[];
   onOpenWizard: () => void;
-  isDark: boolean;
 }) {
   if (prov.length === 0) {
     return (
-      <div className={`rounded-2xl border-2 border-dashed p-14 text-center ${
-        isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"
-      }`}>
-        <div className={`mx-auto h-14 w-14 rounded-2xl grid place-items-center ${
-          isDark ? "bg-[#e8b0e4]/10" : "bg-[#e8b0e4]/15"
-        }`}>
-          <LineIcon name="file" className={`h-6 w-6 ${isDark ? "text-[#e8b0e4]" : "text-[#c78bbf]"}`} />
-        </div>
-        <h3 className={`mt-5 text-lg font-semibold ${isDark ? "text-white" : "text-slate-900"}`}>
-          Inga prov i denna klass ännu
-        </h3>
-        <p className={`mt-2 text-sm max-w-md mx-auto ${isDark ? "text-white/50" : "text-slate-500"}`}>
-          Klicka på <em>Rätta nytt prov</em> för att ladda upp en skannad bunt – wiseOS sektionerar per elev och rättar mot facit.
-        </p>
-        <button 
-          onClick={onOpenWizard} 
-          className="mt-6 rounded-xl px-5 py-2.5 text-sm font-semibold bg-[#e8b0e4] text-slate-900 hover:bg-[#d89dd3] transition-all"
-        >
-          Rätta nytt prov
-        </button>
-      </div>
+      <EmptyState
+        icon="file"
+        title="Inga prov i denna klass ännu"
+        description="Klicka på Rätta nytt prov för att ladda upp en skannad bunt – WiseOS sektionerar per elev och rättar mot facit."
+        action={
+          <button onClick={onOpenWizard} className="btn-primary">
+            Rätta nytt prov
+          </button>
+        }
+      />
     );
   }
 
@@ -155,74 +174,29 @@ function ProvTab({
     <div className="grid gap-4 sm:grid-cols-2">
       {prov.map((p) => {
         const provResults = results.filter((r) => r.provId === p.id);
-        const status = p.status as string;
         return (
-          <Link
-            key={p.id}
-            href={`/classes/${klassId}/grade/${p.id}`}
-            className={`group relative rounded-2xl p-5 transition-all hover:-translate-y-0.5 ${
-              isDark
-                ? "bg-white/5 border border-white/10 hover:bg-white/10 hover:border-white/20"
-                : "bg-white border border-slate-200/60 shadow-soft hover:shadow-card"
-            }`}
-          >
-            <div className="flex items-start justify-between">
+          <Surface key={p.id} href={`/classes/${klassId}/grade/${p.id}`} padding="p-5">
+            <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
-                <div className={`text-base font-semibold truncate ${isDark ? "text-white" : "text-slate-900"}`}>
-                  {p.title}
-                </div>
-                <div className={`mt-1 text-xs ${isDark ? "text-white/40" : "text-slate-500"}`}>
+                <div className="text-[15px] font-medium truncate text-ink">{p.title}</div>
+                <div className="mt-1 text-[12px] text-ink-muted">
                   {new Date(p.createdAt).toLocaleDateString("sv-SE", { year: "numeric", month: "short", day: "numeric" })}
                 </div>
               </div>
-              <StatusPill status={status} isDark={isDark} />
+              <StatusBadge status={p.status as string} />
             </div>
             {p.facit && (
-              <div className={`mt-4 text-xs font-mono line-clamp-2 ${isDark ? "text-white/40" : "text-slate-500"}`}>
+              <div className="mt-4 text-[12px] font-mono line-clamp-2 text-ink-muted">
                 Facit: {p.facit.replace(/\n/g, " · ")}
               </div>
             )}
-            <div className={`mt-4 flex items-center gap-2 text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
-              <span><strong className={isDark ? "text-white" : "text-slate-900"}>{provResults.length}</strong> elever</span>
+            <div className="mt-4 text-[12.5px] text-ink-secondary">
+              <strong className="font-medium text-ink">{provResults.length}</strong> elever
             </div>
-          </Link>
+          </Surface>
         );
       })}
     </div>
-  );
-}
-
-function StatusPill({ status, isDark }: { status: string; isDark: boolean }) {
-  const map: Record<string, { label: string; light: string; dark: string }> = {
-    draft: {
-      label: "Utkast",
-      light: "bg-slate-50 text-slate-600 ring-slate-200",
-      dark: "bg-white/10 text-white/60 ring-white/20",
-    },
-    grading: {
-      label: "Rättar…",
-      light: "bg-wise-50 text-wise-700 ring-wise-100",
-      dark: "bg-wise-300/20 text-wise-300 ring-wise-300/30",
-    },
-    review: {
-      label: "Granskning",
-      light: "bg-amber-50 text-amber-700 ring-amber-100",
-      dark: "bg-amber-500/20 text-amber-300 ring-amber-500/30",
-    },
-    published: {
-      label: "Publicerad",
-      light: "bg-emerald-50 text-emerald-700 ring-emerald-100",
-      dark: "bg-emerald-500/20 text-emerald-400 ring-emerald-500/30",
-    },
-  };
-  const s = map[status] || map.draft;
-  return (
-    <span className={`shrink-0 inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${isDark ? s.dark : s.light}`}>
-      {(status === "grading" || status === "review") && (
-        <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse mr-1.5" />
-      )}
-      {s.label}
-    </span>
   );
 }
 
@@ -230,11 +204,9 @@ function StatusPill({ status, isDark }: { status: string; isDark: boolean }) {
 function CourseOverviewTab({
   prov,
   results,
-  isDark,
 }: {
   prov: Prov[];
   results: StudentResult[];
-  isDark: boolean;
 }) {
   // Gruppera resultat per elev
   const studentMap = useMemo(() => {
@@ -261,72 +233,57 @@ function CourseOverviewTab({
 
   if (prov.length === 0 || students.length === 0) {
     return (
-      <div className={`rounded-2xl border-2 border-dashed p-14 text-center ${
-        isDark ? "border-white/10 bg-white/5" : "border-slate-200 bg-white"
-      }`}>
-        <div className={`text-base font-medium ${isDark ? "text-white/60" : "text-slate-500"}`}>
-          Ingen data att visa ännu
-        </div>
-        <p className={`mt-2 text-sm ${isDark ? "text-white/40" : "text-slate-400"}`}>
-          Rätta minst ett prov för att se kursöversikten.
-        </p>
-      </div>
+      <EmptyState
+        icon="chart"
+        title="Ingen data att visa ännu"
+        description="Rätta minst ett prov för att se kursöversikten."
+      />
     );
   }
 
+  const scoreTint = (score: number) =>
+    score >= 80
+      ? "bg-state-success/[0.12] text-state-success"
+      : score >= 50
+      ? "bg-ink/[0.05] text-ink-secondary"
+      : "bg-state-danger/[0.12] text-state-danger";
+
   return (
     <div className="space-y-4">
-      <div className={`text-sm ${isDark ? "text-white/60" : "text-slate-600"}`}>
+      <p className="text-[13.5px] text-ink-secondary">
         Översikt av alla elevers resultat för betygsstöd. Klicka på en elev för att se detaljer.
-      </div>
-      
-      <div className={`rounded-2xl overflow-hidden ${
-        isDark ? "bg-white/5 border border-white/10" : "bg-white border border-slate-200 shadow-soft"
-      }`}>
+      </p>
+
+      <div className="rounded-[16px] overflow-hidden bg-paper-raised border border-ink-hairline shadow-soft">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-[13px]">
             <thead>
-              <tr className={isDark ? "bg-white/5" : "bg-slate-50"}>
-                <th className={`sticky left-0 z-10 px-4 py-3 text-left font-semibold ${
-                  isDark ? "bg-[#1a1a1a] text-white/80" : "bg-slate-50 text-slate-700"
-                }`}>
+              <tr className="border-b border-ink-hairline">
+                <th className="sticky left-0 z-10 bg-paper-secondary px-4 py-3 text-left font-medium text-ink-secondary">
                   Elev
                 </th>
                 {prov.map((p) => (
-                  <th key={p.id} className={`px-4 py-3 text-center font-medium min-w-[100px] ${
-                    isDark ? "text-white/60" : "text-slate-600"
-                  }`}>
-                    <div className="truncate max-w-[120px]" title={p.title}>
+                  <th key={p.id} className="px-4 py-3 text-center font-medium min-w-[100px] text-ink-muted">
+                    <div className="truncate max-w-[120px] mx-auto" title={p.title}>
                       {p.title.length > 15 ? p.title.slice(0, 15) + "…" : p.title}
                     </div>
                   </th>
                 ))}
-                <th className={`px-4 py-3 text-center font-semibold ${
-                  isDark ? "text-white/80" : "text-slate-700"
-                }`}>
-                  Trend
-                </th>
+                <th className="px-4 py-3 text-center font-medium text-ink-secondary">Trend</th>
               </tr>
             </thead>
-            <tbody className={`divide-y ${isDark ? "divide-white/5" : "divide-slate-100"}`}>
+            <tbody>
               {students.map((student) => {
                 const scores = prov.map((p) => student.results.get(p.id) ?? null);
                 const validScores = scores.filter((s): s is number => s !== null);
-                const trend = validScores.length >= 2 
+                const trend = validScores.length >= 2
                   ? validScores[validScores.length - 1] - validScores[0]
                   : 0;
-                
+
                 return (
-                  <tr key={student.id} className={`${
-                    isDark ? "hover:bg-white/5" : "hover:bg-slate-50"
-                  } transition-colors`}>
-                    <td className={`sticky left-0 z-10 px-4 py-3 font-medium ${
-                      isDark ? "bg-[#0a0a0a] text-white" : "bg-white text-slate-900"
-                    }`}>
-                      <Link 
-                        href={`/student/${student.id}`}
-                        className="hover:underline"
-                      >
+                  <tr key={student.id} className="border-t border-ink-hairline hover:bg-ink/[0.02] transition-colors">
+                    <td className="sticky left-0 z-10 bg-paper-raised px-4 py-3 font-medium text-ink">
+                      <Link href={`/student/${student.id}`} className="hover:text-ink transition-colors">
                         {student.name}
                       </Link>
                     </td>
@@ -335,29 +292,19 @@ function CourseOverviewTab({
                       return (
                         <td key={p.id} className="px-4 py-3 text-center">
                           {score !== undefined ? (
-                            <span className={`inline-flex items-center justify-center min-w-[48px] px-2 py-1 rounded-lg font-medium ${
-                              score >= 80 
-                                ? isDark ? "bg-emerald-500/20 text-emerald-400" : "bg-emerald-50 text-emerald-700"
-                                : score >= 50
-                                ? isDark ? "bg-amber-500/20 text-amber-400" : "bg-amber-50 text-amber-700"
-                                : isDark ? "bg-red-500/20 text-red-400" : "bg-red-50 text-red-700"
-                            }`}>
+                            <span className={`inline-flex items-center justify-center min-w-[48px] px-2 py-1 rounded-[8px] font-medium tabular-nums ${scoreTint(score)}`}>
                               {score}%
                             </span>
                           ) : (
-                            <span className={isDark ? "text-white/20" : "text-slate-300"}>–</span>
+                            <span className="text-ink-muted/50">–</span>
                           )}
                         </td>
                       );
                     })}
                     <td className="px-4 py-3 text-center">
                       {validScores.length >= 2 && (
-                        <span className={`inline-flex items-center gap-1 text-xs font-medium ${
-                          trend > 0 
-                            ? "text-emerald-500" 
-                            : trend < 0 
-                            ? "text-red-500" 
-                            : isDark ? "text-white/40" : "text-slate-400"
+                        <span className={`inline-flex items-center gap-1 text-[12px] font-medium tabular-nums ${
+                          trend > 0 ? "text-state-success" : trend < 0 ? "text-state-danger" : "text-ink-muted"
                         }`}>
                           {trend > 0 ? "↑" : trend < 0 ? "↓" : "→"}
                           {Math.abs(trend)}%
@@ -371,20 +318,17 @@ function CourseOverviewTab({
           </table>
         </div>
       </div>
-      
+
       {/* Legend */}
-      <div className={`flex items-center gap-6 text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
+      <div className="flex items-center gap-6 text-[12px] text-ink-muted">
         <div className="flex items-center gap-2">
-          <span className={`w-3 h-3 rounded ${isDark ? "bg-emerald-500/20" : "bg-emerald-50"}`} />
-          ≥80% Godkänt
+          <span className="w-3 h-3 rounded bg-state-success/[0.12]" />≥80% Godkänt
         </div>
         <div className="flex items-center gap-2">
-          <span className={`w-3 h-3 rounded ${isDark ? "bg-amber-500/20" : "bg-amber-50"}`} />
-          50-79%
+          <span className="w-3 h-3 rounded bg-ink/[0.05]" />50-79%
         </div>
         <div className="flex items-center gap-2">
-          <span className={`w-3 h-3 rounded ${isDark ? "bg-red-500/20" : "bg-red-50"}`} />
-          &lt;50%
+          <span className="w-3 h-3 rounded bg-state-danger/[0.12]" />&lt;50%
         </div>
       </div>
     </div>
@@ -392,20 +336,26 @@ function CourseOverviewTab({
 }
 
 // V2: Avancerade rättningsparametrar
-function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: GradingParams; isDark: boolean }) {
+function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingParams }) {
   const [params, setParams] = useState<GradingParams>(initial);
   const [customRulesText, setCustomRulesText] = useState(initial.customRules.join('\n'));
   const [saved, setSaved] = useState(false);
   const [showAdvanced, setShowAdvanced] = useState(false);
+  const [saveError, setSaveError] = useState<string | null>(null);
 
-  const save = () => {
+  const save = async () => {
     const updatedParams = {
       ...params,
       customRules: customRulesText.split('\n').filter((r) => r.trim()),
     };
-    actions.updateKlassParams(klassId, updatedParams);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaveError(null);
+    try {
+      await actions.updateKlassParams(klassId, updatedParams);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 2000);
+    } catch (e) {
+      setSaveError((e as Error).message);
+    }
   };
 
   const Toggle = ({ checked, onChange, label, hint }: { checked: boolean; onChange: (v: boolean) => void; label: string; hint?: string }) => (
@@ -414,14 +364,14 @@ function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: Gra
         type="button"
         onClick={() => onChange(!checked)}
         className={`relative mt-0.5 h-5 w-9 rounded-full transition-colors ${
-          checked ? 'bg-[#e8b0e4]' : isDark ? 'bg-white/20' : 'bg-slate-200'
+          checked ? 'bg-ink' : 'bg-ink/15'
         }`}
       >
-        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-white shadow transition-transform ${checked ? 'left-4' : 'left-0.5'}`} />
+        <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-paper-raised shadow transition-transform ${checked ? 'left-4' : 'left-0.5'}`} />
       </button>
       <div>
-        <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-800'}`}>{label}</div>
-        {hint && <div className={`text-xs mt-0.5 ${isDark ? 'text-white/40' : 'text-slate-500'}`}>{hint}</div>}
+        <div className="text-[14px] font-medium text-ink">{label}</div>
+        {hint && <div className="text-[12.5px] mt-0.5 text-ink-muted">{hint}</div>}
       </div>
     </label>
   );
@@ -429,13 +379,11 @@ function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: Gra
   return (
     <div className="max-w-3xl space-y-4">
       {/* Standardinställningar */}
-      <div className={`rounded-2xl p-7 ${
-        isDark ? "bg-white/5 border border-white/10" : "bg-white border border-slate-200/60 shadow-soft"
-      }`}>
-        <h2 className={`text-lg font-semibold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+      <div className="rounded-[16px] p-7 bg-paper-raised border border-ink-hairline shadow-soft">
+        <h2 className="text-[16px] font-medium tracking-[-0.01em] text-ink">
           Rättningsinställningar
         </h2>
-        <p className={`mt-1.5 text-sm leading-relaxed ${isDark ? "text-white/60" : "text-slate-600"}`}>
+        <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-secondary">
           Dessa inställningar gäller automatiskt för alla prov i denna klass.
         </p>
         
@@ -464,17 +412,17 @@ function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: Gra
         <button
           type="button"
           onClick={() => setShowAdvanced(!showAdvanced)}
-          className={`mt-6 text-sm font-medium ${isDark ? 'text-white/60 hover:text-white' : 'text-slate-500 hover:text-slate-800'}`}
+          className="mt-6 text-[13.5px] font-medium text-ink-secondary hover:text-ink transition-colors"
         >
           {showAdvanced ? '▼' : '▶'} Avancerade inställningar
         </button>
 
         {showAdvanced && (
-          <div className="mt-4 space-y-4 pt-4 border-t border-dashed border-slate-200">
+          <div className="mt-4 space-y-4 pt-5 border-t border-ink-hairline">
             <div className="grid grid-cols-2 gap-4">
               <label className="block">
-                <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-800'}`}>Enhetsavdrag</div>
-                <div className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-500'}`}>Poäng att dra av om enhet saknas</div>
+                <div className="text-[14px] font-medium text-ink">Enhetsavdrag</div>
+                <div className="text-[12.5px] text-ink-muted">Poäng att dra av om enhet saknas</div>
                 <input
                   type="number"
                   step="0.25"
@@ -482,14 +430,12 @@ function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: Gra
                   max="2"
                   value={params.unitErrorPenalty}
                   onChange={(e) => setParams({ ...params, unitErrorPenalty: Number(e.target.value) })}
-                  className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${
-                    isDark ? 'bg-white/5 border-white/10 text-white' : 'border-slate-200'
-                  }`}
+                  className="input mt-2"
                 />
               </label>
               <label className="block">
-                <div className={`text-sm font-medium ${isDark ? 'text-white' : 'text-slate-800'}`}>Avrundningstolerans</div>
-                <div className={`text-xs ${isDark ? 'text-white/40' : 'text-slate-500'}`}>Accepterad avvikelse i %</div>
+                <div className="text-[14px] font-medium text-ink">Avrundningstolerans</div>
+                <div className="text-[12.5px] text-ink-muted">Accepterad avvikelse i %</div>
                 <input
                   type="number"
                   step="1"
@@ -497,9 +443,7 @@ function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: Gra
                   max="20"
                   value={params.roundingTolerance}
                   onChange={(e) => setParams({ ...params, roundingTolerance: Number(e.target.value) })}
-                  className={`mt-2 w-full rounded-lg border px-3 py-2 text-sm ${
-                    isDark ? 'bg-white/5 border-white/10 text-white' : 'border-slate-200'
-                  }`}
+                  className="input mt-2"
                 />
               </label>
             </div>
@@ -508,50 +452,39 @@ function ParamsTab({ klassId, initial, isDark }: { klassId: string; initial: Gra
       </div>
 
       {/* Anpassade regler */}
-      <div className={`rounded-2xl p-7 ${
-        isDark ? "bg-white/5 border border-white/10" : "bg-white border border-slate-200/60 shadow-soft"
-      }`}>
-        <h2 className={`text-lg font-semibold tracking-tight ${isDark ? "text-white" : "text-slate-900"}`}>
+      <div className="rounded-[16px] p-7 bg-paper-raised border border-ink-hairline shadow-soft">
+        <h2 className="text-[16px] font-medium tracking-[-0.01em] text-ink">
           Anpassade bedömningsregler
         </h2>
-        <p className={`mt-1.5 text-sm leading-relaxed ${isDark ? "text-white/60" : "text-slate-600"}`}>
+        <p className="mt-1.5 text-[13.5px] leading-relaxed text-ink-secondary">
           Skriv specifika regler för AI:n att följa. En regel per rad.
         </p>
         <textarea
           value={customRulesText}
           onChange={(e) => setCustomRulesText(e.target.value)}
-          className={`mt-5 min-h-[140px] w-full rounded-xl border px-3.5 py-2.5 text-sm leading-relaxed transition-all focus:outline-none focus:ring-2 ${
-            isDark
-              ? "bg-white/5 border-white/10 text-white placeholder:text-white/30 focus:ring-white/20"
-              : "bg-white border-slate-200 text-slate-900 placeholder:text-slate-400 focus:ring-slate-900/5"
-          }`}
+          className="input mt-5 min-h-[140px] leading-relaxed"
           placeholder={`Exempel:\nDra endast av för avrundningsfel om det sker mer än en gång.\nAcceptera alternativa lösningsmetoder om resonemanget håller.\nVara extra noggrann med att enheter är korrekta.`}
         />
         <div className="mt-4 flex items-center justify-between">
-          <div className={`text-xs ${isDark ? "text-white/50" : "text-slate-500"}`}>
-            {saved ? (
-              <span className="inline-flex items-center gap-1 text-emerald-500">
+          <div className="text-[12.5px] text-ink-muted">
+            {saveError ? (
+              <span className="text-state-danger">{saveError}</span>
+            ) : saved ? (
+              <span className="inline-flex items-center gap-1 text-state-success">
                 <LineIcon name="check" className="h-3.5 w-3.5" /> Sparat
               </span>
             ) : (
               "Sparas i klassens profil"
             )}
           </div>
-          <button 
-            onClick={save} 
-            className={`rounded-xl px-5 py-2 text-sm font-semibold transition-all ${
-              isDark ? "bg-white text-slate-900 hover:bg-white/90" : "bg-slate-900 text-white hover:bg-slate-800"
-            }`}
-          >
+          <button onClick={save} className="btn-primary">
             Spara inställningar
           </button>
         </div>
       </div>
 
-      <div className={`rounded-2xl p-5 text-xs leading-relaxed ${
-        isDark ? "bg-amber-500/10 border border-amber-500/20 text-amber-200" : "bg-amber-50/60 border border-amber-200 text-amber-900"
-      }`}>
-        <strong>Tips:</strong> Per-prov-instruktioner som du anger vid rättning <em>läggs ovanpå</em> dessa klassparametrar.
+      <div className="rounded-[16px] p-5 text-[12.5px] leading-relaxed bg-paper-secondary border border-ink-hairline text-ink-secondary">
+        <strong className="text-ink font-medium">Tips:</strong> Per-prov-instruktioner som du anger vid rättning <em>läggs ovanpå</em> dessa klassparametrar.
       </div>
     </div>
   );

@@ -1,0 +1,8 @@
+node_modules/
+.next/
+.env.local
+.env.*
+*.tsbuildinfo
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock

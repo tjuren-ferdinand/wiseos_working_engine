@@ -8,6 +8,11 @@ out/
 pnpm-debug.log*
 .pnpm-store/
 
+# Detta är ett pnpm-projekt — npm-lockfiler ska aldrig committas
+package-lock.json
+npm-shrinkwrap.json
+yarn.lock
+
 # TypeScript
 *.tsbuildinfo
 next-env.d.ts
@@ -50,3 +55,14 @@ __pycache__/
 # Coverage
 coverage/
 .nyc_output/
+
+# SQLite-databas ska inte versionshanteras
+*.db
+*.db.bak.*
+apps/api/wiseos.db
+
+# Tesseract data (module unused — OCR via Gemini)
+apps/api/tessdata/
+
+# Test images at repo root
+sluttest.png

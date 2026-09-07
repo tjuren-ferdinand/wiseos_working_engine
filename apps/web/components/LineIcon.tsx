@@ -1,4 +1,6 @@
-type IconName =
+"use client";
+
+export type IconName =
   | "folder"
   | "file"
   | "stack"
@@ -18,7 +20,9 @@ type IconName =
   | "sun"
   | "moon"
   | "users"
-  | "sparkles";
+  | "sparkles"
+  | "chat"
+  | "send";
 
 export default function LineIcon({
   name,
@@ -148,6 +152,17 @@ export default function LineIcon({
         <path d="M3 5h4" />
         <path d="M19 17v4" />
         <path d="M17 19h4" />
+      </>
+    ),
+    "chat": (
+      <>
+        <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l2.7-5.7A8.38 8.38 0 0 1 4.8 11.5a8.5 8.5 0 0 1 16.2 0Z" />
+      </>
+    ),
+    "send": (
+      <>
+        <path d="M22 2 11 13" />
+        <path d="M22 2l-7 20-4-9-9-4 20-7Z" />
       </>
     ),
   };

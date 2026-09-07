@@ -4,6 +4,8 @@
 
 Hybrid-rättning: Wolfram Alpha verifierar matematisk korrekthet, Claude genererar pedagogisk feedback, Mathpix läser handskriven matematik.
 
+Aktuell MVP-gren: `2026-08-16-v1.0` — innehåller Equi-designsystem, mörkt läge, mobil-först UI och en tillfällig Gemini AI-integration bakom ett provider-abstraktion så att Claude kan ersätta den senare med minimala ändringar.
+
 ## Arkitektur
 
 ```
@@ -11,18 +13,17 @@ wiseos/
 ├── apps/
 │   ├── web/      Next.js 14 (App Router) – lärardashboard
 │   └── api/      Python FastAPI – rättningsmotor
-├── packages/
-│   └── types/    Delade TypeScript-typer
-├── docker-compose.yml
-└── .env.example
+├── lib/ai        AI-provider-abstraktion (GeminiProvider, klart för ClaudeProvider)
+├── app/api/chat  Server-side AI-proxy – API-nycklar lämnar aldrig klienten
+└── .env.local.example
 ```
 
 ## Snabbstart (lokalt)
 
 ### 1. Sätt upp env
 ```bash
-cp .env.example .env
-# Fyll i API-nycklar (valfritt – mock-fallback finns för alla integrationer)
+cp .env.local.example .env.local
+# Fyll i API-nycklar (valfritt – mock-fallback finns för de flesta integrationer)
 ```
 
 ### 2. Starta databas
@@ -54,7 +55,8 @@ pnpm dev
 | Tjänst | Env-variabel | Syfte |
 |--------|--------------|-------|
 | Wolfram Alpha | `WOLFRAM_APP_ID` | Matematisk verifiering |
-| Anthropic Claude | `ANTHROPIC_API_KEY` | Pedagogisk feedback |
+| Anthropic Claude | `ANTHROPIC_API_KEY` | Pedagogisk feedback (planerad) |
+| Google Gemini | `GEMINI_API_KEY` | Tillfällig AI-assistent (server-side) |
 | Mathpix | `MATHPIX_APP_ID`, `MATHPIX_APP_KEY` | Handskriven OCR |
 
 Saknas en nyckel används en deterministisk mock så hela flödet kan testas.

@@ -28,8 +28,8 @@ export default function GradePage() {
 
   if (!klass || !prov) {
     return (
-      <div className={`text-center py-20 ${isDark ? "text-white/50" : "text-slate-500"}`}>
-        Provet kunde inte hittas. <Link href={`/`} className="text-[#e8b0e4] underline">Till klasslistan</Link>
+      <div className={`text-center py-20 ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
+        Provet kunde inte hittas. <Link href={`/`} className="text-ink-secondary underline">Till klasslistan</Link>
       </div>
     );
   }
@@ -37,7 +37,7 @@ export default function GradePage() {
   // Workbench mode
   if (studentId) {
     const result = allResults.find((r) => r.id === studentId);
-    if (!result) return <div className="text-center py-20 text-slate-500">Elev saknas.</div>;
+    if (!result) return <div className="text-center py-20 text-ink-secondary">Elev saknas.</div>;
     return (
       <>
         <Workbench
@@ -53,11 +53,12 @@ export default function GradePage() {
   }
 
   // Processing
-  if (prov.status === "processing") {
+  if (prov.status === "grading") {
     return (
-      <div className="space-y-6">
-        <Link href={`/classes/${klass.id}`} className="text-sm text-slate-500 hover:text-slate-800">← {klass.name}</Link>
-        <ProcessingScene prov={prov} />
+      <div className="-mx-5 -mt-6 flex min-h-[calc(100vh-8rem)] items-center justify-center px-5">
+        <div className="w-full max-w-2xl">
+          <ProcessingScene prov={prov} klass={klass} onBack={() => router.push(`/classes/${klass.id}`)} />
+        </div>
       </div>
     );
   }
@@ -67,16 +68,16 @@ export default function GradePage() {
     <div className="space-y-8 print:hidden">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <Link href={`/classes/${klass.id}`} className={`text-sm transition-colors ${isDark ? "text-white/50 hover:text-white" : "text-slate-500 hover:text-slate-800"}`}>← {klass.name}</Link>
-          <h1 className={`mt-3 text-[40px] font-bold tracking-[-0.02em] ${isDark ? "text-white" : "text-slate-900"}`}>{prov.title}</h1>
-          <div className={`mt-2 text-sm ${isDark ? "text-white/50" : "text-slate-500"}`}>
+          <Link href={`/classes/${klass.id}`} className={`text-sm transition-colors ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>← {klass.name}</Link>
+          <h1 className={`mt-3 text-[40px] font-bold tracking-[-0.02em] text-ink`}>{prov.title}</h1>
+          <div className={`mt-2 text-sm ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
             Klassmapp · {allResults.length} elever rättade
           </div>
         </div>
       </div>
 
       {allResults.length === 0 ? (
-        <div className={`rounded-2xl border-2 border-dashed p-12 text-center ${isDark ? "border-white/10 bg-white/5 text-white/50" : "border-slate-200 bg-white text-slate-500"}`}>
+        <div className={`rounded-2xl border-2 border-dashed p-12 text-center ${isDark ? "border-paper-raised/10 bg-paper-raised/5 text-paper/50" : "border-ink-hairline bg-paper-raised text-ink-secondary"}`}>
           Inga resultat ännu.
         </div>
       ) : (
@@ -95,41 +96,41 @@ export default function GradePage() {
                 href={`/classes/${klass.id}/grade/${prov.id}?student=${r.id}`}
                 className={`group rounded-2xl border p-5 hover:-translate-y-0.5 transition-all relative ${
                   isDark 
-                    ? "border-white/10 bg-white/5 hover:bg-white/10 hover:border-white/20" 
-                    : "border-slate-200/70 bg-white shadow-sm hover:border-[#e8b0e4]/40 hover:shadow-lg"
+                    ? "border-paper-raised/10 bg-paper-raised/5 hover:bg-paper-raised/10 hover:border-paper-raised/20" 
+                    : "border-ink-hairline/70 bg-paper-raised shadow-sm hover:border-ink hover:shadow-lg"
                 }`}
               >
                 {needsAttention && (
-                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] font-semibold text-amber-700 bg-amber-50 ring-1 ring-amber-200 rounded-full px-2 py-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] font-semibold text-state-warning bg-state-warning/10 ring-1 ring-state-warning/20 rounded-full px-2 py-0.5">
+                    <span className="h-1.5 w-1.5 rounded-full bg-state-warning" />
                     Granska
                   </span>
                 )}
                 <div className="flex items-center gap-3">
                   <div className={`h-11 w-11 rounded-full grid place-items-center font-serif text-lg font-semibold ${
-                    isDark ? "bg-[#e8b0e4]/15 text-[#e8b0e4]" : "bg-[#e8b0e4]/20 text-[#9d6b99]"
+                    isDark ? "bg-ink/10 text-ink-secondary" : "bg-ink/10 text-ink-secondary"
                   }`}>
                     {r.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-sm font-semibold truncate ${isDark ? "text-white group-hover:text-[#e8b0e4]" : "text-slate-900 group-hover:text-[#c78bbf]"}`}>
+                    <div className={`text-sm font-semibold truncate ${isDark ? "text-ink group-hover:text-ink-secondary" : "text-ink group-hover:text-ink-secondary"}`}>
                       {r.studentName}
                     </div>
-                    <div className={`text-xs ${isDark ? "text-white/40" : "text-slate-500"}`}>{r.steps.length} steg</div>
+                    <div className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>{r.steps.length} steg</div>
                   </div>
                 </div>
                 <div className="mt-4">
                   <div className="flex items-baseline justify-between mb-1.5">
-                    <span className={`text-xs ${isDark ? "text-white/40" : "text-slate-500"}`}>Poäng</span>
-                    <span className={`font-mono text-sm font-semibold tabular-nums ${isDark ? "text-white" : "text-slate-900"}`}>
-                      {total}<span className={isDark ? "text-white/30" : "text-slate-400"}>/{max}</span>
+                    <span className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>Poäng</span>
+                    <span className={`font-mono text-sm font-semibold tabular-nums ${isDark ? "text-paper" : "text-ink"}`}>
+                      {total}<span className={isDark ? "text-paper/30" : "text-ink-muted"}>/{max}</span>
                     </span>
                   </div>
-                  <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-white/10" : "bg-slate-100"}`}>
+                  <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-paper-raised/10" : "bg-paper-secondary"}`}>
                     <div
                       className={`h-full transition-all ${
-                        pct >= 0.85 ? "bg-emerald-500"
-                        : pct >= 0.5 ? "bg-amber-500"
+                        pct >= 0.85 ? "bg-state-success"
+                        : pct >= 0.5 ? "bg-state-warning"
                         : "bg-rose-500"
                       }`}
                       style={{ width: `${pct * 100}%` }}

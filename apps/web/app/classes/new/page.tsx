@@ -1,38 +1,62 @@
 "use client";
 
-import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useRouter, useSearchParams } from "next/navigation";
+import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
-import { actions } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
-import LevelAutocomplete from "@/components/LevelAutocomplete";
+import { actions, useStore } from "@/lib/store";
+import CourseCombobox from "@/components/CourseCombobox";
 
 export default function NewKlassPage() {
+  return (
+    <Suspense>
+      <NewKlassForm />
+    </Suspense>
+  );
+}
+
+function NewKlassForm() {
   const router = useRouter();
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const searchParams = useSearchParams();
+  const kurser = useStore((s) => s.kurser);
   const [form, setForm] = useState({
     name: "",
-    subject: "Matematik",
-    gradeLevel: "Gymnasiet åk 1",
     gradingParams: "",
+    kursId: searchParams?.get("kursId") || kurser[0]?.id || "",
   });
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
-  const submit = (e: React.FormEvent) => {
+  const selectedKurs = useMemo(
+    () => kurser.find((k) => k.id === form.kursId),
+    [kurser, form.kursId]
+  );
+
+  const submit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!form.name.trim()) return;
-    const k = actions.createKlass(form);
-    router.push(`/classes/${k.id}`);
+    if (!form.name.trim() || !form.kursId.trim() || submitting) return;
+    setSubmitting(true);
+    setError(null);
+    try {
+      const k = await actions.createKlass({
+        name: form.name,
+        kursId: form.kursId,
+        gradingParams: form.gradingParams,
+      });
+      router.push(`/classes/${k.id}`);
+    } catch (err) {
+      setError((err as Error).message);
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="max-w-2xl mx-auto">
-      <Link href="/classes" className={`text-sm transition-colors ${isDark ? "text-white/50 hover:text-white" : "text-slate-500 hover:text-slate-700"}`}>← Tillbaka</Link>
-      <h1 className={`mt-6 text-[40px] font-bold tracking-[-0.02em] ${isDark ? "text-white" : "text-slate-900"}`}>Skapa ny klass</h1>
-      <p className={`mt-3 text-base ${isDark ? "text-white/50" : "text-slate-500"}`}>En klass samlar prov och har egna rättningsparametrar.</p>
+      <Link href="/classes" className="text-[13px] text-ink-secondary hover:text-ink transition-colors">← Tillbaka</Link>
+      <h1 className="mt-5 text-[28px] font-medium tracking-[-0.02em] text-ink">Skapa ny klass</h1>
+      <p className="mt-2 text-[15px] text-ink-secondary">En klass samlar prov och har egna rättningsparametrar.</p>
 
-      <form onSubmit={submit} className={`mt-10 space-y-6 rounded-3xl border p-8 ${isDark ? "border-white/10 bg-white/[0.03]" : "border-slate-200 bg-white shadow-sm"}`}>
-        <Field label="Klassens namn" hint="t.ex. NA22B – Fysik 1">
+      <form onSubmit={submit} className="mt-8 space-y-6 rounded-[18px] border border-ink-hairline bg-paper-raised shadow-soft p-7">
+        <Field label="Klassens namn" hint="t.ex. NA22B eller TE12">
           <input
             value={form.name}
             onChange={(e) => setForm({ ...form, name: e.target.value })}
@@ -42,24 +66,30 @@ export default function NewKlassPage() {
           />
         </Field>
 
-        <div className="grid sm:grid-cols-2 gap-5">
-          <Field label="Ämne">
-            <select value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} className="input">
-              <option>Matematik</option>
-              <option>Fysik</option>
-              <option>Kemi</option>
-              <option>Biologi</option>
-              <option>Teknik</option>
-            </select>
-          </Field>
-          <Field label="Nivå" hint="Skriv fritt eller välj från fördefinierade alternativ">
-            <LevelAutocomplete
-              value={form.gradeLevel}
-              onChange={(value) => setForm({ ...form, gradeLevel: value })}
-              placeholder="t.ex. Gymnasiet åk 2"
-            />
-          </Field>
-        </div>
+        <Field label="Kurs" hint="Sök eller skriv t.ex. Fysik 1, Programmering 1, Matematik 4">
+          <CourseCombobox
+            value={form.kursId}
+            onSelect={(kursId) => setForm({ ...form, kursId })}
+            placeholder="Sök kurs..."
+          />
+        </Field>
+
+        {selectedKurs && (
+          <div className="flex flex-wrap items-center gap-2 -mt-2">
+            <span className="text-[12.5px] text-ink-muted">Vald kurs:</span>
+            <span className="inline-flex items-center rounded-lg border border-ink-hairline/10 bg-paper px-3 py-1 text-[12.5px] font-medium text-ink">
+              {selectedKurs.name}
+            </span>
+            <span className="inline-flex items-center rounded-lg bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
+              {selectedKurs.subject}
+            </span>
+            {selectedKurs.level && (
+              <span className="inline-flex items-center rounded-lg bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
+                {selectedKurs.level}
+              </span>
+            )}
+          </div>
+        )}
 
         <Field
           label="Permanenta rättningsparametrar & noteringar"
@@ -73,9 +103,13 @@ export default function NewKlassPage() {
           />
         </Field>
 
-        <div className="flex justify-end gap-3 pt-4">
-          <Link href="/classes" className={`rounded-xl border px-5 py-2.5 text-sm font-medium transition-colors ${isDark ? "border-white/10 text-white/70 hover:bg-white/5" : "border-slate-200 text-slate-600 hover:bg-slate-50"}`}>Avbryt</Link>
-          <button type="submit" className="rounded-xl bg-[#e8b0e4] px-6 py-2.5 text-sm font-semibold text-slate-900 hover:bg-[#d89dd3] active:scale-[0.98] transition-all">Skapa klass</button>
+        {error && <p className="text-[13px] text-state-danger">{error}</p>}
+
+        <div className="flex justify-end gap-3 pt-2">
+          <Link href="/classes" className="btn-secondary">Avbryt</Link>
+          <button type="submit" disabled={submitting} className="btn-primary disabled:opacity-50">
+            {submitting ? "Skapar…" : "Skapa klass"}
+          </button>
         </div>
       </form>
     </div>
@@ -84,10 +118,10 @@ export default function NewKlassPage() {
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="block">
-      <div className="text-sm font-medium text-slate-700 dark:text-white">{label}</div>
-      {hint && <div className="mt-0.5 text-xs text-slate-500 dark:text-white/40 leading-relaxed">{hint}</div>}
-      <div className="mt-2">{children}</div>
+    <label className="block h-full flex flex-col">
+      <div className="text-[14px] font-medium text-ink">{label}</div>
+      {hint && <div className="mt-0.5 text-[12.5px] text-ink-muted leading-relaxed">{hint}</div>}
+      <div className="mt-auto pt-2">{children}</div>
     </label>
   );
 }
