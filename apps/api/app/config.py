@@ -2,13 +2,18 @@ from pathlib import Path
 
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
-# Projektets .env ligger i monorepo-roten (../../.env från denna fil).
-_ROOT_ENV = Path(__file__).resolve().parents[3] / ".env"
+# Projektets .env ligger i monorepo-roten (3 nivåer upp från denna fil).
+# I containrar (t.ex. Railway) är filträdet grundare (/app/app/config.py) och
+# det finns ingen .env — miljövariabler injiceras direkt av plattformen.
+# Indexera bara parents[3] om den finns, annars kraschar importen.
+_here = Path(__file__).resolve()
+_ROOT_ENV = _here.parents[3] / ".env" if len(_here.parents) > 3 else None
+_ENV_FILES = ([str(_ROOT_ENV)] if _ROOT_ENV else []) + [".env"]
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(
-        env_file=(str(_ROOT_ENV), ".env"),  # försök monorepo-root först, sen lokal
+        env_file=tuple(_ENV_FILES),  # monorepo-root först (om den finns), sen lokal
         extra="ignore",
     )
 
