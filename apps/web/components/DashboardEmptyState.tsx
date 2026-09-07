@@ -35,7 +35,7 @@ export default function DashboardEmptyState() {
 
         <Link
           href="/classes/new"
-          className="mt-8 inline-flex items-center gap-2 rounded-full bg-ink px-6 py-3 text-[14px] font-semibold text-paper transition-all hover:bg-ink/90"
+          className="mt-8 inline-flex items-center gap-2 rounded-xl bg-ink px-6 py-3 text-[14px] font-semibold text-paper transition-all hover:bg-ink/90"
         >
           <LineIcon name="users" className="h-4 w-4" />
           Skapa din första klass

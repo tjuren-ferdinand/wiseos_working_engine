@@ -50,7 +50,7 @@ export default function ResultsPage() {
                     {totalPoints}/{maxPoints}
                   </span>
                   <span className={`text-[13px] font-medium tabular-nums ${
-                    pct >= 80 ? "text-accent" : pct >= 50 ? "text-ink-secondary" : "text-state-danger"
+                    pct >= 80 ? "text-state-success" : pct >= 50 ? "text-ink-secondary" : "text-state-danger"
                   }`}>
                     {pct}%
                   </span>

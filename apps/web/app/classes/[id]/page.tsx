@@ -243,7 +243,7 @@ function CourseOverviewTab({
 
   const scoreTint = (score: number) =>
     score >= 80
-      ? "bg-accent/[0.12] text-accent"
+      ? "bg-state-success/[0.12] text-state-success"
       : score >= 50
       ? "bg-ink/[0.05] text-ink-secondary"
       : "bg-state-danger/[0.12] text-state-danger";
@@ -283,7 +283,7 @@ function CourseOverviewTab({
                 return (
                   <tr key={student.id} className="border-t border-ink-hairline hover:bg-ink/[0.02] transition-colors">
                     <td className="sticky left-0 z-10 bg-paper-raised px-4 py-3 font-medium text-ink">
-                      <Link href={`/student/${student.id}`} className="hover:text-accent transition-colors">
+                      <Link href={`/student/${student.id}`} className="hover:text-ink transition-colors">
                         {student.name}
                       </Link>
                     </td>
@@ -304,7 +304,7 @@ function CourseOverviewTab({
                     <td className="px-4 py-3 text-center">
                       {validScores.length >= 2 && (
                         <span className={`inline-flex items-center gap-1 text-[12px] font-medium tabular-nums ${
-                          trend > 0 ? "text-accent" : trend < 0 ? "text-state-danger" : "text-ink-muted"
+                          trend > 0 ? "text-state-success" : trend < 0 ? "text-state-danger" : "text-ink-muted"
                         }`}>
                           {trend > 0 ? "↑" : trend < 0 ? "↓" : "→"}
                           {Math.abs(trend)}%
@@ -322,7 +322,7 @@ function CourseOverviewTab({
       {/* Legend */}
       <div className="flex items-center gap-6 text-[12px] text-ink-muted">
         <div className="flex items-center gap-2">
-          <span className="w-3 h-3 rounded bg-accent/[0.12]" />≥80% Godkänt
+          <span className="w-3 h-3 rounded bg-state-success/[0.12]" />≥80% Godkänt
         </div>
         <div className="flex items-center gap-2">
           <span className="w-3 h-3 rounded bg-ink/[0.05]" />50-79%
@@ -364,7 +364,7 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
         type="button"
         onClick={() => onChange(!checked)}
         className={`relative mt-0.5 h-5 w-9 rounded-full transition-colors ${
-          checked ? 'bg-accent' : 'bg-ink/15'
+          checked ? 'bg-ink' : 'bg-ink/15'
         }`}
       >
         <span className={`absolute top-0.5 h-4 w-4 rounded-full bg-paper-raised shadow transition-transform ${checked ? 'left-4' : 'left-0.5'}`} />
@@ -470,7 +470,7 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
             {saveError ? (
               <span className="text-state-danger">{saveError}</span>
             ) : saved ? (
-              <span className="inline-flex items-center gap-1 text-accent">
+              <span className="inline-flex items-center gap-1 text-state-success">
                 <LineIcon name="check" className="h-3.5 w-3.5" /> Sparat
               </span>
             ) : (

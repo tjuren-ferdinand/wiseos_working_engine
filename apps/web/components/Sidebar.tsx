@@ -25,7 +25,7 @@ export default function Sidebar() {
 
   // Theme-aware token classes. In light: bright surface, dark ink. In dark: dark surface, light ink.
   const panel = isDark ? "bg-paper-raised border-paper-raised/[0.06] shadow-card" : "bg-paper-elevated border-ink-hairline shadow-card";
-  const wordmarkDot = "bg-accent";
+  const wordmarkDot = "bg-ink";
   const wordmarkText = "text-ink";
   const hairline = isDark ? "bg-paper-raised/[0.06]" : "bg-ink-hairline";
   const navActive = isDark ? "bg-paper-raised/[0.06] text-ink" : "bg-ink/[0.04] text-ink";

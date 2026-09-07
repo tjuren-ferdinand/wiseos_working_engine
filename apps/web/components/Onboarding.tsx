@@ -39,7 +39,7 @@ function StepVisual({ step }: { step: number }) {
     return (
       <div className="mb-6 overflow-hidden rounded-2xl border border-ink-hairline/10 bg-paper-raised p-4">
         <div className="mb-3 flex items-center gap-2">
-          <div className="h-2 w-2 rounded-full bg-accent" />
+          <div className="h-2 w-2 rounded-full bg-ink" />
           <div className="h-2 w-20 rounded bg-ink/10" />
         </div>
         <div className="grid grid-cols-3 gap-2">
@@ -51,8 +51,8 @@ function StepVisual({ step }: { step: number }) {
             <div className="text-[9px] text-ink-secondary">Tid sparad</div>
             <div className="text-sm font-semibold text-ink">4h</div>
           </div>
-          <div className="h-14 rounded-xl bg-accent/10 p-2">
-            <div className="text-[9px] text-accent">AI-rättat</div>
+          <div className="h-14 rounded-xl bg-ink/5 p-2">
+            <div className="text-[9px] text-ink-secondary">AI-rättat</div>
             <div className="text-sm font-semibold text-ink">89</div>
           </div>
         </div>
@@ -89,12 +89,12 @@ function StepVisual({ step }: { step: number }) {
   if (step === 2) {
     return (
       <div className="mb-6 rounded-2xl border border-dashed border-ink-hairline/15 bg-paper-raised p-5 text-center">
-        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-accent/10 text-accent">
+        <div className="mx-auto flex h-12 w-12 items-center justify-center rounded-2xl bg-ink/5 text-ink-secondary">
           <LineIcon name="upload" className="h-6 w-6" />
         </div>
         <div className="mt-3 text-sm font-medium text-ink">Dra hit elevprov</div>
         <div className="mt-1 text-[11px] text-ink-secondary">PDF eller bilder</div>
-        <div className="mt-4 inline-flex items-center gap-1.5 rounded-full bg-accent px-4 py-1.5 text-[11px] font-semibold text-accent-fg">
+        <div className="mt-4 inline-flex items-center gap-1.5 rounded-xl bg-ink px-4 py-1.5 text-[11px] font-semibold text-paper">
           <LineIcon name="play" className="h-3 w-3" />
           Starta rättning
         </div>
@@ -106,7 +106,7 @@ function StepVisual({ step }: { step: number }) {
     <div className="mb-6 rounded-2xl border border-ink-hairline/10 bg-paper-raised p-4">
       <div className="mb-3 flex items-center justify-between">
         <div className="text-sm font-medium text-ink">Elev: Erik Svensson</div>
-        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-accent/10 text-accent">
+        <div className="flex h-6 w-6 items-center justify-center rounded-full bg-ink/5 text-ink-secondary">
           <LineIcon name="check" className="h-3.5 w-3.5" />
         </div>
       </div>
@@ -237,7 +237,7 @@ export default function Onboarding() {
             <div className="mt-10 flex w-full max-w-xs flex-col gap-3">
               <button
                 onClick={startTour}
-                className="w-full rounded-full bg-accent px-6 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] hover:scale-[1.02] active:scale-[0.98]"
+                className="w-full rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:scale-[1.02] active:scale-[0.98]"
               >
                 Starta rundturen
               </button>
@@ -252,7 +252,7 @@ export default function Onboarding() {
         ) : (
           <div className="flex flex-1 flex-col" style={{ animation: "stepIn 0.3s ease-out" }}>
             <div className="mb-5 flex items-center justify-between text-xs font-medium uppercase tracking-widest text-ink-secondary">
-              <span className="text-accent">Rundtur</span>
+              <span className="text-ink-secondary">Rundtur</span>
               <span>
                 Steg {currentStep + 1} av {steps.length}
               </span>
@@ -263,7 +263,7 @@ export default function Onboarding() {
                 <div
                   key={i}
                   className={`h-1.5 rounded-full transition-all duration-300 ${
-                    i === currentStep ? "w-8 bg-accent" : "w-2 bg-ink/15"
+                    i === currentStep ? "w-8 bg-ink" : "w-2 bg-ink/15"
                   }`}
                 />
               ))}
@@ -283,7 +283,7 @@ export default function Onboarding() {
                 {currentStep > 0 && (
                   <button
                     onClick={goPrev}
-                    className="flex-1 rounded-full border border-ink-hairline/10 bg-transparent px-4 py-3 text-sm font-medium text-ink-secondary transition-all hover:bg-ink/5 hover:text-ink"
+                    className="flex-1 rounded-xl border border-ink-hairline/10 bg-transparent px-4 py-3 text-sm font-medium text-ink-secondary transition-all hover:bg-ink/5 hover:text-ink"
                   >
                     Föregående
                   </button>
@@ -291,14 +291,14 @@ export default function Onboarding() {
                 {currentStep < steps.length - 1 ? (
                   <button
                     onClick={goNext}
-                    className="flex-1 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] active:scale-[0.98]"
+                    className="flex-1 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-paper transition-all hover:bg-ink/90 active:scale-[0.98]"
                   >
                     Nästa
                   </button>
                 ) : (
                   <button
                     onClick={finish}
-                    className="flex-1 rounded-full bg-accent px-4 py-3 text-sm font-semibold text-accent-fg transition-all hover:shadow-[0_0_24px_-4px_rgb(var(--accent)/0.35)] hover:scale-[1.02] active:scale-[0.98]"
+                    className="flex-1 rounded-xl bg-ink px-4 py-3 text-sm font-semibold text-paper transition-all hover:bg-ink/90 hover:scale-[1.02] active:scale-[0.98]"
                   >
                     Klar
                   </button>

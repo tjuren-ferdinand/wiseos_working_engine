@@ -115,7 +115,7 @@ export default function SettingsPage() {
                   onClick={() => setAccentTheme(t.id)}
                   className={`flex items-center gap-2 rounded-[10px] border-2 px-3 py-2.5 text-left transition-all ${
                     accentTheme === t.id
-                      ? "border-accent bg-accent-tint ring-1 ring-accent"
+                      ? "border-ink bg-ink/5 ring-1 ring-ink/20"
                       : "border-ink-hairline hover:bg-paper-secondary"
                   }`}
                 >
@@ -146,7 +146,7 @@ export default function SettingsPage() {
                     onClick={() => setAccentTheme(t.id)}
                     title={t.label}
                     className={`flex h-8 w-8 items-center justify-center rounded-full border-2 transition-all ${
-                      accentTheme === t.id ? "border-accent" : "border-transparent hover:border-ink-hairline"
+                      accentTheme === t.id ? "border-ink" : "border-transparent hover:border-ink-hairline"
                     }`}
                   >
                     <span
@@ -176,7 +176,7 @@ export default function SettingsPage() {
               onClick={() => setReviewLayout(layout.id)}
               className={`group flex flex-col overflow-hidden rounded-[14px] border-2 text-left transition-all ${
                 reviewLayout === layout.id
-                  ? "border-accent ring-1 ring-accent"
+                  ? "border-ink ring-1 ring-ink/20"
                   : "border-ink-hairline hover:bg-paper-secondary"
               }`}
             >

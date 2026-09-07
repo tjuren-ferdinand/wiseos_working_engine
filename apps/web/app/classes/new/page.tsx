@@ -77,14 +77,14 @@ function NewKlassForm() {
         {selectedKurs && (
           <div className="flex flex-wrap items-center gap-2 -mt-2">
             <span className="text-[12.5px] text-ink-muted">Vald kurs:</span>
-            <span className="inline-flex items-center rounded-full border border-ink-hairline/10 bg-paper px-3 py-1 text-[12.5px] font-medium text-ink">
+            <span className="inline-flex items-center rounded-lg border border-ink-hairline/10 bg-paper px-3 py-1 text-[12.5px] font-medium text-ink">
               {selectedKurs.name}
             </span>
-            <span className="inline-flex items-center rounded-full bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
+            <span className="inline-flex items-center rounded-lg bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
               {selectedKurs.subject}
             </span>
             {selectedKurs.level && (
-              <span className="inline-flex items-center rounded-full bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
+              <span className="inline-flex items-center rounded-lg bg-ink/5 px-3 py-1 text-[12px] text-ink-secondary">
                 {selectedKurs.level}
               </span>
             )}

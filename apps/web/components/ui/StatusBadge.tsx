@@ -19,7 +19,7 @@ const MAP: Record<Status, { label: string; className: string; live?: boolean }> 
   },
   review: {
     label: "Granskning",
-    className: "text-ink bg-accent/15 border-accent/30",
+    className: "text-ink bg-state-warning/10 border-state-warning/20",
     live: true,
   },
   published: {

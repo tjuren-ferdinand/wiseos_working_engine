@@ -17,7 +17,7 @@ export default function ReviewLayoutPreview({
   return (
     <div
       className={`relative h-[104px] w-full border-b border-ink-hairline p-2.5 transition-colors ${
-        active ? "bg-accent-tint" : "bg-paper-secondary"
+        active ? "bg-ink/5" : "bg-paper-secondary"
       }`}
     >
       {layout === "split" && (

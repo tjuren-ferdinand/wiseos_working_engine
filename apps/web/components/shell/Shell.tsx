@@ -31,7 +31,6 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const { theme, toggleTheme } = useTheme();
 
   const isDark = theme === "dark";
-  const isCream = theme === "cream";
   const isPublic =
     pathname === "/login" ||
     pathname === "/faq" ||
@@ -45,9 +44,9 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const title = getTitle(pathname);
 
   return (
-    <div className="fixed inset-0 z-0 flex overflow-hidden bg-paper text-ink">
-      {/* Rail */}
-      <aside className="z-50 flex h-full w-16 flex-col items-center border-r border-ink-hairline bg-paper py-3">
+    <div className="fixed inset-0 z-0 flex flex-col overflow-hidden bg-paper text-ink md:flex-row">
+      {/* Rail — desktop (left vertical) */}
+      <aside className="hidden md:flex h-full w-16 flex-none flex-col items-center border-r border-ink-hairline bg-paper py-3">
         <button
           type="button"
           onClick={() => router.push("/")}
@@ -103,14 +102,54 @@ export default function Shell({ children }: { children: React.ReactNode }) {
         </div>
       </aside>
 
+      {/* Rail — mobile (bottom horizontal) */}
+      <nav className="order-2 flex h-14 flex-none items-center justify-around border-t border-ink-hairline bg-paper px-2 md:hidden" aria-label="Huvudnavigation">
+        {NAV.map((item) => {
+          const active =
+            item.href === "/"
+              ? pathname === "/"
+              : pathname.startsWith(item.href);
+          return (
+            <button
+              key={item.href}
+              type="button"
+              onClick={() => router.push(item.href)}
+              aria-current={active ? "page" : undefined}
+              aria-label={item.label}
+              className={[
+                "flex h-10 w-10 items-center justify-center rounded-xl transition-all",
+                active
+                  ? "bg-surface-2 text-ink border border-ink-hairline"
+                  : "text-ink-secondary hover:bg-ink/5 hover:text-ink",
+              ].join(" ")}
+            >
+              <LineIcon name={item.icon as any} className="h-5 w-5" />
+            </button>
+          );
+        })}
+      </nav>
+
       {/* Workspace */}
-      <section className="ml-16 flex h-full w-[calc(100%-4rem)] flex-col">
+      <section className="flex min-h-0 flex-1 flex-col">
         <header className="flex h-14 flex-none items-center justify-between border-b border-ink-hairline bg-paper/80 px-5 backdrop-blur-sm">
           <h1 className="text-[15px] font-medium tracking-tight text-ink">{title}</h1>
-          <div className="flex items-center gap-2" />
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={toggleTheme}
+              className="flex h-9 w-9 items-center justify-center rounded-xl text-ink-secondary hover:bg-ink/5 md:hidden"
+              aria-label={isDark ? "Ljust tema" : "Mörkt tema"}
+            >
+              <LineIcon name={isDark ? "sun" : "moon"} className="h-5 w-5" />
+            </button>
+          </div>
         </header>
 
-        <main className="min-h-0 flex-1 overflow-auto">{children}</main>
+        <main className="min-h-0 flex-1 overflow-auto">
+          <div className="mx-auto max-w-5xl px-5 py-8 md:px-8 md:py-10">
+            {children}
+          </div>
+        </main>
       </section>
     </div>
   );

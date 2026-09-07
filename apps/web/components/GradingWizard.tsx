@@ -376,7 +376,7 @@ export default function GradingWizard({
                         onClick={() => setFacitMode(opt.value as typeof facitMode)}
                         className={`rounded-xl border-2 p-3 text-left transition-all ${
                           facitMode === opt.value
-                            ? 'border-accent bg-accent-tint ring-1 ring-accent shadow-sm'
+                            ? 'border-ink bg-ink/5 ring-1 ring-ink/20 shadow-sm'
                             : 'border-ink-hairline bg-paper-secondary hover:border-ink-hairline hover:bg-paper'
                         }`}
                       >
@@ -410,7 +410,7 @@ export default function GradingWizard({
                         }}
                         className={`cursor-pointer rounded-2xl border-2 border-dashed p-7 text-center transition-all ${
                           answerKeyDragOver
-                            ? "border-accent bg-accent-tint"
+                            ? "border-ink bg-ink/5"
                             : "border-ink-hairline bg-paper-secondary hover:border-ink-hairline hover:bg-paper"
                         }`}
                       >
@@ -545,7 +545,7 @@ export default function GradingWizard({
                         onClick={() => setIdentificationMethod(opt.value as typeof identificationMethod)}
                         className={`rounded-xl border-2 p-3 text-left transition-all disabled:cursor-not-allowed disabled:opacity-50 ${
                           identificationMethod === opt.value
-                            ? 'border-accent bg-paper'
+                            ? 'border-ink bg-paper'
                             : 'border-ink-hairline hover:border-ink-hairline'
                         }`}
                       >
@@ -620,7 +620,7 @@ export default function GradingWizard({
               files.length === 0 ||
               starting
             }
-            className="rounded-full bg-accent text-accent-fg px-6 py-2.5 text-sm font-semibold hover:bg-accent/85 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl bg-ink text-paper px-6 py-2.5 text-sm font-semibold hover:bg-ink/90 disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <span className="inline-flex items-center gap-2">
               <LineIcon name="play" className="h-3.5 w-3.5" /> {starting ? "Skapar prov…" : "Starta rättning"}

@@ -42,10 +42,10 @@ function FaqItem({ item, isOpen, onClick }: { item: typeof FAQS[0]; isOpen: bool
         onClick={onClick}
         className="group flex w-full items-center justify-between py-5 text-left transition-colors"
       >
-        <span className="text-[16px] font-medium text-ink transition-colors group-hover:text-accent">
+        <span className="text-[16px] font-medium text-ink transition-colors group-hover:text-ink-secondary">
           {item.q}
         </span>
-        <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-ink-hairline text-[13px] text-ink-secondary transition-all group-hover:border-accent/50 group-hover:text-accent">
+        <span className="ml-4 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border border-ink-hairline text-[13px] text-ink-secondary transition-all group-hover:border-ink group-hover:text-ink">
           {isOpen ? "−" : "+"}
         </span>
       </button>

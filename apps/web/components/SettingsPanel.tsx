@@ -38,9 +38,9 @@ export default function SettingsPanel() {
         className="group flex h-10 w-10 items-center justify-center rounded-2xl transition-colors hover:bg-paper-secondary active:scale-95"
       >
         <span className="flex items-center gap-[3px]">
-          <span className="h-[5px] w-[5px] rounded-full bg-ink-secondary transition-all duration-200 group-hover:bg-accent" />
-          <span className="h-[5px] w-[5px] rounded-full bg-ink-secondary transition-all duration-200 delay-[30ms] group-hover:bg-accent" />
-          <span className="h-[5px] w-[5px] rounded-full bg-ink-secondary transition-all duration-200 delay-[60ms] group-hover:bg-accent" />
+          <span className="h-[5px] w-[5px] rounded-full bg-ink-secondary transition-all duration-200 group-hover:bg-ink" />
+          <span className="h-[5px] w-[5px] rounded-full bg-ink-secondary transition-all duration-200 delay-[30ms] group-hover:bg-ink" />
+          <span className="h-[5px] w-[5px] rounded-full bg-ink-secondary transition-all duration-200 delay-[60ms] group-hover:bg-ink" />
         </span>
       </button>
 
@@ -60,7 +60,7 @@ export default function SettingsPanel() {
                   onClick={() => setTheme("light")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border py-2 text-[12.5px] font-medium transition-all ${
                     theme === "light"
-                      ? "border-accent bg-accent-tint text-ink"
+                      ? "border-ink bg-ink/5 text-ink"
                       : "border-ink-hairline text-ink-secondary hover:bg-paper-secondary"
                   }`}
                 >
@@ -71,7 +71,7 @@ export default function SettingsPanel() {
                   onClick={() => setTheme("cream")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border py-2 text-[12.5px] font-medium transition-all ${
                     theme === "cream"
-                      ? "border-accent bg-accent-tint text-ink"
+                      ? "border-ink bg-ink/5 text-ink"
                       : "border-ink-hairline text-ink-secondary hover:bg-paper-secondary"
                   }`}
                 >
@@ -86,7 +86,7 @@ export default function SettingsPanel() {
                   onClick={() => setTheme("dark")}
                   className={`flex flex-1 items-center justify-center gap-1.5 rounded-[10px] border py-2 text-[12.5px] font-medium transition-all ${
                     theme === "dark"
-                      ? "border-accent bg-accent-tint text-ink"
+                      ? "border-ink bg-ink/5 text-ink"
                       : "border-ink-hairline text-ink-secondary hover:bg-paper-secondary"
                   }`}
                 >
@@ -109,7 +109,7 @@ export default function SettingsPanel() {
                     aria-label={t.label}
                     className={`flex flex-1 items-center justify-center rounded-[10px] border py-2 transition-all ${
                       accentTheme === t.id
-                        ? "border-accent bg-accent-tint"
+                        ? "border-ink bg-ink/5"
                         : "border-ink-hairline hover:bg-paper-secondary"
                     }`}
                   >

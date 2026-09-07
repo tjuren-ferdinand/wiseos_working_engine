@@ -359,8 +359,8 @@ function StepCard({
         <div
           className={`mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed ${
             isDark
-              ? "bg-accent/10 ring-accent/20 text-ink"
-              : "bg-accent/10 ring-accent/20 text-ink"
+              ? "bg-ink/5 ring-ink/15 text-ink"
+              : "bg-ink/5 ring-ink/15 text-ink"
           }`}
         >
           <span
@@ -504,7 +504,7 @@ function EditStep({
             });
             onDone();
           }}
-          className="rounded-full bg-accent text-accent-fg text-xs font-semibold px-4 py-1.5 hover:bg-accent-soft"
+          className="rounded-xl bg-ink text-paper text-xs font-semibold px-4 py-1.5 hover:bg-ink/90"
         >
           Spara ändring
         </button>

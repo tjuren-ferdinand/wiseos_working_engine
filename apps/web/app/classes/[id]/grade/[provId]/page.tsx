@@ -29,7 +29,7 @@ export default function GradePage() {
   if (!klass || !prov) {
     return (
       <div className={`text-center py-20 ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
-        Provet kunde inte hittas. <Link href={`/`} className="text-[#e8b0e4] underline">Till klasslistan</Link>
+        Provet kunde inte hittas. <Link href={`/`} className="text-ink-secondary underline">Till klasslistan</Link>
       </div>
     );
   }
@@ -97,7 +97,7 @@ export default function GradePage() {
                 className={`group rounded-2xl border p-5 hover:-translate-y-0.5 transition-all relative ${
                   isDark 
                     ? "border-paper-raised/10 bg-paper-raised/5 hover:bg-paper-raised/10 hover:border-paper-raised/20" 
-                    : "border-ink-hairline/70 bg-paper-raised shadow-sm hover:border-[#e8b0e4]/40 hover:shadow-lg"
+                    : "border-ink-hairline/70 bg-paper-raised shadow-sm hover:border-ink hover:shadow-lg"
                 }`}
               >
                 {needsAttention && (
@@ -108,12 +108,12 @@ export default function GradePage() {
                 )}
                 <div className="flex items-center gap-3">
                   <div className={`h-11 w-11 rounded-full grid place-items-center font-serif text-lg font-semibold ${
-                    isDark ? "bg-[#e8b0e4]/15 text-[#e8b0e4]" : "bg-[#e8b0e4]/20 text-[#9d6b99]"
+                    isDark ? "bg-ink/10 text-ink-secondary" : "bg-ink/10 text-ink-secondary"
                   }`}>
                     {r.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-sm font-semibold truncate ${isDark ? "text-ink group-hover:text-[#e8b0e4]" : "text-ink group-hover:text-[#c78bbf]"}`}>
+                    <div className={`text-sm font-semibold truncate ${isDark ? "text-ink group-hover:text-ink-secondary" : "text-ink group-hover:text-ink-secondary"}`}>
                       {r.studentName}
                     </div>
                     <div className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>{r.steps.length} steg</div>
