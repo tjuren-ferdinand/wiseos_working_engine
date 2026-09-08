@@ -35,7 +35,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
     pathname === "/login" ||
     pathname === "/faq" ||
     pathname === "/legal" ||
-    pathname === "/_not-found";
+    pathname === "/_not-found" ||
+    pathname.endsWith("/print");
 
   if (isPublic) {
     return <>{children}</>;

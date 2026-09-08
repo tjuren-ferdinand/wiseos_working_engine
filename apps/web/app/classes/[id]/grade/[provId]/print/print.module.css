@@ -1,0 +1,252 @@
+/* A4 print layout — svart text på vit bakgrund, inga tema-tokens */
+@page {
+  size: A4;
+  margin: 18mm 18mm 22mm 18mm;
+}
+
+.page {
+  font-family: ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+  color: #0f172a;
+  background: #ffffff;
+  line-height: 1.5;
+  font-size: 12px;
+}
+
+/* --- Sidhuvud --- */
+.headerLabel {
+  font-size: 9px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+.studentName {
+  font-size: 20px;
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  margin-top: 4px;
+  color: #0f172a;
+}
+.meta {
+  font-size: 12px;
+  color: #475569;
+  margin-top: 4px;
+}
+.hairline {
+  border: none;
+  border-top: 1px solid #e2e8f0;
+  margin: 10px 0;
+}
+.scoreBlock {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin: 8px 0;
+}
+.scoreLabel {
+  font-size: 10px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+}
+.scoreValue {
+  font-size: 16px;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Per uppgift --- */
+.step {
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  padding: 12px 14px;
+  margin-bottom: 10px;
+  page-break-inside: avoid;
+}
+.stepHeader {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.stepLeft {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+.stepNumber {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #64748b;
+  font-weight: 600;
+}
+.statusBadge {
+  font-size: 9px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+.statusCorrect { background: #d1fae5; color: #065f46; }
+.statusPartial { background: #fef3c7; color: #92400e; }
+.statusIncorrect { background: #fee2e2; color: #991b1b; }
+.statusReview { background: #fef3c7; color: #92400e; }
+.statusPending { background: #f1f5f9; color: #475569; }
+.stepPoints {
+  font-size: 12px;
+  font-weight: 600;
+  color: #0f172a;
+  font-variant-numeric: tabular-nums;
+}
+.stepQuestion {
+  font-size: 12px;
+  color: #0f172a;
+  margin-bottom: 6px;
+}
+.field {
+  margin-top: 6px;
+}
+.fieldLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.fieldValue {
+  font-size: 11px;
+  color: #0f172a;
+  white-space: pre-wrap;
+}
+.fieldMono {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 11px;
+}
+.analysis {
+  margin-top: 8px;
+  padding: 8px 10px;
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 6px;
+  font-size: 11px;
+  line-height: 1.55;
+  page-break-inside: avoid;
+}
+.analysisLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #475569;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  margin-bottom: 2px;
+}
+.analysisSub {
+  margin-top: 6px;
+}
+.analysisSubLabel {
+  font-size: 10px;
+  font-weight: 600;
+  color: #64748b;
+  margin-bottom: 1px;
+}
+
+/* --- LaTeX --- */
+.mathInline { display: inline; }
+.mathBlock {
+  display: block;
+  margin: 4px 0;
+  text-align: center;
+}
+
+/* --- Originalskanning (sista sidan) --- */
+.scanPage {
+  page-break-before: always;
+}
+.scanTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #0f172a;
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid #e2e8f0;
+}
+.scanItem {
+  margin-bottom: 10px;
+  page-break-inside: avoid;
+}
+.scanImg {
+  max-width: 150mm;
+  max-height: 200mm;
+  display: block;
+  margin: 0 auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 4px;
+}
+.scanCaption {
+  font-size: 9px;
+  color: #94a3b8;
+  text-align: center;
+  margin-top: 4px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+/* --- Sidfot --- */
+.footer {
+  margin-top: 20px;
+  padding-top: 8px;
+  border-top: 0.5px solid #e2e8f0;
+  font-size: 8px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  text-align: center;
+  color: #94a3b8;
+  font-weight: 500;
+}
+
+/* --- Tom/missing state --- */
+.missing {
+  padding: 40px 20px;
+  text-align: center;
+  color: #64748b;
+  font-size: 14px;
+}
+.missingLink {
+  color: #0f172a;
+  text-decoration: underline;
+  margin-top: 10px;
+  display: inline-block;
+}
+
+/* --- Knapp-bar (visas på skärm, döljs i print) --- */
+.screenBar {
+  padding: 12px 0;
+  display: flex;
+  gap: 8px;
+  justify-content: center;
+}
+.screenBtn {
+  font-size: 13px;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid #e2e8f0;
+  background: #ffffff;
+  color: #0f172a;
+  cursor: pointer;
+  font-weight: 500;
+}
+.screenBtnPrimary {
+  background: #0f172a;
+  color: #ffffff;
+  border-color: #0f172a;
+}
+@media print {
+  .screenBar { display: none !important; }
+  .page { padding: 0; }
+}

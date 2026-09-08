@@ -7,7 +7,6 @@ import { useStore, deriveStep } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import ProcessingScene from "@/components/ProcessingScene";
 import Workbench from "@/components/Workbench";
-import PrintLayout from "@/components/PrintLayout";
 
 export default function GradePage() {
   const params = useParams<{ id: string; provId: string }>();
@@ -39,16 +38,13 @@ export default function GradePage() {
     const result = allResults.find((r) => r.id === studentId);
     if (!result) return <div className="text-center py-20 text-ink-secondary">Elev saknas.</div>;
     return (
-      <>
-        <Workbench
-          result={result}
-          prov={prov}
-          klass={klass}
-          onBack={() => router.push(`/classes/${klass.id}/grade/${prov.id}`)}
-          onPrint={() => window.print()}
-        />
-        <PrintLayout klass={klass} prov={prov} result={result} />
-      </>
+      <Workbench
+        result={result}
+        prov={prov}
+        klass={klass}
+        onBack={() => router.push(`/classes/${klass.id}/grade/${prov.id}`)}
+        onPrint={() => window.print()}
+      />
     );
   }
 

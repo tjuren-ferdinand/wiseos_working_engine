@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   actions,
   type StudentResult,
@@ -42,10 +43,15 @@ function reviewReason(step: Step): string | null {
 export default function Workbench({ result, prov, klass, onBack, onPrint }: Props) {
   const { theme } = useTheme();
   const isDark = theme === "dark";
+  const router = useRouter();
   
   // Beräkna total från V2 Step structure
   const total = result.steps.reduce((s, st) => s + st.earnedPoints, 0);
   const max = result.steps.reduce((s, st) => s + st.maxPoints, 0);
+
+  const handlePrint = () => {
+    router.push(`/classes/${klass.id}/grade/${prov.id}/print?student=${result.id}`);
+  };
 
   return (
     <>
@@ -54,7 +60,7 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
           <button onClick={onBack} className={`text-sm transition-colors ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>← Tillbaka till klassmapp</button>
           <div className="flex items-center gap-3">
             <button
-              onClick={onPrint}
+              onClick={handlePrint}
               className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${isDark ? "border-paper-raised/20 bg-paper-raised/5 text-paper hover:bg-paper-raised/10" : "border-ink-hairline bg-paper-raised text-ink hover:bg-paper-secondary"}`}
             >
               Skriv ut genomgång + Original-PDF
