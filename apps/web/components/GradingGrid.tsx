@@ -2,17 +2,13 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const COLS = 14;
+const COLS = 16;
 const ROWS = 10;
 const TOTAL = COLS * ROWS;
-const CELL_SIZE = 10;
+const GAP_X = 22;
+const GAP_Y = 22;
 
-type CellState = 0 | 1 | 2;
-type CellVariation = {
-  size: number;
-  radius: number;
-  offset: number;
-};
+type DotState = 0 | 1 | 2; // idle, pulse, checked
 
 export default function GradingGrid({
   className = "",
@@ -26,11 +22,13 @@ export default function GradingGrid({
   const runtimeRandom = useRef(seededRandom(seed * 17 + 11));
   const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
   const [reduceMotion, setReduceMotion] = useState(false);
-  const variations = useMemo(
-    () => Array.from({ length: TOTAL }, (_, index) => cellVariation(seed, index)),
-    [seed],
-  );
-  const [states, setStates] = useState<CellState[]>(() => initialStates(seed));
+  const [states, setStates] = useState<DotState[]>(() => initialStates(seed));
+  const statesRef = useRef(states);
+  const [travel, setTravel] = useState<{ from: number; to: number; progress: number } | null>(null);
+
+  useEffect(() => {
+    statesRef.current = states;
+  }, [states]);
 
   useEffect(() => {
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
@@ -55,153 +53,192 @@ export default function GradingGrid({
       activeTimers.add(timer);
     };
 
-    const cycleCell = (index: number) => {
-      // idle -> active (ring appears)
-      setStates((current) => replaceState(current, index, 1));
-      later(() => {
-        // active -> done (cell fills + check draws)
-        setStates((current) => replaceState(current, index, 2));
+    const pickNextIndex = () => {
+      const idle = statesRef.current.flatMap((state, i) => (state === 0 ? [i] : []));
+      const pool = idle.length > 0 ? idle : statesRef.current.flatMap((state, i) => (state === 2 ? [i] : []));
+      return pool.length > 0 ? pool[Math.floor(random() * pool.length)] : -1;
+    };
+
+    const travelDuration = 1200 + random() * 600;
+    const pulseDuration = 1400 + random() * 600;
+    const holdDuration = 8000 + random() * 5000;
+
+    const scheduleTravel = (fromIndex: number, toIndex: number) => {
+      const steps = 30;
+      const stepTime = travelDuration / steps;
+
+      for (let i = 0; i <= steps; i++) {
         later(() => {
-          // done -> idle (everything fades out)
-          setStates((current) => replaceState(current, index, 0));
-        }, 9000 + random() * 7000);
-      }, 1800 + random() * 700);
-    };
+          setTravel({ from: fromIndex, to: toIndex, progress: i / steps });
+        }, i * stepTime);
+      }
 
-    const scheduleNext = () => {
       later(() => {
-        setStates((current) => {
-          const idle = current.flatMap((state, i) => (state === 0 ? [i] : []));
-          const pool = idle.length > 0
-            ? idle
-            : current.flatMap((state, i) => (state === 2 ? [i] : []));
-          if (pool.length > 0) {
-            const index = pool[Math.floor(random() * pool.length)];
-            later(() => cycleCell(index), 0);
+        setTravel(null);
+        setStates((current) => replaceState(current, toIndex, 1));
+
+        later(() => {
+          const willCheck = random() < 0.26;
+          setStates((current) => replaceState(current, toIndex, willCheck ? 2 : 0));
+
+          if (willCheck) {
+            later(() => {
+              setStates((current) => replaceState(current, toIndex, 0));
+              const next = pickNextIndex();
+              if (next !== -1) scheduleTravel(toIndex, next);
+            }, holdDuration);
+          } else {
+            const next = pickNextIndex();
+            if (next !== -1) scheduleTravel(toIndex, next);
           }
-          return current;
-        });
-        scheduleNext();
-      }, 2200 + random() * 1300);
+        }, pulseDuration);
+      }, travelDuration);
     };
 
-    scheduleNext();
+    const first = pickNextIndex();
+    if (first !== -1) {
+      const second = pickNextIndex();
+      scheduleTravel(first, second !== -1 ? second : first);
+    }
+
     return () => {
       cancelled = true;
       activeTimers.forEach(clearTimeout);
       activeTimers.clear();
     };
-  }, [reduceMotion, compact]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [reduceMotion, compact, seed]);
+
+  const positions = useMemo(() => {
+    return Array.from({ length: TOTAL }, (_, i) => ({
+      x: (i % COLS) * GAP_X + GAP_X / 2,
+      y: Math.floor(i / COLS) * GAP_Y + GAP_Y / 2,
+    }));
+  }, []);
+
+  const width = COLS * GAP_X;
+  const height = ROWS * GAP_Y;
 
   return (
     <svg
-      viewBox={`0 0 ${COLS * CELL_SIZE + 2} ${ROWS * CELL_SIZE + 2}`}
+      viewBox={`0 0 ${width} ${height}`}
       className={`h-full w-full ${className}`}
       style={{ shapeRendering: "geometricPrecision" }}
       aria-hidden="true"
     >
-      <g transform="translate(1,1)">
-        {states.map((state, index) => (
-          <Cell
-            key={index}
-            state={state}
-            x={index % COLS}
-            y={Math.floor(index / COLS)}
-            variation={variations[index]}
+      <defs>
+        <mask id="vignette">
+          <rect width={width} height={height} fill="white" />
+          <radialGradient id="vignetteGradient">
+            <stop offset="25%" stopColor="black" />
+            <stop offset="100%" stopColor="white" />
+          </radialGradient>
+          <rect width={width} height={height} fill="url(#vignetteGradient)" opacity="0.95" />
+        </mask>
+      </defs>
+
+      <g mask="url(#vignette)">
+        {travel && !compact && (
+          <ConnectionLine travel={travel} positions={positions} />
+        )}
+
+        {positions.map((p, i) => (
+          <Dot
+            key={i}
+            cx={p.x}
+            cy={p.y}
+            state={states[i]}
             compact={compact}
             reduceMotion={reduceMotion}
           />
         ))}
+
+        {travel && !compact && (
+          <TravelPulse travel={travel} positions={positions} />
+        )}
       </g>
     </svg>
   );
 }
 
-function Cell({
+function Dot({
+  cx,
+  cy,
   state,
-  x,
-  y,
-  variation,
   compact,
   reduceMotion,
 }: {
-  state: CellState;
-  x: number;
-  y: number;
-  variation: CellVariation;
+  cx: number;
+  cy: number;
+  state: DotState;
   compact: boolean;
   reduceMotion: boolean;
 }) {
-  const active = state === 1;
-  const done = state === 2;
-  const size = 7.0 * (compact ? 0.92 : 1) + variation.size;
-  const inset = (7.3 - size) / 2 + variation.offset;
-  const radius = 1.5 + variation.radius;
-  const fadeMs = reduceMotion ? "0ms" : "420ms";
+  const pulse = state === 1;
+  const checked = state === 2;
+  const duration = reduceMotion ? "0ms" : "480ms";
   const drawMs = reduceMotion ? "0ms" : "460ms";
+  const r = compact ? 1.8 : 2.8;
 
   return (
-    <g transform={`translate(${x * CELL_SIZE}, ${y * CELL_SIZE})`}>
-      {/* Resting cell — faint, uniform base */}
-      <rect
-        x={inset}
-        y={inset}
-        width={size}
-        height={size}
-        rx={radius}
-        fill="currentColor"
-        style={{ opacity: 0.05 }}
-      />
+    <g transform={`translate(${cx}, ${cy})`}>
+      {/* Resting dot */}
+      <circle r={r} fill="currentColor" style={{ opacity: 0.22 }} />
 
-      {/* Active state — a visible but quiet ring, like in the reference */}
-      <rect
-        x={inset + 0.5}
-        y={inset + 0.5}
-        width={size - 1}
-        height={size - 1}
-        rx={radius - 0.3}
+      {/* Active outer ring */}
+      <circle
+        r={r * 2.2}
         fill="none"
         stroke="currentColor"
         strokeWidth={0.9}
         style={{
-          opacity: active ? 0.28 : 0,
-          transform: active ? "scale(1)" : "scale(0.94)",
+          opacity: pulse ? 0.40 : 0,
+          transform: pulse ? "scale(1)" : "scale(0.82)",
           transformBox: "fill-box",
           transformOrigin: "center",
-          transition: `opacity ${fadeMs} cubic-bezier(0.22, 0.8, 0.36, 1), transform ${fadeMs} cubic-bezier(0.22, 0.8, 0.36, 1)`,
+          transition: `opacity ${duration} cubic-bezier(0.22, 0.9, 0.36, 1), transform ${duration} cubic-bezier(0.22, 0.9, 0.36, 1)`,
         }}
       />
 
-      {/* Done state — soft filled cell, clearly readable but not loud */}
-      <rect
-        x={inset}
-        y={inset}
-        width={size}
-        height={size}
-        rx={radius}
+      {/* Active inner glow */}
+      <circle
+        r={r}
         fill="currentColor"
         style={{
-          opacity: done ? 0.18 : 0,
-          transform: done ? "scale(1)" : "scale(0.96)",
+          opacity: pulse ? 0.28 : 0,
+          transform: pulse ? "scale(2.2)" : "scale(1)",
           transformBox: "fill-box",
           transformOrigin: "center",
-          transition: `opacity ${fadeMs} cubic-bezier(0.22, 0.8, 0.36, 1), transform ${fadeMs} cubic-bezier(0.22, 0.8, 0.36, 1)`,
+          transition: `opacity ${duration} cubic-bezier(0.22, 0.9, 0.36, 1), transform ${duration} cubic-bezier(0.22, 0.9, 0.36, 1)`,
         }}
       />
 
-      {/* Checkmark — drawn with a stroke, like a pen */}
+      {/* Checked fill */}
+      <circle
+        r={r * 2.0}
+        fill="currentColor"
+        style={{
+          opacity: checked ? 0.18 : 0,
+          transform: checked ? "scale(1)" : "scale(0.9)",
+          transformBox: "fill-box",
+          transformOrigin: "center",
+          transition: `opacity ${duration} cubic-bezier(0.22, 0.9, 0.36, 1), transform ${duration} cubic-bezier(0.22, 0.9, 0.36, 1)`,
+        }}
+      />
+
+      {/* Checkmark */}
       <path
-        d={`M${inset + size * 0.25} ${inset + size * 0.52} L${inset + size * 0.43} ${inset + size * 0.70} L${inset + size * 0.76} ${inset + size * 0.33}`}
+        d={`M${-r * 0.62} ${r * 0.02} L${-r * 0.08} ${r * 0.68} L${r * 0.75} ${-r * 0.58}`}
         pathLength="1"
         fill="none"
         stroke="currentColor"
-        strokeWidth={Math.max(0.9, size * 0.15)}
+        strokeWidth={Math.max(0.85, r * 0.34)}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeDasharray="1"
         style={{
-          opacity: done ? 0.72 : 0,
-          strokeDashoffset: done ? 0 : 1,
+          opacity: checked ? 0.82 : 0,
+          strokeDashoffset: checked ? 0 : 1,
           transition: `stroke-dashoffset ${drawMs} cubic-bezier(0.45, 0, 0.55, 1), opacity ${reduceMotion ? "0ms" : "160ms"} ease-out`,
         }}
       />
@@ -209,24 +246,61 @@ function Cell({
   );
 }
 
-function initialStates(seed: number): CellState[] {
+function TravelPulse({
+  travel,
+  positions,
+}: {
+  travel: { from: number; to: number; progress: number };
+  positions: { x: number; y: number }[];
+}) {
+  const { from, to, progress } = travel;
+  const start = positions[from] ?? positions[to];
+  const end = positions[to];
+  const x = start.x + (end.x - start.x) * progress;
+  const y = start.y + (end.y - start.y) * progress;
+
+  return (
+    <g transform={`translate(${x}, ${y})`}>
+      <circle r={4.2} fill="none" stroke="currentColor" strokeWidth={1.0} style={{ opacity: 0.45 }} />
+      <circle r={4.2} fill="currentColor" style={{ opacity: 0.16 }} />
+      <circle r={1.4} fill="currentColor" style={{ opacity: 0.65 }} />
+    </g>
+  );
+}
+
+function ConnectionLine({
+  travel,
+  positions,
+}: {
+  travel: { from: number; to: number; progress: number };
+  positions: { x: number; y: number }[];
+}) {
+  const { from, to } = travel;
+  const start = positions[from] ?? positions[to];
+  const end = positions[to];
+  return (
+    <line
+      x1={start.x}
+      y1={start.y}
+      x2={end.x}
+      y2={end.y}
+      stroke="currentColor"
+      strokeWidth={0.6}
+      strokeLinecap="round"
+      style={{ opacity: 0.08 }}
+    />
+  );
+}
+
+function initialStates(seed: number): DotState[] {
   const random = seededRandom(seed);
   return Array.from({ length: TOTAL }, () => {
-    if (random() >= 0.08) return 0;
+    if (random() >= 0.07) return 0;
     return 2;
   });
 }
 
-function cellVariation(seed: number, index: number): CellVariation {
-  const random = seededRandom(seed * 1009 + index * 97 + 13);
-  return {
-    size: random() * 0.22,
-    radius: random() * 0.18,
-    offset: (random() - 0.5) * 0.08,
-  };
-}
-
-function replaceState(states: CellState[], index: number, state: CellState): CellState[] {
+function replaceState(states: DotState[], index: number, state: DotState): DotState[] {
   if (states[index] === state) return states;
   const next = [...states];
   next[index] = state;
