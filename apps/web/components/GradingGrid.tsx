@@ -1,19 +1,19 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
+import type { FlowStudent } from "./GradingFlowScene";
+import s from "./GradingGrid.module.css";
 
-const COLS = 14;
-const ROWS = 10;
-const TOTAL = COLS * ROWS;
-const CELL_SIZE = 10;
-
-type CellState = 0 | 1 | 2 | 3 | 4;
-type CellVariation = {
-  size: number;
-  radius: number;
-  opacity: number;
-  offset: number;
-};
+const STUDENTS: FlowStudent[] = [
+  { id: "demo-1", name: "Ella Andersson", status: "done", score: 18, maxScore: 20 },
+  { id: "demo-2", name: "Noah Lind", status: "queued", score: 16, maxScore: 20 },
+  { id: "demo-3", name: "Alma Berg", status: "queued", score: 19, maxScore: 20 },
+  { id: "demo-4", name: "Liam Nilsson", status: "queued", score: 14, maxScore: 20 },
+  { id: "demo-5", name: "Vera Holm", status: "done", score: 17, maxScore: 20 },
+  { id: "demo-6", name: "Hugo Ek", status: "queued", score: 15, maxScore: 20 },
+  { id: "demo-7", name: "Olivia Lund", status: "done", score: 18, maxScore: 20 },
+  { id: "demo-8", name: "Leo Sjöberg", status: "queued", score: 16, maxScore: 20 },
+];
 
 export default function GradingGrid({
   className = "",
@@ -24,219 +24,109 @@ export default function GradingGrid({
   seed?: number;
   compact?: boolean;
 }) {
-  const runtimeRandom = useRef(seededRandom(seed * 17 + 11));
-  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const variations = useMemo(
-    () => Array.from({ length: TOTAL }, (_, index) => cellVariation(seed, index)),
-    [seed],
-  );
-  const [states, setStates] = useState<CellState[]>(() => initialStates(seed));
+  const root = useRef<HTMLDivElement>(null);
+  const [students, setStudents] = useState(STUDENTS);
+  const [running, setRunning] = useState(false);
 
   useEffect(() => {
+    if (compact) return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    const updatePreference = () => setReduceMotion(media.matches);
-    updatePreference();
-    media.addEventListener("change", updatePreference);
-    return () => media.removeEventListener("change", updatePreference);
-  }, []);
+    let visible = false;
+    const sync = () => setRunning(visible && !document.hidden && !media.matches);
+    const observer = new IntersectionObserver(([entry]) => {
+      visible = entry.isIntersecting;
+      sync();
+    });
+    if (root.current) observer.observe(root.current);
+    media.addEventListener("change", sync);
+    document.addEventListener("visibilitychange", sync);
+    return () => {
+      observer.disconnect();
+      media.removeEventListener("change", sync);
+      document.removeEventListener("visibilitychange", sync);
+    };
+  }, [compact]);
 
   useEffect(() => {
-    if (reduceMotion) return;
-
-    let cancelled = false;
-    const random = runtimeRandom.current;
-    const activeTimers = timers.current;
-
-    const later = (callback: () => void, delay: number) => {
-      const timer = setTimeout(() => {
-        activeTimers.delete(timer);
-        if (!cancelled) callback();
-      }, delay);
-      activeTimers.add(timer);
+    if (!running) {
+      setStudents(STUDENTS);
+      return;
+    }
+    let timer: ReturnType<typeof setTimeout>;
+    let snapshot = [...STUDENTS];
+    let previous = -1;
+    let randomState = Math.abs(seed) || 1;
+    const random = () => {
+      randomState = (randomState * 9301 + 49297) % 233280;
+      return randomState / 233280;
     };
-
-    const transitionCell = (index: number) => {
-      setStates((current) => replaceState(current, index, 1));
-      later(() => {
-        setStates((current) => replaceState(current, index, 2));
-        later(() => {
-          const willCheck = random() < 0.22;
-          setStates((current) => replaceState(current, index, 3));
-          if (willCheck) {
-            later(
-              () => setStates((current) => replaceState(current, index, 4)),
-              420 + random() * 180,
-            );
-          }
-        }, 480 + random() * 180);
-      }, 460 + random() * 180);
+    const update = (index: number, status: FlowStudent["status"]) => {
+      snapshot = snapshot.map((student, i) => i === index ? { ...student, status } : student);
+      setStudents(snapshot);
     };
-
-    const scheduleNext = () => {
-      later(() => {
-        setStates((current) => {
-          const index = pickEmptyCell(current, random);
-          if (index !== -1) later(() => transitionCell(index), 0);
-          return current;
-        });
-        scheduleNext();
-      }, 600 + random() * 1200);
+    const next = () => {
+      const visible = snapshot.slice(0, window.matchMedia("(max-width: 480px)").matches ? 6 : 8);
+      const queued = visible.flatMap((student, i) => student.status === "queued" ? [i] : []);
+      const candidates = queued.length ? queued : visible.flatMap((_, i) => i === previous ? [] : [i]);
+      const index = candidates[Math.floor(random() * candidates.length)];
+      previous = index;
+      update(index, "queued");
+      timer = setTimeout(() => {
+        update(index, "working");
+        timer = setTimeout(() => {
+          update(index, "done");
+          timer = setTimeout(next, 1800 + random() * 1600);
+        }, 3000);
+      }, 800);
     };
+    timer = setTimeout(next, 1500);
+    return () => clearTimeout(timer);
+  }, [running, seed]);
 
-    scheduleNext();
-    return () => {
-      cancelled = true;
-      activeTimers.forEach(clearTimeout);
-      activeTimers.clear();
-    };
-  }, [reduceMotion]);
+  const working = students.some((student) => student.status === "working");
 
   return (
-    <svg
-      viewBox={`0 0 ${COLS * CELL_SIZE + 2} ${ROWS * CELL_SIZE + 2}`}
-      className={`h-full w-full ${className}`}
-      style={{ shapeRendering: "geometricPrecision" }}
-      aria-hidden="true"
-    >
-      <g transform="translate(1,1)">
-        {states.map((state, index) => (
-          <Cell
-            key={index}
-            state={state}
-            x={index % COLS}
-            y={Math.floor(index / COLS)}
-            variation={variations[index]}
-            compact={compact}
-            reduceMotion={reduceMotion}
-          />
+    <div ref={root} className={`${s.canvas} ${compact ? s.compact : ""} ${className}`}>
+      {!compact && (
+        <div className={s.heading}>
+          <span>Matematik 1c <span className={s.separator}>/</span> Klass NA24</span>
+          <span className={s.example}>Exempelvy</span>
+        </div>
+      )}
+      <div className={s.cards} aria-hidden="true">
+        {students.map((student, index) => (
+          <div
+            key={student.id}
+            className={s.card}
+            data-state={student.status}
+            style={{ "--depth": index % 3 === 1 ? "1" : "0.82" } as CSSProperties}
+          >
+            <div className={s.identity}>
+              <span className={s.avatar}>
+                {student.name.split(" ").map((name) => name[0]).join("")}
+              </span>
+              <svg className={s.statusIcon} viewBox="0 0 24 24" fill="none">
+                <circle className={s.track} cx="12" cy="12" r="9" />
+                <circle className={s.progress} cx="12" cy="12" r="9" pathLength="1" />
+                <path className={s.check} d="m8 12 2.6 2.6 5.4-5.4" pathLength="1" />
+              </svg>
+            </div>
+            <div className={s.name}>{student.name}</div>
+            <div className={s.assessment}>
+              <span className={s.waiting}>I kö</span>
+              <span className={s.analyzing}>Analyserar lösning…</span>
+              <span className={s.score}>{student.score}<span> / {student.maxScore} poäng</span></span>
+            </div>
+            <div className={s.edge} />
+          </div>
         ))}
-      </g>
-    </svg>
+      </div>
+      {!compact && (
+        <div className={s.caption}>
+          <span className={s.activity} data-working={working}><span />{working ? "WiseOS analyserar" : "Varje lösning får sin genomgång"}</span>
+          <span className={s.control}>Du har sista ordet.</span>
+        </div>
+      )}
+    </div>
   );
-}
-
-function Cell({
-  state,
-  x,
-  y,
-  variation,
-  compact,
-  reduceMotion,
-}: {
-  state: CellState;
-  x: number;
-  y: number;
-  variation: CellVariation;
-  compact: boolean;
-  reduceMotion: boolean;
-}) {
-  const queued = state === 1;
-  const processing = state === 2;
-  const settled = state >= 3;
-  const checked = state === 4;
-  const size = variation.size * (compact ? 0.92 : 1);
-  const inset = (7.3 - size) / 2 + variation.offset;
-  const duration = reduceMotion ? "0ms" : "520ms";
-  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
-
-  return (
-    <g transform={`translate(${x * CELL_SIZE}, ${y * CELL_SIZE})`}>
-      <rect
-        x={inset}
-        y={inset}
-        width={size}
-        height={size}
-        rx={variation.radius}
-        fill="currentColor"
-        style={{ opacity: variation.opacity * 0.07 }}
-      />
-      <rect
-        x={inset - 0.65}
-        y={inset - 0.65}
-        width={size + 1.3}
-        height={size + 1.3}
-        rx={variation.radius + 0.5}
-        fill="none"
-        stroke="rgb(var(--accent))"
-        strokeWidth={processing ? 0.8 : 0.55}
-        style={{
-          opacity: queued ? 0.18 : processing ? 0.42 : 0,
-          transform: queued ? "scale(0.93)" : "scale(1)",
-          transformBox: "fill-box",
-          transformOrigin: "center",
-          transition: `opacity ${duration} ${easing}, transform ${duration} ${easing}, stroke-width ${duration} ${easing}`,
-        }}
-      />
-      <rect
-        x={inset}
-        y={inset}
-        width={size}
-        height={size}
-        rx={variation.radius}
-        fill={processing ? "rgb(var(--accent))" : "currentColor"}
-        style={{
-          opacity: processing ? variation.opacity * 0.28 : settled ? variation.opacity * 0.9 : 0,
-          transform: processing ? "scale(0.94)" : settled ? "scale(1)" : "scale(0.9)",
-          transformBox: "fill-box",
-          transformOrigin: "center",
-          transition: `opacity ${duration} ${easing}, transform ${duration} ${easing}, fill ${duration} ${easing}`,
-        }}
-      />
-      <path
-        d={`M${inset + size * 0.25} ${inset + size * 0.52} L${inset + size * 0.43} ${inset + size * 0.69} L${inset + size * 0.76} ${inset + size * 0.34}`}
-        pathLength="1"
-        fill="none"
-        stroke="rgb(var(--surface))"
-        strokeWidth={Math.max(0.82, size * 0.14)}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeDasharray="1"
-        style={{
-          opacity: checked ? 1 : 0,
-          strokeDashoffset: checked ? 0 : 1,
-          transition: `stroke-dashoffset ${reduceMotion ? "0ms" : "460ms"} ${easing}, opacity ${reduceMotion ? "0ms" : "160ms"} ease-out`,
-        }}
-      />
-    </g>
-  );
-}
-
-function initialStates(seed: number): CellState[] {
-  const random = seededRandom(seed);
-  return Array.from({ length: TOTAL }, () => {
-    if (random() >= 0.12) return 0;
-    return random() < 0.35 ? 4 : 3;
-  });
-}
-
-function cellVariation(seed: number, index: number): CellVariation {
-  const random = seededRandom(seed * 1009 + index * 97 + 13);
-  return {
-    size: 6.75 + random() * 0.5,
-    radius: 1.25 + random() * 0.35,
-    opacity: 0.92 + random() * 0.08,
-    offset: (random() - 0.5) * 0.12,
-  };
-}
-
-function replaceState(states: CellState[], index: number, state: CellState): CellState[] {
-  if (states[index] === state) return states;
-  const next = [...states];
-  next[index] = state;
-  return next;
-}
-
-function pickEmptyCell(states: CellState[], random: () => number): number {
-  const empty = states.flatMap((state, index) => (state === 0 ? [index] : []));
-  if (empty.length === 0) return -1;
-  return empty[Math.floor(random() * empty.length)];
-}
-
-function seededRandom(seed: number): () => number {
-  let current = Math.abs(seed) || 1;
-  return () => {
-    current = (current * 9301 + 49297) % 233280;
-    return current / 233280;
-  };
 }

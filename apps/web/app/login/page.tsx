@@ -412,19 +412,15 @@ export default function LoginPage() {
 
       <main className="mx-auto max-w-6xl px-6">
         {/* Hero */}
-        <section className="relative grid min-h-[calc(100vh-4rem)] items-center gap-12 pt-16 lg:grid-cols-2 lg:gap-8">
-          <div className="order-2 lg:order-1">
+        <section className="relative grid min-h-[calc(100svh-4rem)] items-center gap-10 pb-16 pt-32 sm:gap-14 lg:grid-cols-[0.9fr_1.1fr] lg:gap-12 lg:pb-24 lg:pt-36">
+          <div className="min-w-0">
             <motion.div
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="mb-4 inline-flex w-fit items-center gap-2 rounded-xl border border-ink-hairline bg-ink/5 px-3 py-1.5 text-[12px] font-medium text-ink"
+              className="mb-5 text-[10px] font-medium uppercase tracking-[0.16em] text-ink-secondary"
             >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-xl bg-ink opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-xl bg-ink" />
-              </span>
-              AI-driven rättning för svenska lärare
+              AI-rättning. Lärarens omdöme.
             </motion.div>
 
             <motion.h1
@@ -463,35 +459,19 @@ export default function LoginPage() {
               initial={{ opacity: 0, y: 16 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.7, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-14 grid grid-cols-3 gap-4"
+              className="mt-12 grid grid-cols-3 gap-5 border-t border-ink-hairline/10 pt-6"
             >
               {stats.map((stat) => (
-                <div
-                  key={stat.label}
-                  className="rounded-2xl border border-ink-hairline/10 bg-paper-raised p-5"
-                >
-                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-ink/5 text-ink-hairline">
-                    <LineIcon name={stat.icon} className="h-5 w-5" />
-                  </div>
-                  <div className="text-[20px] font-semibold text-ink">{stat.value}</div>
-                  <div className="mt-1 text-[11.5px] leading-snug text-ink-secondary">{stat.label}</div>
+                <div key={stat.label} className="min-w-0">
+                  <div className="text-[18px] font-medium tracking-tight text-ink">{stat.value}</div>
+                  <div className="mt-1.5 max-w-[100px] text-[10px] leading-relaxed text-ink-secondary">{stat.label}</div>
                 </div>
               ))}
             </motion.div>
           </div>
 
-          <div className="order-1 flex items-center justify-center lg:order-2">
-            <motion.div
-              initial={{ opacity: 0, scale: 0.96 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.9, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="relative aspect-[4/3] w-full max-w-lg rounded-3xl border border-ink-hairline/10 bg-paper-raised p-8 shadow-soft lg:aspect-square"
-            >
-              <div className="absolute inset-0 rounded-3xl bg-[radial-gradient(circle_at_50%_0%,color-mix(in_srgb,currentColor_3%,transparent),transparent_60%)]" />
-              <div className="relative h-full w-full text-ink opacity-90">
-                <GradingGrid seed={2026} />
-              </div>
-            </motion.div>
+          <div className="min-w-0 lg:-mr-6">
+            <GradingGrid seed={2026} />
           </div>
         </section>
 
