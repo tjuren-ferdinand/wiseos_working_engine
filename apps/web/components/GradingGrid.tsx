@@ -1,19 +1,20 @@
 "use client";
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import type { FlowStudent } from "./GradingFlowScene";
-import s from "./GradingGrid.module.css";
+import { useEffect, useMemo, useRef, useState } from "react";
 
-const STUDENTS: FlowStudent[] = [
-  { id: "demo-1", name: "Ella Andersson", status: "done", score: 18, maxScore: 20 },
-  { id: "demo-2", name: "Noah Lind", status: "queued", score: 16, maxScore: 20 },
-  { id: "demo-3", name: "Alma Berg", status: "queued", score: 19, maxScore: 20 },
-  { id: "demo-4", name: "Liam Nilsson", status: "queued", score: 14, maxScore: 20 },
-  { id: "demo-5", name: "Vera Holm", status: "done", score: 17, maxScore: 20 },
-  { id: "demo-6", name: "Hugo Ek", status: "queued", score: 15, maxScore: 20 },
-  { id: "demo-7", name: "Olivia Lund", status: "done", score: 18, maxScore: 20 },
-  { id: "demo-8", name: "Leo Sjöberg", status: "queued", score: 16, maxScore: 20 },
-];
+const COLS = 14;
+const ROWS = 10;
+const TOTAL = COLS * ROWS;
+const CELL_SIZE = 10;
+
+// Three states only: idle, active (AI looking), done (check drawn)
+type CellState = 0 | 1 | 2;
+type CellVariation = {
+  size: number;
+  radius: number;
+  opacity: number;
+  offset: number;
+};
 
 export default function GradingGrid({
   className = "",
@@ -24,109 +25,225 @@ export default function GradingGrid({
   seed?: number;
   compact?: boolean;
 }) {
-  const root = useRef<HTMLDivElement>(null);
-  const [students, setStudents] = useState(STUDENTS);
-  const [running, setRunning] = useState(false);
+  const runtimeRandom = useRef(seededRandom(seed * 17 + 11));
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const variations = useMemo(
+    () => Array.from({ length: TOTAL }, (_, index) => cellVariation(seed, index)),
+    [seed],
+  );
+  const [states, setStates] = useState<CellState[]>(() => initialStates(seed));
 
   useEffect(() => {
-    if (compact) return;
     const media = window.matchMedia("(prefers-reduced-motion: reduce)");
-    let visible = false;
-    const sync = () => setRunning(visible && !document.hidden && !media.matches);
-    const observer = new IntersectionObserver(([entry]) => {
-      visible = entry.isIntersecting;
-      sync();
-    });
-    if (root.current) observer.observe(root.current);
-    media.addEventListener("change", sync);
-    document.addEventListener("visibilitychange", sync);
-    return () => {
-      observer.disconnect();
-      media.removeEventListener("change", sync);
-      document.removeEventListener("visibilitychange", sync);
-    };
-  }, [compact]);
+    const updatePreference = () => setReduceMotion(media.matches);
+    updatePreference();
+    media.addEventListener("change", updatePreference);
+    return () => media.removeEventListener("change", updatePreference);
+  }, []);
 
   useEffect(() => {
-    if (!running) {
-      setStudents(STUDENTS);
-      return;
-    }
-    let timer: ReturnType<typeof setTimeout>;
-    let snapshot = [...STUDENTS];
-    let previous = -1;
-    let randomState = Math.abs(seed) || 1;
-    const random = () => {
-      randomState = (randomState * 9301 + 49297) % 233280;
-      return randomState / 233280;
-    };
-    const update = (index: number, status: FlowStudent["status"]) => {
-      snapshot = snapshot.map((student, i) => i === index ? { ...student, status } : student);
-      setStudents(snapshot);
-    };
-    const next = () => {
-      const visible = snapshot.slice(0, window.matchMedia("(max-width: 480px)").matches ? 6 : 8);
-      const queued = visible.flatMap((student, i) => student.status === "queued" ? [i] : []);
-      const candidates = queued.length ? queued : visible.flatMap((_, i) => i === previous ? [] : [i]);
-      const index = candidates[Math.floor(random() * candidates.length)];
-      previous = index;
-      update(index, "queued");
-      timer = setTimeout(() => {
-        update(index, "working");
-        timer = setTimeout(() => {
-          update(index, "done");
-          timer = setTimeout(next, 1800 + random() * 1600);
-        }, 3000);
-      }, 800);
-    };
-    timer = setTimeout(next, 1500);
-    return () => clearTimeout(timer);
-  }, [running, seed]);
+    if (reduceMotion || compact) return;
 
-  const working = students.some((student) => student.status === "working");
+    let cancelled = false;
+    const random = runtimeRandom.current;
+    const activeTimers = timers.current;
+
+    const later = (callback: () => void, delay: number) => {
+      const timer = setTimeout(() => {
+        activeTimers.delete(timer);
+        if (!cancelled) callback();
+      }, delay);
+      activeTimers.add(timer);
+    };
+
+    // Lifecycle of one cell: idle -> active -> done -> (hold) -> idle
+    const cycleCell = (index: number) => {
+      // idle -> active
+      setStates((current) => replaceState(current, index, 1));
+      // active holds ~1.6–2.4s, then -> done
+      later(() => {
+        setStates((current) => replaceState(current, index, 2));
+        // done holds 8–15s, then fades back to idle
+        later(() => {
+          setStates((current) => replaceState(current, index, 0));
+        }, 8000 + random() * 7000);
+      }, 1600 + random() * 800);
+    };
+
+    // Low, irregular cadence: one cell every ~2–3s, never simultaneous, never predictable
+    const scheduleNext = () => {
+      later(() => {
+        setStates((current) => {
+          // Prefer idle cells; if none idle, pick a done cell to recycle
+          const idle = current.flatMap((state, i) => (state === 0 ? [i] : []));
+          const pool = idle.length > 0
+            ? idle
+            : current.flatMap((state, i) => (state === 2 ? [i] : []));
+          if (pool.length > 0) {
+            const index = pool[Math.floor(random() * pool.length)];
+            later(() => cycleCell(index), 0);
+          }
+          return current;
+        });
+        scheduleNext();
+      }, 2000 + random() * 1000);
+    };
+
+    scheduleNext();
+    return () => {
+      cancelled = true;
+      activeTimers.forEach(clearTimeout);
+      activeTimers.clear();
+    };
+  }, [reduceMotion, compact]);
 
   return (
-    <div ref={root} className={`${s.canvas} ${compact ? s.compact : ""} ${className}`}>
-      {!compact && (
-        <div className={s.heading}>
-          <span>Matematik 1c <span className={s.separator}>/</span> Klass NA24</span>
-          <span className={s.example}>Exempelvy</span>
-        </div>
-      )}
-      <div className={s.cards} aria-hidden="true">
-        {students.map((student, index) => (
-          <div
-            key={student.id}
-            className={s.card}
-            data-state={student.status}
-            style={{ "--depth": index % 3 === 1 ? "1" : "0.82" } as CSSProperties}
-          >
-            <div className={s.identity}>
-              <span className={s.avatar}>
-                {student.name.split(" ").map((name) => name[0]).join("")}
-              </span>
-              <svg className={s.statusIcon} viewBox="0 0 24 24" fill="none">
-                <circle className={s.track} cx="12" cy="12" r="9" />
-                <circle className={s.progress} cx="12" cy="12" r="9" pathLength="1" />
-                <path className={s.check} d="m8 12 2.6 2.6 5.4-5.4" pathLength="1" />
-              </svg>
-            </div>
-            <div className={s.name}>{student.name}</div>
-            <div className={s.assessment}>
-              <span className={s.waiting}>I kö</span>
-              <span className={s.analyzing}>Analyserar lösning…</span>
-              <span className={s.score}>{student.score}<span> / {student.maxScore} poäng</span></span>
-            </div>
-            <div className={s.edge} />
-          </div>
+    <svg
+      viewBox={`0 0 ${COLS * CELL_SIZE + 2} ${ROWS * CELL_SIZE + 2}`}
+      className={`h-full w-full ${className}`}
+      style={{ shapeRendering: "geometricPrecision" }}
+      aria-hidden="true"
+    >
+      <g transform="translate(1,1)">
+        {states.map((state, index) => (
+          <Cell
+            key={index}
+            state={state}
+            x={index % COLS}
+            y={Math.floor(index / COLS)}
+            variation={variations[index]}
+            compact={compact}
+            reduceMotion={reduceMotion}
+          />
         ))}
-      </div>
-      {!compact && (
-        <div className={s.caption}>
-          <span className={s.activity} data-working={working}><span />{working ? "WiseOS analyserar" : "Varje lösning får sin genomgång"}</span>
-          <span className={s.control}>Du har sista ordet.</span>
-        </div>
-      )}
-    </div>
+      </g>
+    </svg>
   );
+}
+
+function Cell({
+  state,
+  x,
+  y,
+  variation,
+  compact,
+  reduceMotion,
+}: {
+  state: CellState;
+  x: number;
+  y: number;
+  variation: CellVariation;
+  compact: boolean;
+  reduceMotion: boolean;
+}) {
+  const idle = state === 0;
+  const active = state === 1;
+  const done = state === 2;
+  const size = variation.size * (compact ? 0.92 : 1);
+  const inset = (7.3 - size) / 2 + variation.offset;
+  const ease = "cubic-bezier(0.22, 1, 0.36, 1)";
+  const fadeMs = reduceMotion ? "0ms" : "400ms";
+  const checkMs = reduceMotion ? "0ms" : "420ms";
+
+  return (
+    <g transform={`translate(${x * CELL_SIZE}, ${y * CELL_SIZE})`}>
+      {/* Resting cell — very faint base */}
+      <rect
+        x={inset}
+        y={inset}
+        width={size}
+        height={size}
+        rx={variation.radius}
+        fill="currentColor"
+        style={{ opacity: variation.opacity * 0.06 }}
+      />
+
+      {/* Active glow — subtle inner border, fades in 400ms ease-out */}
+      <rect
+        x={inset - 0.6}
+        y={inset - 0.6}
+        width={size + 1.2}
+        height={size + 1.2}
+        rx={variation.radius + 0.5}
+        fill="none"
+        stroke="rgb(var(--accent))"
+        strokeWidth={0.7}
+        style={{
+          opacity: active ? 0.38 : 0,
+          transform: active ? "scale(1)" : "scale(0.92)",
+          transformBox: "fill-box",
+          transformOrigin: "center",
+          transition: `opacity ${fadeMs} ${ease}, transform ${fadeMs} ${ease}`,
+        }}
+      />
+
+      {/* Done background — 2–4% tone shift, not white-on-black */}
+      <rect
+        x={inset}
+        y={inset}
+        width={size}
+        height={size}
+        rx={variation.radius}
+        fill="currentColor"
+        style={{
+          opacity: done ? variation.opacity * 0.10 : 0,
+          transform: done ? "scale(1)" : "scale(0.94)",
+          transformBox: "fill-box",
+          transformOrigin: "center",
+          transition: `opacity ${fadeMs} ${ease}, transform ${fadeMs} ${ease}`,
+        }}
+      />
+
+      {/* Checkmark — drawn via stroke-dasharray, 420ms ease-in-out */}
+      <path
+        d={`M${inset + size * 0.25} ${inset + size * 0.52} L${inset + size * 0.43} ${inset + size * 0.69} L${inset + size * 0.76} ${inset + size * 0.34}`}
+        pathLength="1"
+        fill="none"
+        stroke="currentColor"
+        strokeWidth={Math.max(0.82, size * 0.14)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray="1"
+        style={{
+          opacity: done ? 0.75 : 0,
+          strokeDashoffset: done ? 0 : 1,
+          transition: `stroke-dashoffset ${checkMs} cubic-bezier(0.42, 0, 0.58, 1), opacity ${reduceMotion ? "0ms" : "180ms"} ease-out`,
+        }}
+      />
+    </g>
+  );
+}
+
+function initialStates(seed: number): CellState[] {
+  const random = seededRandom(seed);
+  return Array.from({ length: TOTAL }, () => {
+    if (random() >= 0.08) return 0;
+    return 2;
+  });
+}
+
+function cellVariation(seed: number, index: number): CellVariation {
+  const random = seededRandom(seed * 1009 + index * 97 + 13);
+  return {
+    size: 6.75 + random() * 0.5,
+    radius: 1.25 + random() * 0.35,
+    opacity: 0.92 + random() * 0.08,
+    offset: (random() - 0.5) * 0.12,
+  };
+}
+
+function replaceState(states: CellState[], index: number, state: CellState): CellState[] {
+  if (states[index] === state) return states;
+  const next = [...states];
+  next[index] = state;
+  return next;
+}
+
+function seededRandom(seed: number): () => number {
+  let current = Math.abs(seed) || 1;
+  return () => {
+    current = (current * 9301 + 49297) % 233280;
+    return current / 233280;
+  };
 }
