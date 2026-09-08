@@ -1,186 +1,242 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
-
-/**
- * Generativ visualisering av ett rättningsgrid.
- * Små celler fylls i långsamt och oregelbundet — enstaka markerade med bock.
- * Används på landningssidan och kan återanvändas i dashboard.
- */
+import { useEffect, useMemo, useRef, useState } from "react";
 
 const COLS = 14;
 const ROWS = 10;
 const TOTAL = COLS * ROWS;
-
-// Variations: 0 empty, 1 idle, 2 processing, 3 filled, 4 checked
+const CELL_SIZE = 10;
 
 type CellState = 0 | 1 | 2 | 3 | 4;
+type CellVariation = {
+  size: number;
+  radius: number;
+  opacity: number;
+  offset: number;
+};
 
 export default function GradingGrid({
   className = "",
   seed = 42,
+  compact = false,
 }: {
   className?: string;
   seed?: number;
+  compact?: boolean;
 }) {
-  // Deterministic pseudo-random per seed
-  const rng = useMemo(() => seededRandom(seed), [seed]);
-
-  const [states, setStates] = useState<CellState[]>(() => {
-    const initial: CellState[] = Array(TOTAL).fill(0);
-    // Pre-fill ~12% of cells so the grid never looks completely empty
-    for (let i = 0; i < TOTAL; i += 1) {
-      if (rng() < 0.12) {
-        initial[i] = rng() < 0.35 ? 4 : 3;
-      }
-    }
-    return initial;
-  });
+  const runtimeRandom = useRef(seededRandom(seed * 17 + 11));
+  const timers = useRef<Set<ReturnType<typeof setTimeout>>>(new Set());
+  const [reduceMotion, setReduceMotion] = useState(false);
+  const variations = useMemo(
+    () => Array.from({ length: TOTAL }, (_, index) => cellVariation(seed, index)),
+    [seed],
+  );
+  const [states, setStates] = useState<CellState[]>(() => initialStates(seed));
 
   useEffect(() => {
-    let cancelled = false;
+    const media = window.matchMedia("(prefers-reduced-motion: reduce)");
+    const updatePreference = () => setReduceMotion(media.matches);
+    updatePreference();
+    media.addEventListener("change", updatePreference);
+    return () => media.removeEventListener("change", updatePreference);
+  }, []);
 
-    const scheduleNext = () => {
-      if (cancelled) return;
-      // Low frequency, organic timing: 600–1800ms between updates
-      const delay = 600 + rng() * 1200;
-      setTimeout(() => {
-        if (cancelled) return;
-        updateOneCell();
-        scheduleNext();
+  useEffect(() => {
+    if (reduceMotion) return;
+
+    let cancelled = false;
+    const random = runtimeRandom.current;
+    const activeTimers = timers.current;
+
+    const later = (callback: () => void, delay: number) => {
+      const timer = setTimeout(() => {
+        activeTimers.delete(timer);
+        if (!cancelled) callback();
       }, delay);
+      activeTimers.add(timer);
     };
 
-    const updateOneCell = () => {
-      setStates((prev) => {
-        const idx = pickCell(prev, rng);
-        if (idx === -1) return prev;
-        const next = [...prev];
-        const current = next[idx];
+    const transitionCell = (index: number) => {
+      setStates((current) => replaceState(current, index, 1));
+      later(() => {
+        setStates((current) => replaceState(current, index, 2));
+        later(() => {
+          const willCheck = random() < 0.22;
+          setStates((current) => replaceState(current, index, 3));
+          if (willCheck) {
+            later(
+              () => setStates((current) => replaceState(current, index, 4)),
+              420 + random() * 180,
+            );
+          }
+        }, 480 + random() * 180);
+      }, 460 + random() * 180);
+    };
 
-        if (current === 0) {
-          next[idx] = 1; // become idle first
-          setTimeout(() => {
-            setStates((p) => {
-              const n = [...p];
-              n[idx] = 2; // start processing
-              return n;
-            });
-            setTimeout(() => {
-              setStates((p) => {
-                const n = [...p];
-                n[idx] = rng() < 0.18 ? 4 : 3; // sometimes checked
-                return n;
-              });
-            }, 250 + rng() * 400);
-          }, 120 + rng() * 180);
-        } else if (current === 3) {
-          // Occasional re-check: filled cell becomes checked
-          next[idx] = rng() < 0.3 ? 4 : 3;
-        } else if (current === 4) {
-          // Occasional un-check
-          next[idx] = rng() < 0.15 ? 3 : 4;
-        }
-        return next;
-      });
+    const scheduleNext = () => {
+      later(() => {
+        setStates((current) => {
+          const index = pickEmptyCell(current, random);
+          if (index !== -1) later(() => transitionCell(index), 0);
+          return current;
+        });
+        scheduleNext();
+      }, 600 + random() * 1200);
     };
 
     scheduleNext();
     return () => {
       cancelled = true;
+      activeTimers.forEach(clearTimeout);
+      activeTimers.clear();
     };
-  }, [rng]);
-
-  const cells = useMemo(() => {
-    const list = [] as JSX.Element[];
-    for (let r = 0; r < ROWS; r += 1) {
-      for (let c = 0; c < COLS; c += 1) {
-        const i = r * COLS + c;
-        list.push(
-          <Cell
-            key={i}
-            state={states[i]}
-            x={c}
-            y={r}
-          />,
-        );
-      }
-    }
-    return list;
-  }, [states]);
+  }, [reduceMotion]);
 
   return (
     <svg
-      viewBox={`0 0 ${COLS * 10 + 2} ${ROWS * 10 + 2}`}
-      className={`w-full h-full ${className}`}
+      viewBox={`0 0 ${COLS * CELL_SIZE + 2} ${ROWS * CELL_SIZE + 2}`}
+      className={`h-full w-full ${className}`}
       style={{ shapeRendering: "geometricPrecision" }}
       aria-hidden="true"
     >
-      <g transform="translate(1,1)">{cells}</g>
+      <g transform="translate(1,1)">
+        {states.map((state, index) => (
+          <Cell
+            key={index}
+            state={state}
+            x={index % COLS}
+            y={Math.floor(index / COLS)}
+            variation={variations[index]}
+            compact={compact}
+            reduceMotion={reduceMotion}
+          />
+        ))}
+      </g>
     </svg>
   );
 }
 
-function Cell({ state, x, y }: { state: CellState; x: number; y: number }) {
+function Cell({
+  state,
+  x,
+  y,
+  variation,
+  compact,
+  reduceMotion,
+}: {
+  state: CellState;
+  x: number;
+  y: number;
+  variation: CellVariation;
+  compact: boolean;
+  reduceMotion: boolean;
+}) {
+  const queued = state === 1;
   const processing = state === 2;
-  const filled = state === 3 || state === 4;
+  const settled = state >= 3;
   const checked = state === 4;
+  const size = variation.size * (compact ? 0.92 : 1);
+  const inset = (7.3 - size) / 2 + variation.offset;
+  const duration = reduceMotion ? "0ms" : "520ms";
+  const easing = "cubic-bezier(0.22, 1, 0.36, 1)";
 
   return (
-    <g transform={`translate(${x * 10}, ${y * 10})`}>
+    <g transform={`translate(${x * CELL_SIZE}, ${y * CELL_SIZE})`}>
       <rect
-        width="7"
-        height="7"
-        rx="1.5"
-        className="transition-all duration-500 ease-out"
+        x={inset}
+        y={inset}
+        width={size}
+        height={size}
+        rx={variation.radius}
+        fill="currentColor"
+        style={{ opacity: variation.opacity * 0.07 }}
+      />
+      <rect
+        x={inset - 0.65}
+        y={inset - 0.65}
+        width={size + 1.3}
+        height={size + 1.3}
+        rx={variation.radius + 0.5}
+        fill="none"
+        stroke="rgb(var(--accent))"
+        strokeWidth={processing ? 0.8 : 0.55}
         style={{
-          fill: processing
-            ? "rgb(var(--accent) / 0.85)"
-            : filled
-              ? "currentColor"
-              : state === 1
-                ? "color-mix(in srgb, currentColor 8%, transparent)"
-                : "color-mix(in srgb, currentColor 4%, transparent)",
-          opacity: processing ? 0.85 : 1,
-          transform: processing ? "scale(1.18)" : "scale(1)",
+          opacity: queued ? 0.18 : processing ? 0.42 : 0,
+          transform: queued ? "scale(0.93)" : "scale(1)",
           transformBox: "fill-box",
           transformOrigin: "center",
-          stroke: filled || processing ? "none" : "color-mix(in srgb, currentColor 10%, transparent)",
-          strokeWidth: 0.5,
+          transition: `opacity ${duration} ${easing}, transform ${duration} ${easing}, stroke-width ${duration} ${easing}`,
         }}
       />
-      {checked && (
-        <path
-          d="M2.3 3.6 L3.5 4.8 L5.8 2.5"
-          fill="none"
-          stroke="var(--equi-surface, #ffffff)"
-          strokeWidth="1"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          className="transition-opacity duration-500"
-        />
-      )}
+      <rect
+        x={inset}
+        y={inset}
+        width={size}
+        height={size}
+        rx={variation.radius}
+        fill={processing ? "rgb(var(--accent))" : "currentColor"}
+        style={{
+          opacity: processing ? variation.opacity * 0.28 : settled ? variation.opacity * 0.9 : 0,
+          transform: processing ? "scale(0.94)" : settled ? "scale(1)" : "scale(0.9)",
+          transformBox: "fill-box",
+          transformOrigin: "center",
+          transition: `opacity ${duration} ${easing}, transform ${duration} ${easing}, fill ${duration} ${easing}`,
+        }}
+      />
+      <path
+        d={`M${inset + size * 0.25} ${inset + size * 0.52} L${inset + size * 0.43} ${inset + size * 0.69} L${inset + size * 0.76} ${inset + size * 0.34}`}
+        pathLength="1"
+        fill="none"
+        stroke="rgb(var(--surface))"
+        strokeWidth={Math.max(0.82, size * 0.14)}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeDasharray="1"
+        style={{
+          opacity: checked ? 1 : 0,
+          strokeDashoffset: checked ? 0 : 1,
+          transition: `stroke-dashoffset ${reduceMotion ? "0ms" : "460ms"} ${easing}, opacity ${reduceMotion ? "0ms" : "160ms"} ease-out`,
+        }}
+      />
     </g>
   );
 }
 
-function pickCell(states: CellState[], rng: () => number): number {
-  // Prefer empty cells; sometimes re-touch already filled cells
-  const empty = states
-    .map((s, i) => ({ s, i }))
-    .filter((x) => x.s === 1 || x.s === 0);
-  if (empty.length > 0) {
-    return empty[Math.floor(rng() * empty.length)].i;
-  }
-  // If almost full, occasionally mutate an existing cell
-  if (rng() > 0.3) return -1;
-  return Math.floor(rng() * states.length);
+function initialStates(seed: number): CellState[] {
+  const random = seededRandom(seed);
+  return Array.from({ length: TOTAL }, () => {
+    if (random() >= 0.12) return 0;
+    return random() < 0.35 ? 4 : 3;
+  });
+}
+
+function cellVariation(seed: number, index: number): CellVariation {
+  const random = seededRandom(seed * 1009 + index * 97 + 13);
+  return {
+    size: 6.75 + random() * 0.5,
+    radius: 1.25 + random() * 0.35,
+    opacity: 0.92 + random() * 0.08,
+    offset: (random() - 0.5) * 0.12,
+  };
+}
+
+function replaceState(states: CellState[], index: number, state: CellState): CellState[] {
+  if (states[index] === state) return states;
+  const next = [...states];
+  next[index] = state;
+  return next;
+}
+
+function pickEmptyCell(states: CellState[], random: () => number): number {
+  const empty = states.flatMap((state, index) => (state === 0 ? [index] : []));
+  if (empty.length === 0) return -1;
+  return empty[Math.floor(random() * empty.length)];
 }
 
 function seededRandom(seed: number): () => number {
-  let s = seed;
+  let current = Math.abs(seed) || 1;
   return () => {
-    s = (s * 9301 + 49297) % 233280;
-    return s / 233280;
+    current = (current * 9301 + 49297) % 233280;
+    return current / 233280;
   };
 }
