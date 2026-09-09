@@ -8,7 +8,7 @@ import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import LineIcon, { type IconName } from "@/components/LineIcon";
-import LoginHeroPaperGrid from "@/components/LoginHeroPaperGrid";
+import Image from "next/image";
 import { TESTIMONIALS } from "@/lib/data/testimonials";
 import { SOCIAL_STATS } from "@/lib/data/stats";
 
@@ -470,8 +470,17 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          <div className="flex min-w-0 items-center lg:-mr-6">
-            <LoginHeroPaperGrid />
+          <div className="relative flex min-w-0 items-center lg:-mr-6">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
+              <Image
+                src="/front1.jpg"
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
           </div>
         </section>
 
