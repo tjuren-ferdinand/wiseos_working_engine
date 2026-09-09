@@ -5,6 +5,8 @@ import { Suspense, useMemo, useState } from "react";
 import Link from "next/link";
 import { actions, useStore } from "@/lib/store";
 import CourseCombobox from "@/components/CourseCombobox";
+import Breadcrumb from "@/components/ui/Breadcrumb";
+import PageHeader from "@/components/ui/PageHeader";
 
 export default function NewKlassPage() {
   return (
@@ -51,11 +53,10 @@ function NewKlassForm() {
 
   return (
     <div className="max-w-2xl mx-auto">
-      <Link href="/classes" className="text-[13px] text-ink-secondary hover:text-ink transition-colors">← Tillbaka</Link>
-      <h1 className="mt-5 text-[28px] font-medium tracking-[-0.02em] text-ink">Skapa ny klass</h1>
-      <p className="mt-2 text-[15px] text-ink-secondary">En klass samlar prov och har egna rättningsparametrar.</p>
+      <Breadcrumb items={[{ label: "Klasser", href: "/classes" }, { label: "Skapa klass" }]} className="mb-6" />
+      <PageHeader title="Skapa ny klass" subtitle="En klass samlar prov och har egna rättningsparametrar." />
 
-      <form onSubmit={submit} className="mt-8 space-y-6 rounded-[18px] border border-ink-hairline bg-paper-raised shadow-soft p-7">
+      <form onSubmit={submit} className="mt-8 space-y-6 rounded-[16px] border border-ink-hairline bg-paper-raised shadow-soft p-6">
         <Field label="Klassens namn" hint="t.ex. NA22B eller TE12">
           <input
             value={form.name}
@@ -118,7 +119,7 @@ function NewKlassForm() {
 
 function Field({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
   return (
-    <label className="block h-full flex flex-col">
+    <label className="flex h-full flex-col">
       <div className="text-[14px] font-medium text-ink">{label}</div>
       {hint && <div className="mt-0.5 text-[12.5px] text-ink-muted leading-relaxed">{hint}</div>}
       <div className="mt-auto pt-2">{children}</div>
