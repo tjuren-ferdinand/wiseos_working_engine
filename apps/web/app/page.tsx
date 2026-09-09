@@ -16,17 +16,7 @@ export default function DashboardPage() {
   const results = useStore((s) => s.results);
   const kurser = useStore((s) => s.kurser);
 
-  // Metrics
   const pendingReviews = prov.filter((p) => p.status === "review").length;
-  const aiGradedProv = prov.filter((p) => p.status === "review" || p.status === "published").length;
-  const publishedProvIds = prov.filter((p) => p.status === "published").map((p) => p.id);
-  const completedThisWeek = results.filter((r) => publishedProvIds.includes(r.provId)).length;
-  const totalStudents = results.length;
-  
-  // Calculate time saved (estimate: 3 min per student graded)
-  const minutesSaved = completedThisWeek * 3;
-  const hoursSaved = Math.floor(minutesSaved / 60);
-  const remainingMinutes = minutesSaved % 60;
 
   // Get recent activity
   const recentResults = results.slice(-3).reverse();
@@ -73,33 +63,6 @@ export default function DashboardPage() {
                 ? `${pendingReviews} prov väntar på granskning`
                 : "Inga prov att granska just nu"}
             </p>
-          </div>
-        </Reveal>
-
-        {/* Metrics — three quiet surfaces */}
-        <Reveal>
-          <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:mb-12">
-            {[
-              { label: "Tid sparad", value: hoursSaved > 0 ? hoursSaved : minutesSaved, unit: hoursSaved > 0 ? (hoursSaved === 1 ? "timme" : "timmar") : "min", sub: "den här veckan" },
-              { label: "Publicerade resultat", value: `${totalStudents > 0 ? Math.round((completedThisWeek / totalStudents) * 100) : 0}%`, sub: `av ${totalStudents} elever` },
-              { label: "AI-rättade prov", value: String(aiGradedProv), sub: "denna vecka", active: true },
-            ].map((stat, i) => (
-              <Surface key={stat.label} className="flex min-w-0 flex-col">
-                <div className={`text-[10px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
-                  {stat.label}
-                </div>
-                <div className="mt-3 flex items-baseline gap-1.5">
-                  <span className={`text-[28px] font-medium leading-none tracking-[-0.025em] tabular-nums ${ink}`}>
-                    {stat.value}
-                  </span>
-                  {stat.unit && <span className={`text-[12px] ${inkMuted}`}>{stat.unit}</span>}
-                </div>
-                <div className={`mt-4 flex items-center gap-2 text-[12px] ${inkMuted}`}>
-                  <span className={`inline-flex h-1.5 w-1.5 rounded-full ${stat.active ? "bg-accent" : "bg-ink/25"}`} />
-                  {stat.sub}
-                </div>
-              </Surface>
-            ))}
           </div>
         </Reveal>
 
