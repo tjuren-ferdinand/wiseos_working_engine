@@ -2,7 +2,7 @@
 levde i frontendens Zustand-store (lib/store.ts: Kurs → Klass → Prov)."""
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session, selectinload
 
 from .. import models, schemas
@@ -67,18 +67,38 @@ def create_class(
     return klass
 
 
+def _get_owned_test(db: Session, test_id: str, teacher_id: str) -> models.Test:
+    """Hämtar ett Test, eager-laddar dess Klass, och verifierar ägandeskap."""
+    test = (
+        db.query(models.Test)
+        .options(selectinload(models.Test.klass))
+        .filter(models.Test.id == test_id, models.Test.klass.has(teacher_id=teacher_id))
+        .first()
+    )
+    if not test:
+        raise HTTPException(404, "Test not found")
+    return test
+
+
 @router.get("/all-tests", response_model=list[schemas.TestOut], tags=["tests"])
 def list_all_tests(
+    skip: int | None = Query(None, ge=0),
+    limit: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    return (
+    q = (
         db.query(models.Test)
+        .options(selectinload(models.Test.klass))
         .join(models.Klass, models.Test.klass_id == models.Klass.id)
         .filter(models.Klass.teacher_id == _user.id)
         .order_by(models.Test.created_at.desc())
-        .all()
     )
+    if skip is not None:
+        q = q.offset(skip)
+    if limit is not None:
+        q = q.limit(limit)
+    return q.all()
 
 
 @router.get("/{class_id}", response_model=schemas.ClassOut)
@@ -133,6 +153,7 @@ def list_tests(
     klass = _get_owned_class(db, class_id, _user.id)
     return (
         db.query(models.Test)
+        .options(selectinload(models.Test.klass))
         .filter(models.Test.klass_id == klass.id)
         .order_by(models.Test.created_at.desc())
         .all()
@@ -169,10 +190,7 @@ def get_test(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    test = db.get(models.Test, test_id)
-    if not test or test.klass.teacher_id != _user.id:
-        raise HTTPException(404, "Test not found")
-    return test
+    return _get_owned_test(db, test_id, _user.id)
 
 
 @router.patch("/tests/{test_id}", response_model=schemas.TestOut, tags=["tests"])
@@ -182,9 +200,7 @@ def update_test(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    test = db.get(models.Test, test_id)
-    if not test or test.klass.teacher_id != _user.id:
-        raise HTTPException(404, "Test not found")
+    test = _get_owned_test(db, test_id, _user.id)
     if payload.title is not None:
         test.title = payload.title
     if payload.date is not None:
@@ -266,8 +282,6 @@ def delete_test(
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
-    test = db.get(models.Test, test_id)
-    if not test or test.klass.teacher_id != _user.id:
-        raise HTTPException(404, "Test not found")
+    test = _get_owned_test(db, test_id, _user.id)
     db.delete(test)
     db.commit()

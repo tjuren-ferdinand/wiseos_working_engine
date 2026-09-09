@@ -5,7 +5,7 @@ resultaten finns kvar mellan sessioner och kan hämtas av flera klienter."""
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models, schemas
 from ..db import get_db
@@ -30,18 +30,26 @@ def _get_owned_test(db: Session, test_id: str, teacher_id: str) -> models.Test:
 @router.get("", response_model=list[schemas.GradingResultOut])
 def list_results(
     test_id: str | None = Query(None, alias="testId"),
+    skip: int | None = Query(None, ge=0),
+    limit: int | None = Query(None, ge=1),
     db: Session = Depends(get_db),
     _user: SupabaseUser = Depends(get_current_supabase_user),
 ):
     q = (
         db.query(models.GradingResult)
+        .options(selectinload(models.GradingResult.test))
         .join(models.Test)
         .join(models.Klass)
         .filter(models.Klass.teacher_id == _user.id)
     )
     if test_id:
         q = q.filter(models.GradingResult.test_id == test_id)
-    return q.order_by(models.GradingResult.scanned_at.desc()).all()
+    q = q.order_by(models.GradingResult.scanned_at.desc())
+    if skip is not None:
+        q = q.offset(skip)
+    if limit is not None:
+        q = q.limit(limit)
+    return q.all()
 
 
 @router.post("", response_model=schemas.GradingResultOut)

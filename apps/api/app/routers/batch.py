@@ -20,7 +20,7 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 from pydantic import ValidationError
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, selectinload
 
 from .. import models, schemas
 from ..db import get_db
@@ -119,6 +119,32 @@ def _persist_batch(
         ]
         test.max_points = round(sum(item.max_points for item in answer_key))
 
+    # Hämta alla befintliga resultat för detta provet på en gång — undvik
+    # en SELECT per elev i loopen nedan.
+    existing_rows: dict[tuple[str | None, str], models.GradingResult] = {}
+    if results:
+        student_ids = {r.studentId for r in results if r.studentId}
+        query = db.query(models.GradingResult).filter(models.GradingResult.test_id == test.id)
+        if student_ids:
+            q1 = query.filter(models.GradingResult.student_id.in_(student_ids))
+            q2 = query.filter(
+                models.GradingResult.student_id.is_(None),
+                models.GradingResult.student_name.in_(
+                    {r.studentName for r in results if not r.studentId}
+                ),
+            )
+            rows = q1.union(q2).all()
+        else:
+            rows = query.filter(
+                models.GradingResult.student_id.is_(None),
+                models.GradingResult.student_name.in_(
+                    {r.studentName for r in results}
+                ),
+            ).all()
+        for row in rows:
+            key = (row.student_id or None, row.student_name)
+            existing_rows[key] = row
+
     for result in results:
         student = _matching_student(test, result.studentName)
         student_id = student.id if student else None
@@ -126,18 +152,14 @@ def _persist_batch(
         total_score = round(sum(step["earnedPoints"] for step in steps), 2)
         max_score = round(sum(step["maxPoints"] for step in steps), 2)
         percentage = round(total_score / max_score * 100, 2) if max_score else 0.0
-        query = db.query(models.GradingResult).filter(models.GradingResult.test_id == test.id)
-        existing = (
-            query.filter(models.GradingResult.student_id == student_id).first()
-            if student_id
-            else query.filter(
-                models.GradingResult.student_id.is_(None),
-                models.GradingResult.student_name == result.studentName,
-            ).first()
-        )
-        row = existing or models.GradingResult(test_id=test.id, student_name=result.studentName)
-        if not existing:
+
+        lookup_key: tuple[str | None, str] = (student_id, result.studentName)
+        row = existing_rows.get(lookup_key)
+        if row is None:
+            row = models.GradingResult(test_id=test.id, student_name=result.studentName)
             db.add(row)
+            existing_rows[lookup_key] = row
+
         row.student_name = result.studentName
         row.student_id = student_id
         row.identification_method = result.identificationMethod
@@ -170,6 +192,10 @@ async def batch_grade(
 ):
     test = (
         db.query(models.Test)
+        .options(
+            selectinload(models.Test.klass).selectinload(models.Klass.students),
+            selectinload(models.Test.answer_key),
+        )
         .join(models.Klass)
         .filter(models.Test.id == prov_id, models.Klass.teacher_id == _user.id)
         .first()
