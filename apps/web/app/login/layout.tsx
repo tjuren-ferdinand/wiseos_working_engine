@@ -3,21 +3,21 @@ import type { Metadata } from "next";
 import { LOGO_MARK } from "@/lib/logo";
 
 export const metadata: Metadata = {
-  title: "WiseOS — Rätta prov på minuter, inte kvällar",
+  title: "WiseOS — Mindre administration. Mer undervisning.",
   description:
-    "AI-driven rättning för svenska lärare. Spara tid, ge tydlig feedback och behåll kontrollen över betygen.",
+    "WiseOS använder AI för att läsa, förstå och bedöma handskrivna elevlösningar — med läraren i kontroll över varje poäng och varje beslut.",
   openGraph: {
-    title: "WiseOS — Rätta prov på minuter, inte kvällar",
+    title: "WiseOS — Mindre administration. Mer undervisning.",
     description:
-      "AI-driven rättning för svenska lärare. Spara tid, ge tydlig feedback och behåll kontrollen över betygen.",
+      "WiseOS använder AI för att läsa, förstå och bedöma handskrivna elevlösningar — med läraren i kontroll över varje poäng och varje beslut.",
     type: "website",
     locale: "sv_SE",
   },
   twitter: {
     card: "summary_large_image",
-    title: "WiseOS — Rätta prov på minuter, inte kvällar",
+    title: "WiseOS — Mindre administration. Mer undervisning.",
     description:
-      "AI-driven rättning för svenska lärare.",
+      "AI-driven rättning av handskrivna elevlösningar. Matte · Fysik · Kemi.",
   },
   icons: {
     icon: LOGO_MARK,

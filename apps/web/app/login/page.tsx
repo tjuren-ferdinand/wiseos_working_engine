@@ -353,95 +353,139 @@ function Header({
   );
 }
 
-function ProductDemo({
-  className = "",
-  compact = false,
-}: {
-  className?: string;
-  compact?: boolean;
-}) {
+/* ---------------------------------------------------------------------------
+ * ProductDemo — realistisk komposition baserad på faktisk WiseOS Workbench.
+ * Vänster: skannat original (handskrivet). Höger: per-uppgift bedömning med
+ * poäng, AI-annotation och lärar-kontroll. Inget påhittat dashboard.
+ * ------------------------------------------------------------------------- */
+function ProductDemo({ compact = false }: { compact?: boolean }) {
   return (
-    <div
-      className={`relative ${className}`}
-      style={{ perspective: "1200px" }}
-    >
-      <div className="relative z-10 flex flex-col gap-3">
-        {/* Original document */}
-        <Surface
-          className={`${
-            compact ? "p-4" : "p-5"
-          } overflow-hidden bg-paper-elevated shadow-card`}
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-ink-hairline/5 pb-3">
-            <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted">
-              Originaluppgift
-            </span>
-            <span className="text-[11px] text-ink-muted">Uppgift 4</span>
-          </div>
-          <div className="mt-4 space-y-3">
-            <p className={`${compact ? "text-[13px]" : "text-[14px]"} text-ink`}>
-              Lös ekvationen och visa alla steg:
-            </p>
-            <div className="overflow-x-auto rounded-[10px] border border-ink-hairline/5 bg-paper px-4 py-3 font-serif text-ink">
-              <p className={compact ? "text-[15px]" : "text-[17px]"}>
-                2x + 5 = 17
-              </p>
-              <p className="mt-2 text-ink-secondary">
-                x = ?
-              </p>
+    <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr]">
+      {/* Skannat original — speglar Workbench.ScanPanel */}
+      <Surface padding="p-0" className="overflow-hidden !shadow-card">
+        <div className="flex items-center justify-between gap-3 bg-paper-secondary px-5 py-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-secondary">
+            Originaldokument · skannat
+          </span>
+          <span className="text-[11px] text-ink-muted">1 sida</span>
+        </div>
+        <div className="p-5">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="relative rounded-[14px] border border-ink-hairline/40 bg-white p-6 shadow-soft"
+          >
+            {/* Simulerad handskriven elevlösning */}
+            <div className="mb-3 flex items-center justify-between">
+              <span className="font-serif text-[13px] text-ink-muted">Namn: A. Andersson</span>
+              <span className="font-serif text-[13px] text-ink-muted">Klass: NA1</span>
             </div>
-            <div
-              className={`rounded-[10px] border border-ink-hairline/5 bg-paper-secondary p-4 ${
-                compact ? "text-[13px]" : "text-[14px]"
-              } text-ink`}
-            >
-              <p>2x = 17 − 5</p>
-              <p>2x = 12</p>
-              <p className="font-medium">x = 6</p>
+            <div className="space-y-3 font-serif text-ink">
+              <p className="text-[13px] font-medium text-ink-secondary">Uppgift 4</p>
+              <p className="text-[15px]">Lös ekvationen och visa alla steg:</p>
+              <div className="pl-2 text-[17px] leading-relaxed">
+                <p>2x + 5 = 17</p>
+                <p className="text-ink-secondary">2x = 17 − 5</p>
+                <p className="text-ink-secondary">2x = 12</p>
+                <p className="font-medium">x = 6</p>
+              </div>
             </div>
-          </div>
-        </Surface>
+            <div className="absolute right-3 top-3 rounded bg-ink/80 px-2 py-0.5 text-[10px] font-sans tabular-nums text-paper">
+              sida 1
+            </div>
+          </motion.div>
+        </div>
+      </Surface>
 
-        {/* Assessment panel */}
+      {/* Per-uppgift bedömning — speglar Workbench.StepCard */}
+      <div className="space-y-3">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-[16px] bg-paper-raised p-5 shadow-card ring-1 ring-state-success/30"
         >
-          <Surface
-            className={`${
-              compact ? "p-4" : "p-5"
-            } overflow-hidden border-l-4 border-l-state-success bg-paper-elevated shadow-card`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted">
-                  Bedömning
-                </span>
-                <h4 className={`mt-1 font-medium text-ink ${compact ? "text-[14px]" : "text-[16px]"}`}>
-                  Korrekt lösningsgång
-                </h4>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-ink-muted">
+                Uppgift 4
               </div>
-              <div className="flex items-baseline gap-1.5 text-ink">
-                <span className={`font-semibold tabular-nums ${compact ? "text-[22px]" : "text-[26px]"}`}>
-                  2
-                </span>
-                <span className="text-[13px] text-ink-muted">/ 2</span>
+              <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-state-success">
+                <LineIcon name="check" className="h-3.5 w-3.5" />
+                Korrekt
               </div>
             </div>
-            <p
-              className={`mt-3 leading-relaxed text-ink-secondary ${
-                compact ? "text-[12px]" : "text-[13px]"
-              }`}
-            >
-              Alla steg är redovisade och slutsvaret är rätt.
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-[12px] text-ink-muted">
-              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-state-success" />
-              Granskad av lärare
+            <div className="shrink-0 text-right">
+              <div className="text-[11px] uppercase tracking-wider text-ink-muted">Poäng</div>
+              <div className="font-sans text-lg font-medium tabular-nums text-ink">
+                2<span className="text-ink-muted">/2</span>
+              </div>
             </div>
-          </Surface>
+          </div>
+
+          <div className="mt-3 rounded-xl bg-paper-secondary p-3 text-xs leading-relaxed font-mono text-ink">
+            <span className="text-ink-secondary">Elev:</span>{" "}
+            <span className="whitespace-pre-wrap">2x + 5 = 17 → x = 6</span>
+          </div>
+
+          <div className="mt-2 rounded-xl bg-ink/5 p-3 text-xs leading-relaxed text-ink ring-1 ring-ink/15">
+            <span className="mb-1 inline-flex items-center gap-1 font-semibold align-[-2px] text-ink">
+              <LineIcon name="pen" className="h-3.5 w-3.5" />
+              AI-annotation
+            </span>
+            <p className="mt-1">Alla steg är redovisnade och slutsvaret är rätt.</p>
+            <ul className="mt-1.5 space-y-0.5">
+              <li className="flex gap-1.5">
+                <span className="text-state-success">✓</span>
+                <span>Korrekt isolering av x</span>
+              </li>
+              <li className="flex gap-1.5">
+                <span className="text-state-success">✓</span>
+                <span>Rätt slutvärde</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-[10px] bg-ink px-3 py-1.5 text-xs font-medium text-paper">
+              Godkänd
+            </span>
+            <span className="rounded-[10px] border border-ink-hairline bg-paper-elevated px-3 py-1.5 text-xs font-medium text-ink">
+              Anpassa
+            </span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-[16px] bg-paper-raised p-5 shadow-card ring-1 ring-state-warning/30"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-ink-muted">
+                Uppgift 5
+              </div>
+              <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-state-warning">
+                Behöver granskas
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-[11px] uppercase tracking-wider text-ink-muted">Poäng</div>
+              <div className="font-sans text-lg font-medium tabular-nums text-ink">
+                1<span className="text-ink-muted">/3</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 rounded-xl bg-state-warning/10 p-3 text-xs leading-relaxed text-ink ring-1 ring-state-warning/30">
+            <span className="font-semibold mr-1">Behöver granskas:</span>
+            AI:n är osäker på handstilen (62% säkerhet). Kontrollera transkriptionen mot originalet.
+          </div>
         </motion.div>
       </div>
     </div>
@@ -750,40 +794,40 @@ function ProductProof({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
   return (
     <div ref={ref}>
       <Section>
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <Eyebrow>Produktvy</Eyebrow>
-            <h2 className="mt-4 text-[32px] font-medium leading-[1.1] tracking-[-0.025em] text-ink md:text-[44px]">
-              AI gör grovjobbet.
-              <br />
-              <span className="text-ink-secondary">Du behåller kontrollen.</span>
-            </h2>
-            <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-secondary">
-              WiseOS hjälper dig att förstå och bedöma elevens faktiska arbete.
-              Du granskar resultatet innan du godkänner.
-            </p>
-            <div className="mt-8">
-              <button
-                onClick={() => openAuth("signup")}
-                className="btn-primary px-7 py-3.5"
-              >
-                Se hur det fungerar
-              </button>
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+            <div className="flex flex-col justify-center">
+              <Eyebrow>Produktvy</Eyebrow>
+              <h2 className="mt-4 text-[32px] font-medium leading-[1.1] tracking-[-0.025em] text-ink md:text-[44px]">
+                AI gör grovjobbet.
+                <br />
+                <span className="text-ink-secondary">Du behåller kontrollen.</span>
+              </h2>
+              <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-secondary">
+                WiseOS hjälper dig att förstå och bedöma elevens faktiska arbete.
+                Du granskar resultatet innan du godkänner.
+              </p>
+              <div className="mt-8">
+                <button
+                  onClick={() => openAuth("signup")}
+                  className="btn-primary px-7 py-3.5"
+                >
+                  Kom igång
+                </button>
+              </div>
             </div>
-          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <ProductDemo />
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ProductDemo />
+            </motion.div>
+          </div>
         </div>
-      </div>
-    </Section>
-  </div>
+      </Section>
+    </div>
   );
 }
 
