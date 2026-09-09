@@ -32,7 +32,11 @@ export default function LoginLayout({ children }: { children: ReactNode }) {
           __html: `(function(){
             document.documentElement.classList.remove('light', 'cream', 'dark');
             document.documentElement.classList.add('dark');
-            try { localStorage.setItem('wiseos-theme', 'dark'); } catch (e) {}
+            document.documentElement.setAttribute('data-theme', 'violet');
+            try {
+              localStorage.setItem('wiseos-theme', 'dark');
+              localStorage.setItem('wiseos-accent-theme', 'violet');
+            } catch (e) {}
           })();`,
         }}
       />
