@@ -8,7 +8,7 @@ import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import LineIcon, { type IconName } from "@/components/LineIcon";
-import GradingGrid from "@/components/GradingGrid";
+import LoginHeroVisual from "@/components/LoginHeroVisual";
 import { TESTIMONIALS } from "@/lib/data/testimonials";
 import { SOCIAL_STATS } from "@/lib/data/stats";
 
@@ -470,8 +470,8 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          <div className="min-w-0 lg:-mr-6">
-            <GradingGrid seed={2026} />
+          <div className="flex min-w-0 items-center lg:-mr-6">
+            <LoginHeroVisual />
           </div>
         </section>
 
