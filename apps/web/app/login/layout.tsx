@@ -29,7 +29,11 @@ export default function LoginLayout({ children }: { children: ReactNode }) {
     <>
       <script
         dangerouslySetInnerHTML={{
-          __html: `(function(){ document.documentElement.classList.add('dark'); })();`,
+          __html: `(function(){
+            document.documentElement.classList.remove('light', 'cream', 'dark');
+            document.documentElement.classList.add('dark');
+            try { localStorage.setItem('wiseos-theme', 'dark'); } catch (e) {}
+          })();`,
         }}
       />
       {children}
