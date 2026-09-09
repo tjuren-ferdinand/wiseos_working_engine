@@ -3,6 +3,7 @@ import base64
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
 
 from .. import schemas
+from ..services.rate_limits import limit_answer_key_generate
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 from ..services.answer_key import extract_answer_key, generate_answer_key
 from ..services.ocr import process_image
@@ -49,7 +50,7 @@ async def answer_key_upload(
     return await extract_answer_key(data, file.content_type or "application/pdf")
 
 
-@router.post("/answer-key/generate", response_model=list[schemas.AnswerKeyItem])
+@router.post("/answer-key/generate", response_model=list[schemas.AnswerKeyItem], dependencies=[Depends(limit_answer_key_generate)])
 async def answer_key_generate(
     description: str = Form(""),
     question_count: int = Form(4),

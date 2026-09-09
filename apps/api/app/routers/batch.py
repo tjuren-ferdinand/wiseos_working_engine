@@ -24,6 +24,7 @@ from sqlalchemy.orm import Session
 
 from .. import models, schemas
 from ..db import get_db
+from ..services.rate_limits import limit_batch_grade
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 from ..services.batch_pipeline import (
     UploadedFile,
@@ -156,7 +157,7 @@ def _persist_batch(
     db.commit()
 
 
-@router.post("/grade", response_model=schemas.BatchGradeResponse)
+@router.post("/grade", response_model=schemas.BatchGradeResponse, dependencies=[Depends(limit_batch_grade)])
 async def batch_grade(
     prov_id: str = Form(...),
     class_grading_parameters: str = Form(""),

@@ -121,3 +121,22 @@ def test_all_tests_returns_only_tests_for_owned_classes(api):
     response = client.get("/api/v1/classes/all-tests")
     assert response.status_code == 200
     assert [test["title"] for test in response.json()] == ["Owned test"]
+
+
+@pytest.mark.parametrize("resource", ["courses", "classes"])
+@pytest.mark.parametrize("thresholds", [{"A": 101}, {"A": 70}, {"F": -1}])
+def test_invalid_thresholds_return_422_without_changing_data(api, resource, thresholds):
+    client, _, _ = api
+    path = f"/api/v1/{resource}"
+    payload = _course_payload() if resource == "courses" else {"name": "Class", "kursId": "course"}
+    payload["gradeThresholds"] = {}
+    created = client.post(path, json=payload)
+    assert created.status_code == 200
+    defaults = {"A": 90, "B": 80, "C": 65, "D": 50, "E": 35, "F": 0}
+    assert created.json()["gradeThresholds"] == defaults
+    before = client.get(path).json()
+    invalid_create = client.post(path, json={**payload, "gradeThresholds": thresholds})
+    assert invalid_create.status_code == 422
+    invalid_update = client.patch(f"{path}/{created.json()['id']}", json={"gradeThresholds": thresholds})
+    assert invalid_update.status_code == 422
+    assert client.get(path).json() == before
