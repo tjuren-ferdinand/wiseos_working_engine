@@ -459,7 +459,7 @@ function Hero({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
     >
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-          <div className="flex flex-col justify-center">
+          <div className="relative z-10 flex flex-col justify-center">
             <motion.p
               initial={{ opacity: 0, y: 16 }}
               animate={isInView ? { opacity: 1, y: 0 } : {}}
@@ -528,14 +528,28 @@ function Hero({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
             </motion.p>
           </div>
 
-          <motion.div
-            initial={{ opacity: 0, x: 20 }}
-            animate={isInView ? { opacity: 1, x: 0 } : {}}
-            transition={{ duration: 0.9, delay: 0.25, ease: [0.22, 1, 0.36, 1] }}
-            className="flex items-center"
+          <div
+            className="h-[55vh] w-full md:absolute md:right-[-4%] md:top-[6%] md:h-[100%] md:w-[75%]"
+            style={{
+              WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 15%)",
+              maskImage: "linear-gradient(to right, transparent 0%, black 15%)",
+            }}
           >
-            <ProductDemo className="w-full" />
-          </motion.div>
+            <motion.img
+              initial={{ opacity: 0, scale: 1.05 }}
+              animate={isInView ? { opacity: 1, scale: 1 } : {}}
+              transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
+              src="/hero/copilot-hero4.png"
+              alt="WiseOS rättningsflöde"
+              loading="lazy"
+              className="h-full w-full object-cover"
+              style={{
+                objectPosition: "50% 50%",
+                maskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)",
+                WebkitMaskImage: "linear-gradient(to bottom, transparent 0%, black 10%, black 90%, transparent 100%)",
+              }}
+            />
+          </div>
         </div>
       </div>
     </section>
