@@ -8,6 +8,7 @@ import { createClient } from "@/lib/supabase/client";
 import Onboarding from "@/components/Onboarding";
 import DashboardEmptyState from "@/components/DashboardEmptyState";
 import GradingGrid from "@/components/GradingGrid";
+import Surface from "@/components/ui/Surface";
 
 export default function DashboardPage() {
   const klasser = useStore((s) => s.klasser);
@@ -75,75 +76,58 @@ export default function DashboardPage() {
           </div>
         </Reveal>
 
-        {/* Metrics — integrated information row, not boxed widgets */}
+        {/* Metrics — three quiet surfaces */}
         <Reveal>
-          <div className="mb-10 w-full border-y border-ink-hairline sm:mb-12">
-            <div className="grid grid-cols-1 sm:grid-cols-3">
-              {[
-                {
-                  label: "Tid sparad",
-                  value: hoursSaved > 0 ? hoursSaved : minutesSaved,
-                  unit: hoursSaved > 0 ? (hoursSaved === 1 ? "timme" : "timmar") : "min",
-                  sub: "den här veckan",
-                },
-                {
-                  label: "Publicerade resultat",
-                  value: `${totalStudents > 0 ? Math.round((completedThisWeek / totalStudents) * 100) : 0}%`,
-                  sub: `av totalt ${totalStudents}`,
-                },
-                {
-                  label: "AI-rättade prov",
-                  value: String(aiGradedProv),
-                  sub: "denna vecka",
-                },
-              ].map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className={`flex min-h-[132px] min-w-0 flex-col justify-center px-1 py-7 sm:px-7 sm:py-8 sm:first:pl-0 sm:last:pr-0 ${
-                    i < 2 ? "border-b border-ink-hairline sm:border-b-0 sm:border-r" : ""
-                  }`}
-                >
-                  <div className={`text-[10.5px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
-                    {stat.label}
-                  </div>
-                  <div className="mt-2.5 flex min-h-9 items-baseline gap-1.5">
-                    <span className={`text-[30px] font-medium leading-none tracking-[-0.025em] tabular-nums ${ink}`}>
-                      {stat.value}
-                    </span>
-                    {stat.unit && <span className={`text-[12.5px] ${inkMuted}`}>{stat.unit}</span>}
-                  </div>
-                  <div className={`mt-2 text-[12.5px] leading-none ${inkMuted}`}>{stat.sub}</div>
+          <div className="mb-10 grid grid-cols-1 gap-4 sm:grid-cols-3 sm:mb-12">
+            {[
+              { label: "Tid sparad", value: hoursSaved > 0 ? hoursSaved : minutesSaved, unit: hoursSaved > 0 ? (hoursSaved === 1 ? "timme" : "timmar") : "min", sub: "den här veckan" },
+              { label: "Publicerade resultat", value: `${totalStudents > 0 ? Math.round((completedThisWeek / totalStudents) * 100) : 0}%`, sub: `av ${totalStudents} elever` },
+              { label: "AI-rättade prov", value: String(aiGradedProv), sub: "denna vecka", active: true },
+            ].map((stat, i) => (
+              <Surface key={stat.label} className="flex min-w-0 flex-col">
+                <div className={`text-[10px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
+                  {stat.label}
                 </div>
-              ))}
-            </div>
+                <div className="mt-3 flex items-baseline gap-1.5">
+                  <span className={`text-[28px] font-medium leading-none tracking-[-0.025em] tabular-nums ${ink}`}>
+                    {stat.value}
+                  </span>
+                  {stat.unit && <span className={`text-[12px] ${inkMuted}`}>{stat.unit}</span>}
+                </div>
+                <div className={`mt-4 flex items-center gap-2 text-[12px] ${inkMuted}`}>
+                  <span className={`inline-flex h-1.5 w-1.5 rounded-full ${stat.active ? "bg-accent" : "bg-ink/25"}`} />
+                  {stat.sub}
+                </div>
+              </Surface>
+            ))}
           </div>
         </Reveal>
 
-        {/* Intelligent system notification — elevated surface, subtle accent, not an alert box */}
+        {/* AI review card */}
         {pendingReviews > 0 && (
           <Reveal delay={60}>
-            <div className="relative mb-12 overflow-hidden rounded-2xl border border-ink-hairline bg-paper-elevated px-5 py-5 shadow-card sm:px-6 sm:py-6">
-              <div className="pointer-events-none absolute inset-y-0 right-16 hidden w-48 text-ink opacity-[0.12] [mask-image:linear-gradient(to_right,transparent,black)] sm:block">
+            <div className="relative mb-12 overflow-hidden rounded-2xl border border-ink-hairline/10 bg-paper-elevated px-6 py-6 shadow-card">
+              <div className="pointer-events-none absolute inset-y-0 right-20 hidden w-60 text-ink opacity-[0.10] [mask-image:linear-gradient(to_right,transparent,black)] sm:block">
                 <GradingGrid seed={814} compact />
               </div>
-              <div className="relative z-10 flex items-center justify-between gap-6">
+              <div className="relative z-10 flex flex-col items-start justify-between gap-6 sm:flex-row sm:items-center">
                 <div className="flex min-w-0 items-start gap-3.5">
-                  <span className="mt-2 h-1.5 w-1.5 shrink-0 rounded-full bg-accent shadow-[0_0_0_4px_rgb(var(--accent)/0.08)]" />
+                  <span className="mt-1.5 h-2 w-2 shrink-0 rounded-full bg-accent shadow-[0_0_0_3px_rgb(var(--accent)/0.08)]" />
                   <div className="min-w-0">
-                    <div className={`text-[10.5px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
+                    <div className={`text-[10px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
                       Redo för granskning
                     </div>
-                    <h2 className={`mt-1.5 text-[16px] font-medium tracking-[-0.01em] ${ink}`}>
+                    <h2 className={`mt-1.5 text-[18px] font-medium tracking-[-0.01em] ${ink}`}>
                       {pendingReviews} {pendingReviews === 1 ? "prov väntar" : "prov väntar"} på dig
                     </h2>
                     <p className={`mt-1 text-[13.5px] ${inkSecondary}`}>
-                      WiseOS har förberett bedömningen.
+                      WiseOS har förberett bedömningen. Du har sista ordet.
                     </p>
                   </div>
                 </div>
                 <Link
                   href="/review"
-                  className="inline-flex shrink-0 items-center gap-1.5 rounded-xl bg-ink px-4 py-2.5 text-[13.5px] font-medium text-paper transition-all duration-300 hover:scale-[1.015] hover:bg-ink/90 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/20 active:scale-[0.985]"
+                  className="btn-primary shrink-0"
                 >
                   Granska
                   <svg className="h-3.5 w-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -164,7 +148,7 @@ export default function DashboardPage() {
               <h2 className={`text-[11px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
                 Klasser
               </h2>
-              <Link href="/classes/new" className={`rounded-lg px-2 py-1 text-[13px] font-medium ${inkSecondary} transition-all duration-300 hover:bg-ink/[0.04] hover:text-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15`}>
+              <Link href="/classes/new" className={`btn-tertiary px-2 py-1 text-[13px]`}>
                 + Ny klass
               </Link>
             </div>
@@ -182,23 +166,23 @@ export default function DashboardPage() {
                     <Link
                       key={k.id}
                       href={`/classes/${k.id}`}
-                      className={`group -mx-2 flex min-w-0 items-center justify-between border-b px-2 py-4 ${hairline} rounded-lg transition-all duration-300 hover:bg-ink/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15`}
+                      className={`group -mx-2 grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b px-2 py-4 ${hairline} rounded-xl transition-all duration-300 hover:bg-ink/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15`}
                     >
-                      <div className="flex items-center gap-3.5 min-w-0">
-                        <span className={`text-[12.5px] font-medium w-8 tabular-nums ${inkMuted}`}>
-                          {k.name.slice(0, 2)}
-                        </span>
-                        <div className="min-w-0">
-                          <div className={`text-[14px] font-medium ${ink} truncate`}>{k.name}</div>
-                          <div className={`text-[12.5px] ${inkMuted} truncate`}>
-                            {(kurs?.name || k.kursId || "Kurs")} · {k.students.length} elever · {klassProv.length} prov
-                          </div>
+                      <span className={`w-10 text-[12.5px] font-medium tabular-nums ${inkMuted}`}>
+                        {k.name.slice(0, 2)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className={`text-[14px] font-medium ${ink} truncate`}>{k.name}</div>
+                        <div className={`truncate text-[12px] ${inkMuted}`}>
+                          {(kurs?.name || k.kursId || "Kurs")} · {k.students.length} elever · {klassProv.length} prov
                         </div>
                       </div>
-                      {pendingInClass > 0 && (
-                        <span className={`text-[12px] font-medium ${inkSecondary} shrink-0 ml-2`}>
+                      {pendingInClass > 0 ? (
+                        <span className={`shrink-0 rounded-full bg-ink/[0.04] px-2.5 py-1 text-[11px] font-medium ${inkSecondary}`}>
                           {pendingInClass} väntar
                         </span>
+                      ) : (
+                        <span className={`shrink-0 text-[11px] font-medium text-state-success`}>Klart</span>
                       )}
                     </Link>
                   );
@@ -223,30 +207,33 @@ export default function DashboardPage() {
                   const resultProv = prov.find((p) => p.id === result.provId);
                   const totalPoints = result.steps.reduce((sum, step) => sum + step.earnedPoints, 0);
                   const maxPoints = result.steps.reduce((sum, step) => sum + step.maxPoints, 0);
-                  const percentage = Math.round((totalPoints / maxPoints) * 100);
+                  const percentage = maxPoints > 0 ? Math.round((totalPoints / maxPoints) * 100) : 0;
 
                   return (
                     <div key={result.id} className={`border-b py-4 ${hairline}`}>
                       <div className="flex items-center justify-between gap-3">
                         <span className={`text-[13.5px] font-medium ${ink}`}>{result.studentName}</span>
-                        <span className={`text-[12.5px] font-medium tabular-nums ${
-                          percentage >= 80 ? "text-state-success" :
-                          percentage >= 50 ? inkSecondary :
-                          "text-state-danger"
+                        <span className={`rounded-md px-1.5 py-0.5 text-[11px] font-medium tabular-nums ${
+                          percentage >= 80
+                            ? "bg-state-success/10 text-state-success"
+                            : percentage >= 50
+                            ? "bg-state-warning/10 text-state-warning"
+                            : "bg-state-danger/10 text-state-danger"
                         }`}>
                           {totalPoints}/{maxPoints}
                         </span>
                       </div>
-                      <div className={`text-[12px] mt-0.5 ${inkMuted}`}>{resultProv?.title || "Prov"}</div>
+                      <div className={`mt-0.5 text-[12px] ${inkMuted}`}>{resultProv?.title || "Prov"}</div>
                     </div>
                   );
                 })}
               </div>
             )}
 
-            <div className={`mt-4 flex items-center gap-6 text-[13px] ${inkSecondary}`}>
-              <span><span className={`font-medium ${ink}`}>{klasser.length}</span> klasser</span>
-              <span><span className={`font-medium ${ink}`}>{prov.length}</span> prov</span>
+            <div className={`mt-6 flex items-center gap-8 text-[12.5px] ${inkMuted}`}>
+              <span><span className={`font-medium text-ink`}>{klasser.length}</span> klasser</span>
+              <span><span className={`font-medium text-ink`}>{prov.length}</span> prov</span>
+              <Link href="/classes/new" className={`${inkSecondary} transition-colors hover:text-ink`}>+ Ny klass</Link>
             </div>
           </Reveal>
         </div>
