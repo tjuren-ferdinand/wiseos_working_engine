@@ -25,5 +25,18 @@ export const metadata: Metadata = {
 };
 
 export default function LoginLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){
+            document.documentElement.classList.remove('dark', 'cream');
+            document.documentElement.classList.add('light');
+            try { localStorage.setItem('wiseos-theme', 'light'); } catch (e) {}
+          })();`,
+        }}
+      />
+      {children}
+    </>
+  );
 }
