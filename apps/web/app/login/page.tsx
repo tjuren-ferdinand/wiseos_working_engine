@@ -8,7 +8,7 @@ import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import LineIcon, { type IconName } from "@/components/LineIcon";
-import LoginHeroScan from "@/components/LoginHeroScan";
+import Image from "next/image";
 import { TESTIMONIALS } from "@/lib/data/testimonials";
 import { SOCIAL_STATS } from "@/lib/data/stats";
 
@@ -471,7 +471,16 @@ export default function LoginPage() {
           </div>
 
           <div className="relative flex min-w-0 items-center lg:-mr-6">
-            <LoginHeroScan />
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
+              <Image
+                src="/hero/copilot-hero.png"
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-cover"
+              />
+            </div>
           </div>
         </section>
 
