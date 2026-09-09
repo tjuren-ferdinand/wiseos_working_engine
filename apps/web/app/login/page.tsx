@@ -471,33 +471,14 @@ export default function LoginPage() {
           </div>
 
           <div className="relative flex min-w-0 items-center lg:-mr-6">
-            <div
-              className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl"
-              style={{
-                maskImage:
-                  "radial-gradient(ellipse 75% 75% at center, black 55%, transparent 100%)",
-                WebkitMaskImage:
-                  "radial-gradient(ellipse 75% 75% at center, black 55%, transparent 100%)",
-              }}
-            >
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
               <Image
-                src="/hero/copilot-hero2.png"
+                src="/front1.jpg"
                 alt=""
                 fill
                 priority
                 sizes="(max-width: 1024px) 100vw, 50vw"
                 className="object-cover"
-                style={{
-                  mixBlendMode: "luminosity",
-                  opacity: 0.92,
-                }}
-              />
-              <div
-                className="pointer-events-none absolute inset-0"
-                style={{
-                  background:
-                    "radial-gradient(ellipse at center, transparent 40%, rgb(var(--background) / 0.55) 100%)",
-                }}
               />
             </div>
           </div>
