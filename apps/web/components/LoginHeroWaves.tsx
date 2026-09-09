@@ -63,6 +63,25 @@ export default function LoginHeroWaves({ className = "" }: { className?: string 
             />
           ))}
 
+          {/* Golden traveling pulse along each wave */}
+          {!reduce && lines.map((d, i) => (
+            <path
+              key={`travel-${i}`}
+              d={d}
+              fill="none"
+              stroke="url(#waveGlow)"
+              strokeWidth={2.6}
+              strokeLinecap="round"
+              pathLength="1"
+              style={{
+                opacity: 0.55,
+                strokeDasharray: "0.08 0.92",
+                strokeDashoffset: 0,
+                animation: `waveTravel 9s linear ${i * 1.4}s infinite`,
+              }}
+            />
+          ))}
+
           {peaks.map((p, i) => (
             <circle
               key={`p-${i}`}
@@ -78,6 +97,21 @@ export default function LoginHeroWaves({ className = "" }: { className?: string 
               }}
             />
           ))}
+
+          {/* Slow vertical scan line */}
+          {!reduce && (
+            <g style={{ animation: "scanMove 14s cubic-bezier(0.45, 0, 0.55, 1) infinite" }}>
+              <line
+                x1={0}
+                y1={0}
+                x2={0}
+                y2={HEIGHT}
+                stroke="currentColor"
+                strokeWidth={0.7}
+                style={{ opacity: 0.14 }}
+              />
+            </g>
+          )}
         </g>
 
         <style>{`
@@ -93,6 +127,14 @@ export default function LoginHeroWaves({ className = "" }: { className?: string 
             45% { opacity: 0.75; transform: scale(1); }
             55% { opacity: 0.75; transform: scale(1); }
             80% { opacity: 0; transform: scale(0.6); }
+          }
+          @keyframes waveTravel {
+            from { stroke-dashoffset: 0; }
+            to { stroke-dashoffset: -1; }
+          }
+          @keyframes scanMove {
+            from { transform: translateX(-2px); }
+            to { transform: translateX(${WIDTH + 2}px); }
           }
         `}</style>
       </svg>
