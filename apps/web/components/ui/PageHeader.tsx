@@ -23,14 +23,14 @@ export default function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={`flex items-start justify-between gap-6 ${className}`}>
+    <header className={`flex flex-col items-start justify-between gap-4 sm:flex-row sm:gap-6 ${className}`}>
       <div className="min-w-0">
         {eyebrow && (
           <span className="text-[11px] font-medium uppercase tracking-[0.16em] text-ink-muted">
             {eyebrow}
           </span>
         )}
-        <h1 className="mt-2.5 text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-ink">
+        <h1 className="mt-2.5 break-words text-[28px] leading-[1.15] font-medium tracking-[-0.02em] text-ink">
           {title}
         </h1>
         {subtitle && (

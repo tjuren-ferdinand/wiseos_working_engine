@@ -12,13 +12,13 @@ export default function Breadcrumb({
   className?: string;
 }) {
   return (
-    <nav className={`flex items-center gap-2 text-[13px] ${className}`}>
+    <nav aria-label="Brödsmulor" className={`flex flex-wrap items-center gap-2 break-words text-[13px] ${className}`}>
       {items.map((item, i) => {
         const last = i === items.length - 1;
         return (
           <React.Fragment key={i}>
             {item.href && !last ? (
-              <Link href={item.href} className="text-ink-secondary hover:text-ink transition-colors">
+              <Link href={item.href} className="rounded-sm text-ink-secondary hover:text-ink transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40">
                 {item.label}
               </Link>
             ) : (

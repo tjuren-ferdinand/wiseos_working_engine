@@ -247,6 +247,10 @@ html, body {
            transition-all hover:bg-[rgb(var(--surface-2))] active:scale-[0.98];
   }
 
+  .btn-primary, .btn-secondary, .btn-tertiary {
+    @apply inline-flex items-center justify-center gap-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 focus-visible:ring-offset-2 focus-visible:ring-offset-paper disabled:pointer-events-none disabled:opacity-50 motion-reduce:transition-none motion-reduce:active:scale-100;
+  }
+
   /* Tertiary button — text/icon only */
   .btn-tertiary {
     @apply rounded-[10px] px-3 py-2 text-sm font-medium text-[rgb(var(--muted))]

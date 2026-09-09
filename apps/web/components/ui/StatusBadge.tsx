@@ -34,7 +34,7 @@ export default function StatusBadge({ status }: { status: string }) {
     <span
       className={`shrink-0 inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium ${s.className}`}
     >
-      {s.live && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse" />}
+      {s.live && <span className="h-1.5 w-1.5 rounded-full bg-current animate-pulse motion-reduce:animate-none" />}
       {s.label}
     </span>
   );

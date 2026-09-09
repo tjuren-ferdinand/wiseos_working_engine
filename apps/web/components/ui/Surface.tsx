@@ -17,7 +17,7 @@ type BaseProps = {
 const surfaceBase =
   "rounded-[16px] bg-paper-raised border border-ink-hairline shadow-soft";
 const interactiveBase =
-  "transition-all duration-200 hover:border-ink-hairline hover:bg-paper-secondary hover:-translate-y-0.5 hover:shadow-card";
+  "transition-[background-color,border-color,box-shadow,transform] duration-200 hover:bg-paper-secondary hover:-translate-y-0.5 hover:shadow-card focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 focus-visible:ring-offset-2 focus-visible:ring-offset-paper motion-reduce:transform-none motion-reduce:transition-none";
 
 export default function Surface({
   children,
@@ -28,7 +28,7 @@ export default function Surface({
   onClick,
 }: BaseProps & { href?: string; onClick?: () => void }) {
   const classes = `${surfaceBase} ${padding} ${
-    interactive || href ? interactiveBase : ""
+    interactive || href || onClick ? interactiveBase : ""
   } ${className}`;
 
   if (href) {
@@ -41,7 +41,7 @@ export default function Surface({
 
   if (onClick) {
     return (
-      <button onClick={onClick} className={`group block w-full text-left ${classes}`}>
+      <button type="button" onClick={onClick} className={`group block w-full text-left ${classes}`}>
         {children}
       </button>
     );
