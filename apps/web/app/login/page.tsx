@@ -8,7 +8,7 @@ import { motion, useScroll, useMotionValueEvent } from "framer-motion";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import LineIcon, { type IconName } from "@/components/LineIcon";
-import LoginHeroDots from "@/components/LoginHeroDots";
+import LoginHeroPaperGrid from "@/components/LoginHeroPaperGrid";
 import { TESTIMONIALS } from "@/lib/data/testimonials";
 import { SOCIAL_STATS } from "@/lib/data/stats";
 
@@ -471,7 +471,7 @@ export default function LoginPage() {
           </div>
 
           <div className="flex min-w-0 items-center lg:-mr-6">
-            <LoginHeroDots />
+            <LoginHeroPaperGrid />
           </div>
         </section>
 
