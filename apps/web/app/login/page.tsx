@@ -462,8 +462,8 @@ function Finale({
           initial={{ opacity: 0, scale: 1.05 }}
           animate={isInView ? { opacity: 1, scale: 1 } : {}}
           transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1] }}
-          src="/front1.jpg"
-          alt="Arbetsplats med papper och laptop"
+          src="/hero/copilot-hero3.png"
+          alt="WiseOS rättningsflöde"
           loading="lazy"
           className="h-full w-full object-cover"
           style={{
