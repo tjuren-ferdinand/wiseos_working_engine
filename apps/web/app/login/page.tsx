@@ -390,17 +390,17 @@ function SectionHeading({
 
 function ProcessSteps() {
   const steps = [
-    { n: "1", icon: "upload" as IconName, title: "Ladda upp", desc: "Dra in provbunten som PDF eller bilder." },
-    { n: "2", icon: "sparkles" as IconName, title: "AI rättar", desc: "WiseOS bedömer varje lösning på sekunder." },
-    { n: "3", icon: "pen" as IconName, title: "Granska", desc: "Du justerar poäng och feedback innan publicering." },
-    { n: "4", icon: "send" as IconName, title: "Publicera", desc: "Resultaten delas direkt med eleverna." },
+    { n: "1", icon: "upload" as IconName, title: "Samla in", desc: "Dra in elevlösningarna som PDF eller skannade filer." },
+    { n: "2", icon: "sparkles" as IconName, title: "Analysera", desc: "AI tolkar handskrivna uträkningar, formler och resonemang." },
+    { n: "3", icon: "pen" as IconName, title: "Validera", desc: "Granska förslag, justera poäng och säkerställ att allt stämmer." },
+    { n: "4", icon: "send" as IconName, title: "Leverera", desc: "Publicera transparenta resultat direkt till eleverna." },
   ];
 
   return (
     <section className="mt-20 border-t border-ink-hairline/5 pt-10">
       <SectionHeading
-        badge="Så fungerar det"
-        title="Från papper till publicering på fyra steg"
+        badge="Så fungerar flödet"
+        title="Från pappersbunt till återkoppling"
       />
       <div className="mx-auto max-w-4xl">
         <div className="grid gap-6 md:grid-cols-4">
@@ -518,19 +518,19 @@ function Finale({
           transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
           className="max-w-xl"
         >
-          <p className="mb-3 text-[12px] font-medium uppercase tracking-wider text-ink-secondary">I verkligheten</p>
+          <p className="mb-3 text-[12px] font-medium uppercase tracking-wider text-ink-secondary">Mindre administration. Mer undervisning.</p>
           <h2 className="text-[32px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink md:text-[44px] lg:text-[56px]">
-            Ett rent, lugnt arbetsflöde.
+            Rätta smartare. Inte snabbare.
           </h2>
           <p className="mt-5 text-[15px] leading-relaxed text-ink-secondary md:text-[17px]">
-            Från skrivbordet till digital rättning — utan pappershögar.
+            WiseOS är det intelligenta stödsystemet som förändrar hur svenska STEM-lärare hanterar prov och bedömning. Från skannad pappersbunt till färdig återkoppling – utan att tumma på den pedagogiska kvaliteten.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <button
               onClick={onStart}
               className="btn-primary px-7 py-3.5 shadow-soft"
             >
-              Kom igång gratis
+              Kom igång utan kostnad
             </button>
             <button
               onClick={onLogin}
@@ -587,7 +587,7 @@ export default function LoginPage() {
               onClick={() => openAuth("signup")}
               className="btn-primary px-4 py-2 text-[13px]"
             >
-              Kom igång gratis
+              Kom igång utan kostnad
             </button>
           </div>
         </div>
@@ -600,134 +600,70 @@ export default function LoginPage() {
         {/* How it works */}
         <ProcessSteps />
 
-        {/* Hero */}
-        <section className="mt-20 grid items-center gap-16 lg:grid-cols-2">
-          <div>
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-              className="mb-4 inline-flex w-fit items-center gap-2 rounded-xl border border-ink-hairline bg-ink/5 px-3 py-1.5 text-[12px] font-medium text-ink"
-            >
-              <span className="relative flex h-2 w-2">
-                <span className="absolute inline-flex h-full w-full animate-ping rounded-xl bg-ink opacity-75" />
-                <span className="relative inline-flex h-2 w-2 rounded-xl bg-ink" />
-              </span>
-              AI-driven rättning för svenska lärare
-            </motion.div>
-
-            <motion.h1
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
-              className="max-w-lg text-[42px] font-semibold leading-[1.1] tracking-[-0.02em] text-ink"
-              style={{
-                background: "linear-gradient(135deg, rgb(var(--foreground)) 0%, rgb(var(--muted)) 100%)",
-                WebkitBackgroundClip: "text",
-                WebkitTextFillColor: "transparent",
-                backgroundClip: "text",
-              }}
-            >
-              Rätta prov på minuter, inte kvällar.
-            </motion.h1>
-
-            <motion.p
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-5 max-w-md text-[15px] leading-relaxed text-ink-secondary"
-            >
-              WiseOS läser, bedömer och förklarar elevernas lösningar så att du kan fokusera på undervisningen i stället för pappershögar.
-            </motion.p>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.3, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-8 flex flex-wrap gap-3"
-            >
-              <button
-                onClick={() => openAuth("signup")}
-                className="btn-primary px-7 py-3 shadow-soft"
-              >
-                Kom igång gratis
-              </button>
-              <button
-                onClick={() => openAuth("login")}
-                className="btn-secondary px-7 py-3"
-              >
-                Logga in
-              </button>
-            </motion.div>
-
-            <motion.div
-              initial={{ opacity: 0, y: 16 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.7, delay: 0.4, ease: [0.22, 1, 0.36, 1] }}
-              className="mt-10 grid grid-cols-3 gap-4"
-            >
-              {stats.map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className="rounded-2xl border border-ink-hairline/10 bg-paper-raised p-5"
-                >
-                  <div className="mb-3 flex h-9 w-9 items-center justify-center rounded-xl bg-ink/5 text-ink-hairline">
-                    <LineIcon name={stat.icon} className="h-5 w-5" />
-                  </div>
-                  <div className="text-[20px] font-semibold text-ink">{stat.value}</div>
-                  <div className="mt-1 text-[11.5px] leading-snug text-ink-secondary">{stat.label}</div>
-                </div>
-              ))}
-            </motion.div>
-          </div>
-
-          <div className="relative flex min-w-0 items-center">
-            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
-              <Image
-                src="/hero/copilot-hero3.png"
-                alt=""
-                fill
-                priority
-                sizes="(max-width: 1024px) 100vw, 50vw"
-                className="object-contain"
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* Features */}
+        {/* Precision */}
         <section className="mt-20 border-t border-ink-hairline/5 pt-10">
           <SectionHeading
-            badge="Funktioner"
-            title="Allt du behöver för snabbare rättning"
-            subtitle="Från uppladdning till publicering — WiseOS håller koll på detaljerna så att du slipper."
+            badge="Precision"
+            title="Precision för moderna lärmiljöer"
           />
-          <div className="grid gap-5 auto-rows-fr sm:grid-cols-2 lg:grid-cols-3">
-            {FEATURES.map((f, i) => (
+          <div className="mx-auto max-w-4xl space-y-8">
+            {[
+              { title: "Ämnesspecifik intelligens", desc: "Utvecklat specifikt för matematik, fysik och kemi med full förståelse för formler och enheter." },
+              { title: "Fullständig kontroll", desc: "Du är alltid den som sätter slutbetyget – AI:n gör bara grovjobbet." },
+              { title: "GDPR-säkrat i grunden", desc: "Svensk datalagring och högsta säkerhet för både skola och elev." },
+            ].map((f, i) => (
               <motion.div
                 key={f.title}
                 initial={{ opacity: 0, y: 16 }}
                 whileInView={{ opacity: 1, y: 0 }}
                 viewport={{ once: true }}
                 transition={{ duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
-                className="group flex h-full flex-col rounded-2xl border border-ink-hairline/10 bg-paper-raised p-6 transition-all duration-300 hover:-translate-y-1 hover:border-ink-hairline/30 hover:shadow-soft"
+                className="flex gap-5 rounded-2xl border border-ink-hairline/10 bg-paper-raised p-6"
               >
-                <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-2xl bg-ink/5 text-ink-hairline transition-colors group-hover:bg-ink/10 group-hover:text-ink">
-                  <LineIcon name={f.icon} className="h-6 w-6" />
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-ink/5 text-ink">
+                  <LineIcon name="check" className="h-5 w-5" />
                 </div>
-                <h3 className="text-[17px] font-semibold text-ink">{f.title}</h3>
-                <p className="mt-2 text-[14px] leading-relaxed text-ink-secondary">{f.desc}</p>
+                <div>
+                  <h3 className="text-[17px] font-semibold text-ink">{f.title}</h3>
+                  <p className="mt-1.5 text-[14px] leading-relaxed text-ink-secondary">{f.desc}</p>
+                </div>
               </motion.div>
             ))}
           </div>
         </section>
 
-        {/* Social proof */}
-        <SocialProof />
+        {/* Voices */}
+        <section className="mt-20 border-t border-ink-hairline/5 pt-10">
+          <SectionHeading
+            badge="Röster från praktiken"
+            title="Vad lärare säger"
+          />
+          <div className="mx-auto max-w-3xl space-y-6">
+            {[
+              { quote: "Jag sparar timmar varje vecka. Nu hinner jag faktiskt förbereda lektioner istället för att sitta med rättningshögar.", name: "Anna K.", role: "Matematiklärare" },
+              { quote: "Eleverna får tydligare feedback och jag behåller full kontroll över bedömningen.", name: "Johan D.", role: "Fysiklärare" },
+            ].map((q, i) => (
+              <motion.div
+                key={i}
+                initial={{ opacity: 0, y: 16 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ duration: 0.6, delay: i * 0.1, ease: [0.22, 1, 0.36, 1] }}
+                className="rounded-2xl border border-ink-hairline/10 bg-paper-raised p-6"
+              >
+                <p className="text-[15px] italic leading-relaxed text-ink">"{q.quote}"</p>
+                <div className="mt-4">
+                  <div className="text-[14px] font-medium text-ink">{q.name}</div>
+                  <div className="text-[12px] text-ink-secondary">{q.role}</div>
+                </div>
+              </motion.div>
+            ))}
+          </div>
+        </section>
       </main>
 
       <footer className="mt-20 border-t border-ink-hairline/5 py-8 text-center text-[12px] text-ink-secondary">
-        {new Date().getFullYear()} Wisecast AB
+        Wisecast AB © 2026
       </footer>
 
       <AuthModal open={authOpen} onClose={() => setAuthOpen(false)} initialMode={authMode} />
