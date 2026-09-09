@@ -5,6 +5,7 @@ import { createPortal } from "react-dom";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { motion, useInView, useScroll, useMotionValueEvent } from "framer-motion";
+import Image from "next/image";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
 import LineIcon, { type IconName } from "@/components/LineIcon";
@@ -641,7 +642,18 @@ export default function LoginPage() {
             </motion.div>
           </div>
 
-          <DashboardStack />
+          <div className="relative flex min-w-0 items-center">
+            <div className="relative aspect-[4/3] w-full overflow-hidden rounded-2xl">
+              <Image
+                src="/hero/copilot-hero3.png"
+                alt=""
+                fill
+                priority
+                sizes="(max-width: 1024px) 100vw, 50vw"
+                className="object-contain"
+              />
+            </div>
+          </div>
         </section>
 
         {/* Features */}
