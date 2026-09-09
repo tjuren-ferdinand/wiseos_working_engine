@@ -16,15 +16,6 @@ export default function DashboardPage() {
 
   // Metrics
   const pendingReviews = prov.filter((p) => p.status === "review").length;
-  const aiGradedProv = prov.filter((p) => p.status === "review" || p.status === "published").length;
-  const publishedProvIds = prov.filter((p) => p.status === "published").map((p) => p.id);
-  const completedThisWeek = results.filter((r) => publishedProvIds.includes(r.provId)).length;
-  const totalStudents = results.length;
-  
-  // Calculate time saved (estimate: 3 min per student graded)
-  const minutesSaved = completedThisWeek * 3;
-  const hoursSaved = Math.floor(minutesSaved / 60);
-  const remainingMinutes = minutesSaved % 60;
 
   // Get recent activity
   const recentResults = results.slice(-3).reverse();
@@ -71,50 +62,6 @@ export default function DashboardPage() {
                 ? `${pendingReviews} prov väntar på granskning`
                 : "Inga prov att granska just nu"}
             </p>
-          </div>
-        </Reveal>
-
-        {/* Metrics — integrated information row, not boxed widgets */}
-        <Reveal>
-          <div className="w-full pb-8 mb-8 border-b border-ink-hairline">
-            <div className="grid grid-cols-1 sm:grid-cols-3">
-              {[
-                {
-                  label: "Tid sparad",
-                  value: hoursSaved > 0 ? hoursSaved : minutesSaved,
-                  unit: hoursSaved > 0 ? (hoursSaved === 1 ? "timme" : "timmar") : "min",
-                  sub: "den här veckan",
-                },
-                {
-                  label: "Publicerade resultat",
-                  value: `${totalStudents > 0 ? Math.round((completedThisWeek / totalStudents) * 100) : 0}%`,
-                  sub: `av totalt ${totalStudents}`,
-                },
-                {
-                  label: "AI-rättade prov",
-                  value: String(aiGradedProv),
-                  sub: "denna vecka",
-                },
-              ].map((stat, i) => (
-                <div
-                  key={stat.label}
-                  className={`min-w-0 px-4 py-6 first:pl-0 last:pr-0 sm:px-6 sm:py-7 ${
-                    i < 2 ? "border-b sm:border-b-0 sm:border-r border-ink-hairline" : ""
-                  }`}
-                >
-                  <div className={`text-[11px] font-medium uppercase tracking-[0.1em] ${inkMuted}`}>
-                    {stat.label}
-                  </div>
-                  <div className="mt-2 flex items-baseline gap-1.5">
-                    <span className={`text-[28px] font-medium tracking-[-0.01em] ${ink}`}>
-                      {stat.value}
-                    </span>
-                    {stat.unit && <span className={`text-[13px] ${inkMuted}`}>{stat.unit}</span>}
-                  </div>
-                  <div className={`mt-0.5 text-[12.5px] ${inkMuted}`}>{stat.sub}</div>
-                </div>
-              ))}
-            </div>
           </div>
         </Reveal>
 
