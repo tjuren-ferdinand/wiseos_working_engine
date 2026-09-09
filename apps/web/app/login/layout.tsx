@@ -25,5 +25,14 @@ export const metadata: Metadata = {
 };
 
 export default function LoginLayout({ children }: { children: ReactNode }) {
-  return <>{children}</>;
+  return (
+    <>
+      <script
+        dangerouslySetInnerHTML={{
+          __html: `(function(){ document.documentElement.classList.add('dark'); })();`,
+        }}
+      />
+      {children}
+    </>
+  );
 }
