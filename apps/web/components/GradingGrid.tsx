@@ -2,11 +2,11 @@
 
 import { useEffect, useMemo, useRef, useState } from "react";
 
-const COLS = 16;
-const ROWS = 10;
+const COLS = 14;
+const ROWS = 8;
 const TOTAL = COLS * ROWS;
-const GAP_X = 22;
-const GAP_Y = 22;
+const GAP_X = 30;
+const GAP_Y = 30;
 
 type DotState = 0 | 1 | 2; // idle, pulse, checked
 
@@ -60,7 +60,7 @@ export default function GradingGrid({
     };
 
     const travelDuration = 1200 + random() * 600;
-    const pulseDuration = 1400 + random() * 600;
+    const pulseDuration = 2200 + random() * 800;
     const holdDuration = 8000 + random() * 5000;
 
     const scheduleTravel = (fromIndex: number, toIndex: number) => {
@@ -138,10 +138,6 @@ export default function GradingGrid({
       </defs>
 
       <g mask="url(#vignette)">
-        {travel && !compact && (
-          <ConnectionLine travel={travel} positions={positions} />
-        )}
-
         {positions.map((p, i) => (
           <Dot
             key={i}
@@ -183,17 +179,17 @@ function Dot({
   return (
     <g transform={`translate(${cx}, ${cy})`}>
       {/* Resting dot */}
-      <circle r={r} fill="currentColor" style={{ opacity: 0.22 }} />
+      <circle r={r} fill="currentColor" style={{ opacity: 0.10 }} />
 
       {/* Active outer ring */}
       <circle
-        r={r * 2.2}
+        r={r * 2.4}
         fill="none"
         stroke="currentColor"
-        strokeWidth={0.9}
+        strokeWidth={0.7}
         style={{
-          opacity: pulse ? 0.40 : 0,
-          transform: pulse ? "scale(1)" : "scale(0.82)",
+          opacity: pulse ? 0.26 : 0,
+          transform: pulse ? "scale(1)" : "scale(0.85)",
           transformBox: "fill-box",
           transformOrigin: "center",
           transition: `opacity ${duration} cubic-bezier(0.22, 0.9, 0.36, 1), transform ${duration} cubic-bezier(0.22, 0.9, 0.36, 1)`,
@@ -205,8 +201,8 @@ function Dot({
         r={r}
         fill="currentColor"
         style={{
-          opacity: pulse ? 0.28 : 0,
-          transform: pulse ? "scale(2.2)" : "scale(1)",
+          opacity: pulse ? 0.18 : 0,
+          transform: pulse ? "scale(2.0)" : "scale(1)",
           transformBox: "fill-box",
           transformOrigin: "center",
           transition: `opacity ${duration} cubic-bezier(0.22, 0.9, 0.36, 1), transform ${duration} cubic-bezier(0.22, 0.9, 0.36, 1)`,
@@ -215,11 +211,11 @@ function Dot({
 
       {/* Checked fill */}
       <circle
-        r={r * 2.0}
+        r={r * 1.9}
         fill="currentColor"
         style={{
-          opacity: checked ? 0.18 : 0,
-          transform: checked ? "scale(1)" : "scale(0.9)",
+          opacity: checked ? 0.14 : 0,
+          transform: checked ? "scale(1)" : "scale(0.92)",
           transformBox: "fill-box",
           transformOrigin: "center",
           transition: `opacity ${duration} cubic-bezier(0.22, 0.9, 0.36, 1), transform ${duration} cubic-bezier(0.22, 0.9, 0.36, 1)`,
@@ -228,16 +224,16 @@ function Dot({
 
       {/* Checkmark */}
       <path
-        d={`M${-r * 0.62} ${r * 0.02} L${-r * 0.08} ${r * 0.68} L${r * 0.75} ${-r * 0.58}`}
+        d={`M${-r * 0.46} ${r * 0.02} L${-r * 0.05} ${r * 0.48} L${r * 0.56} ${-r * 0.44}`}
         pathLength="1"
         fill="none"
         stroke="currentColor"
-        strokeWidth={Math.max(0.85, r * 0.34)}
+        strokeWidth={Math.max(0.55, r * 0.22)}
         strokeLinecap="round"
         strokeLinejoin="round"
         strokeDasharray="1"
         style={{
-          opacity: checked ? 0.82 : 0,
+          opacity: checked ? 0.72 : 0,
           strokeDashoffset: checked ? 0 : 1,
           transition: `stroke-dashoffset ${drawMs} cubic-bezier(0.45, 0, 0.55, 1), opacity ${reduceMotion ? "0ms" : "160ms"} ease-out`,
         }}
@@ -261,34 +257,10 @@ function TravelPulse({
 
   return (
     <g transform={`translate(${x}, ${y})`}>
-      <circle r={4.2} fill="none" stroke="currentColor" strokeWidth={1.0} style={{ opacity: 0.45 }} />
-      <circle r={4.2} fill="currentColor" style={{ opacity: 0.16 }} />
-      <circle r={1.4} fill="currentColor" style={{ opacity: 0.65 }} />
+      <circle r={3.6} fill="none" stroke="currentColor" strokeWidth={0.8} style={{ opacity: 0.28 }} />
+      <circle r={3.6} fill="currentColor" style={{ opacity: 0.10 }} />
+      <circle r={1.2} fill="currentColor" style={{ opacity: 0.45 }} />
     </g>
-  );
-}
-
-function ConnectionLine({
-  travel,
-  positions,
-}: {
-  travel: { from: number; to: number; progress: number };
-  positions: { x: number; y: number }[];
-}) {
-  const { from, to } = travel;
-  const start = positions[from] ?? positions[to];
-  const end = positions[to];
-  return (
-    <line
-      x1={start.x}
-      y1={start.y}
-      x2={end.x}
-      y2={end.y}
-      stroke="currentColor"
-      strokeWidth={0.6}
-      strokeLinecap="round"
-      style={{ opacity: 0.08 }}
-    />
   );
 }
 
