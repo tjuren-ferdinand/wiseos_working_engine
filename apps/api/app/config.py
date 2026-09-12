@@ -71,6 +71,11 @@ class Settings(BaseSettings):
     # globala underhållsoperationer (t.ex. retention-sweep). Tomt = ingen
     # är admin → alla autentiserade anrop till /api/v1/admin får 403.
     ADMIN_USER_IDS: str = ""
+    # Komma-separerade e-postadresser som ALLTID är admin — oberoende av
+    # UUID. Används som permanent undantag så att ägarkontot aldrig kan
+    # låsas ute av ändringar i användar-ID:n eller framtida
+    # åtkomstkontroller (domän-allowlist, pending-approval).
+    ADMIN_EMAILS: str = ""
 
     # Ops
     ENVIRONMENT: str = "dev"  # dev | staging | prod
@@ -79,6 +84,10 @@ class Settings(BaseSettings):
     @property
     def admin_user_ids(self) -> set[str]:
         return {uid.strip() for uid in self.ADMIN_USER_IDS.split(",") if uid.strip()}
+
+    @property
+    def admin_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.ADMIN_EMAILS.split(",") if e.strip()}
 
     @property
     def effective_grading_provider(self) -> str:
