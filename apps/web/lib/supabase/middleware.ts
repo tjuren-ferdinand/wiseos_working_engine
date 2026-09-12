@@ -19,12 +19,29 @@ export async function updateSession(request: NextRequest) {
     "";
   const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
   const canonicalHost = "wiseos.noblearc.se";
+  const code = request.nextUrl.searchParams.get("code");
+  const onCallback = pathname.startsWith("/auth/callback");
+
+  // Supabase kan leverera auth-koden på roten (om Site URL pekar på
+  // domänroten istf /auth/callback). Skicka alltid koden genom callbacken
+  // så den växlas till en session — annars tappas den vid /login-redirecten.
+  const codeRedirect = (base: URL) => {
+    const url = base;
+    url.pathname = "/auth/callback";
+    url.search = `?code=${encodeURIComponent(code!)}&next=${encodeURIComponent(pathname)}`;
+    return url;
+  };
+
   if (!isLocal && host !== canonicalHost) {
     const url = request.nextUrl.clone();
     url.host = canonicalHost;
     url.port = "";
     url.protocol = "https";
-    return NextResponse.redirect(url, 308);
+    return NextResponse.redirect(code && !onCallback ? codeRedirect(url) : url, 308);
+  }
+
+  if (code && !onCallback) {
+    return NextResponse.redirect(codeRedirect(request.nextUrl.clone()));
   }
 
   // Låt /auth/callback passera utan att middleware rör cookies/session —
