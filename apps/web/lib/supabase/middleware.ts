@@ -8,6 +8,24 @@ import { NextResponse, type NextRequest } from "next/server";
 export async function updateSession(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Kanonisera domän: produktionstrafik ska alltid gå via wiseos.noblearc.se.
+  // Railway-domänen (wiseos-production.up.railway.app) är samma tjänst men får
+  // aldrig bära sessionscookies — bl.a. kan Supabase-OAuth landa där med
+  // ?code= om Site URL är felinställd. Vi skickar vidare hela URL:en intakt
+  // så auth-callback och sessionsexchange sker på rätt domän.
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0].trim() ??
+    request.headers.get("host") ??
+    "";
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  const canonicalHost = "wiseos.noblearc.se";
+  if (!isLocal && host !== canonicalHost) {
+    const url = request.nextUrl.clone();
+    url.host = canonicalHost;
+    url.protocol = "https";
+    return NextResponse.redirect(url, 308);
+  }
+
   // Låt /auth/callback passera utan att middleware rör cookies/session —
   // Route Handlern sköter exchangeCodeForSession() själv och middleware:ns
   // getUser()-anrop kan störa PKCE code_verifier-cookien.
