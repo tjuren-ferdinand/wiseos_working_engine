@@ -706,7 +706,7 @@ function Hero({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
   return (
     <section
       ref={ref}
-      className="relative overflow-hidden bg-paper pb-24 pt-32 md:min-h-screen md:pb-32 md:pt-40"
+      className="relative overflow-hidden bg-paper pb-16 pt-32 md:min-h-screen md:pb-32 md:pt-40"
     >
       <div className="mx-auto max-w-6xl px-6">
         <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
@@ -780,7 +780,7 @@ function Hero({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
           </div>
 
           <div
-            className="h-8 w-full md:absolute md:right-[-4%] md:top-[6%] md:h-[100%] md:w-[75%]"
+            className="hidden w-full md:absolute md:right-[-4%] md:top-[6%] md:block md:h-[100%] md:w-[75%]"
             style={{
               WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 15%)",
               maskImage: "linear-gradient(to right, transparent 0%, black 15%)",
