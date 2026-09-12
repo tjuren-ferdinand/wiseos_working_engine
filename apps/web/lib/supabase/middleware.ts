@@ -22,6 +22,7 @@ export async function updateSession(request: NextRequest) {
   if (!isLocal && host !== canonicalHost) {
     const url = request.nextUrl.clone();
     url.host = canonicalHost;
+    url.port = "";
     url.protocol = "https";
     return NextResponse.redirect(url, 308);
   }
