@@ -254,12 +254,12 @@ export default function GradingWizard({
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-paper backdrop-blur-sm" onClick={handleClose}>
+    <div className="fixed inset-0 z-50 flex items-stretch justify-center bg-paper backdrop-blur-sm sm:items-center sm:p-4" onClick={handleClose}>
       <div
-        className="relative w-full max-w-2xl rounded-2xl bg-paper-raised shadow-card border border-ink-hairline max-h-[90vh] flex flex-col"
+        className="relative flex w-full max-w-2xl flex-col border-ink-hairline bg-paper-raised shadow-card max-h-none sm:max-h-[90vh] sm:rounded-2xl sm:border"
         onClick={(e) => e.stopPropagation()}
       >
-        <header className="px-8 pt-6 pb-3 border-b border-ink-hairline">
+        <header className="border-b border-ink-hairline px-5 pb-3 pt-[max(1.5rem,env(safe-area-inset-top))] sm:px-8 sm:pt-6">
           <div className="flex items-center justify-between">
             <div>
               <div className="text-xs uppercase tracking-[0.08em] text-ink-secondary font-semibold">Rätta nytt prov</div>
@@ -279,7 +279,7 @@ export default function GradingWizard({
           
         </header>
 
-        <div className="flex-1 overflow-y-auto px-8 py-6">
+        <div className="flex-1 overflow-y-auto px-5 py-6 sm:px-8">
           <div className="space-y-5">
             {/* Grundflöde */}
             <div className="space-y-4">
@@ -304,8 +304,34 @@ export default function GradingWizard({
 
             <Field
               label="Skannad provbunt"
-              hint="Dra in eller välj en PDF med alla elevers prov, eller flera bilder. WiseOS sektionerar och rättar automatiskt."
+              hint="Fota proven direkt med kameran, eller välj en PDF/bilder. WiseOS sektionerar och rättar automatiskt."
             >
+              {/* Mobil: kamera primär — direktfotografering är huvudflödet.
+                  capture="environment" öppnar bakre kameran direkt på iOS/
+                  Android; filväljaren finns som sekundärt alternativ. */}
+              <div className="space-y-2 sm:hidden">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="btn-primary w-full gap-2.5 py-3.5 text-[15px]"
+                >
+                  <LineIcon name="camera" className="h-5 w-5" />
+                  Fota provet med kameran
+                </button>
+                <button
+                  type="button"
+                  onClick={() => inputRef.current?.click()}
+                  className="btn-secondary w-full py-3 text-[14px]"
+                >
+                  <LineIcon name="file" className="h-4 w-4" />
+                  Välj PDF eller bilder
+                </button>
+                <p className="text-center text-[11px] leading-relaxed text-ink-muted">
+                  En elev i taget — foton samlas i listan nedan
+                </p>
+              </div>
+
+              {/* Desktop: dropzone + sekundär kameraknapp */}
               <div
                 onClick={() => inputRef.current?.click()}
                 onDragOver={(e) => e.preventDefault()}
@@ -313,16 +339,16 @@ export default function GradingWizard({
                   e.preventDefault();
                   addFiles(Array.from(e.dataTransfer.files));
                 }}
-                className="cursor-pointer rounded-2xl border-2 border-dashed border-ink-hairline bg-paper hover:bg-paper-secondary hover:border-ink-hairline transition-all p-10 text-center"
+                className="hidden cursor-pointer rounded-2xl border-2 border-dashed border-ink-hairline bg-paper p-10 text-center transition-all hover:border-ink-hairline hover:bg-paper-secondary sm:block"
               >
-                <div className="mx-auto h-16 w-16 rounded-2xl bg-paper-secondary text-ink-secondary grid place-items-center shadow-soft">
+                <div className="mx-auto grid h-16 w-16 place-items-center rounded-2xl bg-paper-secondary text-ink-secondary shadow-soft">
                   <LineIcon name="upload" className="h-7 w-7" />
                 </div>
                 <div className="mt-5 text-lg font-semibold text-ink">
                   {files.length ? `${files.length} fil(er) valda` : "Dra in PDF eller bilder"}
                 </div>
-                <div className="mt-2 text-sm text-ink-secondary max-w-sm mx-auto">
-                  {files.length ? "Klicka eller dra för att byta filer." : "Klicka för att välja filer, eller släpp dem här."}
+                <div className="mx-auto mt-2 max-w-sm text-sm text-ink-secondary">
+                  {files.length ? "Klicka eller dra för att lägga till fler filer." : "Klicka för att välja filer, eller släpp dem här."}
                 </div>
                 <div className="mt-4 flex items-center justify-center gap-3 text-xs text-ink-muted">
                   <span className="flex items-center gap-1">
@@ -335,46 +361,46 @@ export default function GradingWizard({
                   <span>•</span>
                   <span>Max 100 MB</span>
                 </div>
-                <input
-                  ref={inputRef}
-                  type="file"
-                  multiple
-                  accept="application/pdf,image/*"
-                  className="hidden"
-                  onChange={(e) => {
-                    addFiles(Array.from(e.target.files || []));
-                    e.currentTarget.value = "";
-                  }}
-                />
               </div>
 
-              {/* Kamera-uppladdning — fotografera prov direkt med telefonen.
-                  På mobil öppnar capture="environment" kameran direkt; på
-                  desktop faller den tillbaka på vanlig filväljare. */}
-              <div className="flex flex-wrap items-center gap-2">
+              <div className="hidden flex-wrap items-center gap-2 sm:flex">
                 <button
                   type="button"
                   onClick={() => cameraInputRef.current?.click()}
                   className="btn-tertiary gap-2 px-4 py-2.5 text-[13px]"
                 >
-                  <LineIcon name="upload" className="h-4 w-4" />
+                  <LineIcon name="camera" className="h-4 w-4" />
                   Fota med kameran
                 </button>
                 <span className="text-xs text-ink-muted">
                   En elev i taget — foton läggs till i listan
                 </span>
-                <input
-                  ref={cameraInputRef}
-                  type="file"
-                  accept="image/*"
-                  capture="environment"
-                  className="hidden"
-                  onChange={(e) => {
-                    addFiles(Array.from(e.target.files || []));
-                    e.currentTarget.value = "";
-                  }}
-                />
               </div>
+
+              {/* Delade dolda fil-inputs — både mobil- och desktop-knappar
+                  trigg dessa. Appendar alltid; aldrig ersätt. */}
+              <input
+                ref={inputRef}
+                type="file"
+                multiple
+                accept="application/pdf,image/*"
+                className="hidden"
+                onChange={(e) => {
+                  addFiles(Array.from(e.target.files || []));
+                  e.currentTarget.value = "";
+                }}
+              />
+              <input
+                ref={cameraInputRef}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="hidden"
+                onChange={(e) => {
+                  addFiles(Array.from(e.target.files || []));
+                  e.currentTarget.value = "";
+                }}
+              />
 
               {/* Vald fillista — mobilvänlig: varje fil kan tas bort */}
               {files.length > 0 && (
@@ -432,7 +458,7 @@ export default function GradingWizard({
                 </div>
 
                 <Field label="Facithantering" hint="Välj hur WiseOS ska hantera facit för detta prov.">
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {[
                       { value: 'uploaded', label: 'Ladda upp', desc: 'Jag har eget facit' },
                       { value: 'ai_generated', label: 'AI-genererat', desc: 'Beskriv provet, WiseOS skapar facit' },
@@ -599,7 +625,7 @@ export default function GradingWizard({
                   label="Elevidentifiering"
                   hint="Hur ska WiseOS identifiera vilken elev som skrivit varje prov? Namnfält är förvalt."
                 >
-                  <div className="grid grid-cols-2 gap-2">
+                  <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
                     {[
                       { value: 'name_field', label: 'Namnfält', desc: 'OCR läser elevens namn', available: true },
                       { value: 'qr_code', label: 'QR-kod', desc: 'Kommer i en senare version', available: false },
@@ -670,7 +696,7 @@ export default function GradingWizard({
           </div>
         </div>
 
-                <footer className="px-8 py-4 border-t border-ink-hairline flex items-center justify-between gap-4">
+        <footer className="sticky bottom-0 flex items-center justify-between gap-4 border-t border-ink-hairline bg-paper-raised px-5 py-4 pb-[max(1rem,env(safe-area-inset-bottom))] sm:px-8">
           <button
             type="button"
             onClick={handleClose}
@@ -678,7 +704,7 @@ export default function GradingWizard({
           >
             Avbryt
           </button>
-          {startError && <p className="text-sm text-state-danger flex-1 text-right">{startError}</p>}
+          {startError && <p className="flex-1 text-right text-sm text-state-danger">{startError}</p>}
           <button
             onClick={handleStart}
             disabled={
@@ -688,7 +714,7 @@ export default function GradingWizard({
               files.length === 0 ||
               starting
             }
-            className="rounded-xl bg-ink text-paper px-6 py-2.5 text-sm font-semibold hover:bg-ink/90 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="rounded-xl bg-ink px-6 py-3 text-sm font-semibold text-paper hover:bg-ink/90 disabled:cursor-not-allowed disabled:opacity-40 sm:py-2.5"
           >
             <span className="inline-flex items-center gap-2">
               <LineIcon name="play" className="h-3.5 w-3.5" /> {starting ? "Skapar prov…" : "Starta rättning"}

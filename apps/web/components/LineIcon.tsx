@@ -22,7 +22,8 @@ export type IconName =
   | "users"
   | "sparkles"
   | "chat"
-  | "send";
+  | "send"
+  | "camera";
 
 export default function LineIcon({
   name,
@@ -163,6 +164,12 @@ export default function LineIcon({
       <>
         <path d="M22 2 11 13" />
         <path d="M22 2l-7 20-4-9-9-4 20-7Z" />
+      </>
+    ),
+    "camera": (
+      <>
+        <path d="M4 8h3.2l1.6-2.4h6.4L16.8 8H20a1.5 1.5 0 0 1 1.5 1.5V18a1.5 1.5 0 0 1-1.5 1.5H4A1.5 1.5 0 0 1 2.5 18V9.5A1.5 1.5 0 0 1 4 8Z" />
+        <circle cx="12" cy="13.5" r="3.4" />
       </>
     ),
   };
