@@ -7,7 +7,9 @@ import Surface from "./ui/Surface";
 import EmptyState from "./ui/EmptyState";
 import StatusBadge from "./ui/StatusBadge";
 import LineIcon from "./LineIcon";
+import MathText from "./Math";
 import PublishResultsModal from "./PublishResultsModal";
+import "katex/dist/katex.min.css";
 
 export default function ReviewWorkbench() {
   const { reviewLayout } = useTheme();
@@ -301,22 +303,22 @@ function ResultCard({
                     <>
                       {step?.questionText && (
                         <p className="mt-1.5 text-[12.5px] text-ink-secondary leading-relaxed">
-                          <span className="font-medium text-ink">Fråga:</span> {step.questionText}
+                          <span className="font-medium text-ink">Fråga:</span> <MathText content={step.questionText} />
                         </p>
                       )}
                       {step?.studentWork !== undefined && (
                         <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                          <span className="font-medium text-ink">Elevens svar:</span> {step.studentWork || "(inte extraherat)"}
+                          <span className="font-medium text-ink">Elevens svar:</span> <MathText content={step.studentWork || "(inte extraherat)"} />
                         </p>
                       )}
                       {step?.correctAnswer && (
                         <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                          <span className="font-medium text-ink">Facit:</span> {step.correctAnswer}
+                          <span className="font-medium text-ink">Facit:</span> <MathText content={step.correctAnswer} />
                         </p>
                       )}
                       {step?.feedback && (
                         <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                          <span className="font-medium text-ink">AI-analys:</span> {step.feedback}
+                          <span className="font-medium text-ink">AI-analys:</span> <MathText content={step.feedback} />
                         </p>
                       )}
                     </>

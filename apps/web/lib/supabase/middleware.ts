@@ -41,7 +41,9 @@ export async function updateSession(request: NextRequest) {
 
   // Route-skydd: oautentiserade besökare skickas till /login, som nu
   // fungerar som appens publika landningssida (hero + inloggning/signup).
-  const isPublicPath = pathname.startsWith("/login");
+  // /demo är publikt — visar produkten med exempeldata för besökare.
+  const isPublicPath =
+    pathname.startsWith("/login") || pathname.startsWith("/demo");
   if (!user && !isPublicPath) {
     const redirectUrl = new URL("/login", request.url);
     return NextResponse.redirect(redirectUrl);

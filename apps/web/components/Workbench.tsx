@@ -10,10 +10,12 @@ import {
   type Step,
 } from "@/lib/store";
 import LineIcon from "./LineIcon";
+import MathText from "./Math";
 import Breadcrumb from "./ui/Breadcrumb";
 import EmptyState from "./ui/EmptyState";
 import PageHeader from "./ui/PageHeader";
 import Surface from "./ui/Surface";
+import "katex/dist/katex.min.css";
 
 type Props = {
   result: StudentResult;
@@ -126,7 +128,7 @@ function ScanPanel({ pages }: { pages: string[] }) {
     <Surface padding="p-0" className="overflow-hidden !shadow-card">
       <div className="px-5 py-3 flex items-center justify-between gap-3 bg-paper-secondary">
         <div className="text-xs font-medium uppercase tracking-wider text-ink-secondary">Originaldokument · skannat</div>
-        <div className="text-xs text-ink-muted">{totalPages} sida{totalPages !== 1 ? "or" : ""}</div>
+        <div className="text-xs text-ink-muted">{totalPages} {totalPages === 1 ? "sida" : "sidor"}</div>
       </div>
       <div className="p-4 space-y-4">
         {pages.length === 0 ? (
@@ -136,7 +138,7 @@ function ScanPanel({ pages }: { pages: string[] }) {
           />
         ) : (
           pages.map((src, i) => {
-            if (src.startsWith("data:image")) {
+            if (src.startsWith("data:image") || src.startsWith("/") || src.startsWith("http")) {
               return (
                 <div key={i} className="relative rounded-2xl overflow-hidden shadow-card">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
@@ -293,7 +295,7 @@ function StepCard({
           Elev:
         </span>{" "}
         {step.studentWork ? (
-          <span className="whitespace-pre-wrap">{step.studentWork}</span>
+          <MathText content={step.studentWork} />
         ) : (
           <span
             className="text-ink-muted italic"
@@ -329,14 +331,14 @@ function StepCard({
             AI-annotation
           </span>
 
-          {annotation?.summary && <p className="mt-1">{annotation.summary}</p>}
+          {annotation?.summary && <p className="mt-1"><MathText content={annotation.summary} /></p>}
 
           {annotation?.evidence?.length ? (
             <ul className="mt-1.5 space-y-0.5">
               {annotation.evidence.map((item, i) => (
                 <li key={`ev-${i}`} className="flex gap-1.5">
                   <span className={"text-state-success"}>✓</span>
-                  <span>{item}</span>
+                  <span><MathText content={item} /></span>
                 </li>
               ))}
             </ul>
@@ -347,7 +349,7 @@ function StepCard({
               {annotation.issues.map((item, i) => (
                 <li key={`is-${i}`} className="flex gap-1.5">
                   <span className={"text-state-danger"}>✗</span>
-                  <span>{item}</span>
+                  <span><MathText content={item} /></span>
                 </li>
               ))}
             </ul>
@@ -358,7 +360,7 @@ function StepCard({
               {annotation.suggestions.map((item, i) => (
                 <li key={`sg-${i}`} className="flex gap-1.5">
                   <span className={"text-state-warning"}>→</span>
-                  <span>{item}</span>
+                  <span><MathText content={item} /></span>
                 </li>
               ))}
             </ul>
@@ -369,7 +371,7 @@ function StepCard({
       {step.mathVerification && step.mathVerification.status !== "not_applicable" && (
         <div className="mt-2 rounded-xl border border-ink-hairline bg-paper-secondary/50 p-3 text-xs leading-relaxed text-ink-secondary">
           <span className="font-semibold text-ink">Matematisk verifiering:</span>{" "}
-          {step.mathVerification.message}
+          <MathText content={step.mathVerification.message} />
           <span className="ml-2 text-ink-muted">
             {step.mathVerification.provider === "wolfram" ? "Wolfram" : "Lokal kontroll"}
             {step.mathVerification.confidence > 0
@@ -385,7 +387,7 @@ function StepCard({
           className="mt-2 rounded-xl p-3 text-xs leading-relaxed bg-paper-secondary text-ink"
         >
           <span className="font-semibold mr-1">Feedback:</span>
-          {step.feedback}
+          <MathText content={step.feedback} />
         </div>
       )}
 
