@@ -29,6 +29,11 @@ export async function updateSession(request: NextRequest) {
     const url = base;
     url.pathname = "/auth/callback";
     url.search = `?code=${encodeURIComponent(code!)}&next=${encodeURIComponent(pathname)}`;
+    if (!isLocal) {
+      url.host = canonicalHost;
+      url.protocol = "https";
+      url.port = "";
+    }
     return url;
   };
 
@@ -81,7 +86,16 @@ export async function updateSession(request: NextRequest) {
   const isPublicPath =
     pathname.startsWith("/login") || pathname.startsWith("/demo");
   if (!user && !isPublicPath) {
-    const redirectUrl = new URL("/login", request.url);
+    // request.url är intern bakom proxyn (localhost:8080) — bygg den publika
+    // adressen från forwarded-host så redirecten aldrig pekar på containern.
+    const redirectUrl = request.nextUrl.clone();
+    redirectUrl.pathname = "/login";
+    redirectUrl.search = "";
+    if (!isLocal) {
+      redirectUrl.host = host || canonicalHost;
+      redirectUrl.protocol = "https";
+      redirectUrl.port = "";
+    }
     return NextResponse.redirect(redirectUrl);
   }
 

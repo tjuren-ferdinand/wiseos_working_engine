@@ -12,7 +12,17 @@ export async function GET(request: Request) {
   const requestUrl = new URL(request.url);
   const code = requestUrl.searchParams.get("code");
   const next = requestUrl.searchParams.get("next") ?? "/";
-  const origin = requestUrl.origin;
+
+  // Bakom Railway-proxyn är request.url intern (http://localhost:8080) —
+  // bygg origin från forwarded-headers så redirecten går till den publika
+  // domänen, aldrig till containerns interna adress.
+  const host =
+    request.headers.get("x-forwarded-host")?.split(",")[0].trim() ??
+    request.headers.get("host") ??
+    "";
+  const isLocal = host.startsWith("localhost") || host.startsWith("127.0.0.1");
+  const proto = request.headers.get("x-forwarded-proto")?.split(",")[0].trim() ?? "https";
+  const origin = isLocal || !host ? requestUrl.origin : `${proto}://${host}`;
 
   console.log("[auth/callback] Full URL:", request.url);
   console.log("[auth/callback] code present:", !!code);
