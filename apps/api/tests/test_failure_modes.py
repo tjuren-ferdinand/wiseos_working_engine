@@ -25,6 +25,7 @@ from app.services import batch_pipeline, feedback, gemini_vision
 from app.services.batch_identification import IdentifiedName
 from app.services.batch_pipeline import (
     UploadedFile,
+    _split_page_suffix,
     apply_math_verification,
     derive_student_name,
     expand_pdf_uploads,
@@ -503,6 +504,127 @@ async def test_filename_group_uses_one_confident_name_field(monkeypatch):
     assert documents[0].identification_method == "name_field"
     assert documents[0].identification_confidence == 0.96
     assert [page.content for page in documents[0].pages] == [b"first", b"second"]
+
+
+# ---------------------------------------------------------------------------
+# Golden: elevgruppering — reproduktion av produktionsbuggen "prov1–prov5"
+# ---------------------------------------------------------------------------
+
+
+def test_page_suffix_requires_separator_or_keyword():
+    """Naken siffra på stammen är inte ett sidsuffix ("prov1" ≠ sida 1)."""
+    assert _split_page_suffix("prov1") == ("prov1", 1)
+    assert _split_page_suffix("scan3") == ("scan3", 1)
+    assert _split_page_suffix("bild5") == ("bild5", 1)
+    # Separator eller nyckelord → fortfarande sidsuffix som förut.
+    assert _split_page_suffix("Anna_sida2") == ("Anna", 2)
+    assert _split_page_suffix("Sara Lind (2)") == ("Sara Lind", 2)
+    assert _split_page_suffix("Anna - p3") == ("Anna", 3)
+
+
+def test_bare_digit_filenames_stay_separate_documents():
+    """prov1..prov5 är fem separata elever — aldrig sidor i samma dokument."""
+    docs = group_pages_by_student([_upload(f"prov{i}.png") for i in range(1, 6)])
+    assert len(docs) == 5
+    assert all(len(d.pages) == 1 for d in docs)
+
+
+def test_generic_swedish_stems_never_become_name_buckets():
+    """"prov 2", "tenta_1" etc. är generiska stammar — eget dokument per fil."""
+    docs = group_pages_by_student(
+        [_upload("prov 1.png"), _upload("prov 2.png"), _upload("tenta_1.png")]
+    )
+    assert len(docs) == 3
+
+
+@pytest.mark.asyncio
+async def test_conflicting_names_in_bucket_are_split_not_merged(monkeypatch):
+    """Bucket med flera säkra men OLIKA namn splittas — ett dokument per elev.
+
+    Reproducerar produktionsbuggen: tidigare markerades detta som
+    'conflicting_name_fields' och alla sidor slogs ihop till "Okänd elev".
+    """
+    names = {
+        b"p1": "Sara Lindqvist",
+        b"p2": "Elin Karlsson",
+        b"p3": "Marcus Bergström",
+        b"p4": "Oskar Nyström",
+        b"p5": "Vera Holm",
+    }
+
+    async def identify(page, *, identification_method):
+        return IdentifiedName(names[page[0]], 0.95, "name_field")
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    # Fem filer som filnamnsbucketas ihop (samma icke-generiska stam +
+    # explicit sidsuffix) men som innehåller fem olika elever.
+    files = [
+        UploadedFile(f"Fysikprov_sida{i}.png", f"p{i}".encode(), "image/png")
+        for i in range(1, 6)
+    ]
+    documents = await identify_and_group_pages(files)
+    assert len(documents) == 5
+    assert {d.student_name for d in documents} == set(names.values())
+    assert all(d.identification_method == "name_field" for d in documents)
+    assert all(len(d.pages) == 1 for d in documents)
+
+
+@pytest.mark.asyncio
+async def test_class_pdf_splits_into_per_student_documents(monkeypatch):
+    """Sammanslagen klass-PDF: nytt säkert namnfält öppnar nytt elevsegment."""
+    writer = PdfWriter()
+    for _ in range(6):
+        writer.add_blank_page(width=100, height=100)
+    buf = BytesIO()
+    writer.write(buf)
+    files = expand_pdf_uploads(
+        [UploadedFile("klassprov.pdf", buf.getvalue(), "application/pdf")]
+    )
+    assert len(files) == 6
+
+    per_page = iter(
+        [
+            "Sara Lindqvist",   # sida 1 — ankare
+            "Sara Lindqvist",   # sida 2 — samma elev, fortsättning
+            "Elin Karlsson",    # sida 3 — nytt ankare
+            "Marcus Bergström", # sida 4 — nytt ankare
+            "Marcus Bergström",
+            "Marcus Bergström",
+        ]
+    )
+
+    async def identify(page, *, identification_method):
+        return IdentifiedName(next(per_page), 0.95, "name_field")
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    documents = await identify_and_group_pages(files)
+    assert [d.student_name for d in documents] == [
+        "Sara Lindqvist",
+        "Elin Karlsson",
+        "Marcus Bergström",
+    ]
+    assert [len(d.pages) for d in documents] == [2, 1, 3]
+
+
+@pytest.mark.asyncio
+async def test_multi_page_same_student_stays_one_document(monkeypatch):
+    """Regressionsskydd: 2 sidor samma elev (samma namnfält) = 1 inlämning."""
+    async def identify(page, *, identification_method):
+        return IdentifiedName("Anna Andersson", 0.95, "name_field")
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    writer = PdfWriter()
+    writer.add_blank_page(width=100, height=100)
+    writer.add_blank_page(width=100, height=100)
+    buf = BytesIO()
+    writer.write(buf)
+    files = expand_pdf_uploads(
+        [UploadedFile("anna.pdf", buf.getvalue(), "application/pdf")]
+    )
+    documents = await identify_and_group_pages(files)
+    assert len(documents) == 1
+    assert documents[0].student_name == "Anna Andersson"
+    assert len(documents[0].pages) == 2
 
 
 def test_feedback_output_never_exposes_internal_reasoning():

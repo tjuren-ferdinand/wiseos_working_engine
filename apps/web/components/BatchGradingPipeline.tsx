@@ -166,28 +166,42 @@ export default function BatchGradingPipeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // Mappa filkort → resultat via sourceFiles (ursprungsfilnamn per sida).
+  // Backend returnerar ett resultat per elevDOKUMENT, inte per fil — en
+  // sammanslagen PDF eller flersidigt prov täcker flera/ett filkort. Kort
+  // utan träff markeras "merged" så de aldrig fastnar på "Analyserar…".
   useEffect(() => {
     if (results.length === 0) return;
-    results.forEach((r, i) => {
+    const byFile = new Map<string, StudentResult>();
+    for (const r of results) {
+      for (const f of r.sourceFiles ?? []) {
+        if (!byFile.has(f)) byFile.set(f, r);
+      }
+    }
+    files.forEach((f, i) => {
+      const r = byFile.get(f.name);
       timersRef.current.push(
         window.setTimeout(() => {
           setFlowStudents((prev) =>
             prev.map((s, j) =>
               j === i
-                ? {
-                    ...s,
-                    name: r.studentName || s.name,
-                    status: "done",
-                    score: r.totalScore,
-                    maxScore: r.maxScore,
-                    percentage: r.percentage,
-                  }
+                ? r
+                  ? {
+                      ...s,
+                      name: r.studentName || s.name,
+                      status: "done",
+                      score: r.totalScore,
+                      maxScore: r.maxScore,
+                      percentage: r.percentage,
+                    }
+                  : { ...s, status: "merged" }
                 : s,
             ),
           );
         }, i * 300),
       );
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [results]);
 
   if (!open || typeof document === "undefined") return null;
