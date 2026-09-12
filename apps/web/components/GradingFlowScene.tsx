@@ -21,7 +21,7 @@ export type FlowPhase = "uploading" | "processing" | "saving" | "complete" | "er
 export type FlowStudent = {
   id: string;
   name: string;
-  status: "queued" | "working" | "done";
+  status: "queued" | "working" | "done" | "merged";
   score?: number;
   maxScore?: number;
   percentage?: number;
@@ -135,6 +135,7 @@ function StudentCard({
 }) {
   const done = student.status === "done";
   const working = student.status === "working";
+  const merged = student.status === "merged";
 
   // Liten deterministisk spridning så korten känns placerade på en canvas,
   // inte i en stel grid — alternerar lutning och vertikalförskjutning.
@@ -205,6 +206,8 @@ function StudentCard({
               ? `${student.score?.toFixed(1) ?? "–"} / ${student.maxScore ?? "–"} poäng`
               : working
               ? "Analyserar…"
+              : merged
+              ? "Slås samman"
               : "I kö"}
           </div>
         </div>
@@ -413,6 +416,8 @@ function SidePanel({
                         ? "rgb(var(--state-success))"
                         : s.status === "working"
                         ? "rgb(var(--foreground) / 0.58)"
+                        : s.status === "merged"
+                        ? "rgb(var(--foreground) / 0.35)"
                         : "rgb(var(--foreground) / 0.18)",
                   }}
                 />
@@ -424,6 +429,8 @@ function SidePanel({
                     ? `${s.score?.toFixed(1) ?? "–"} p`
                     : s.status === "working"
                     ? "…"
+                    : s.status === "merged"
+                    ? "→"
                     : "kö"}
                 </span>
               </div>

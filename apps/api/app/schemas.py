@@ -213,6 +213,7 @@ class StudentDocumentResult(BaseModel):
     identificationMethod: str = "unresolved"
     identificationConfidence: float = 0.0
     scanPages: list[str] = []   # data-URL per sida, i sidordning
+    sourceFiles: list[str] = [] # ursprungsfilnamn per sida (för UI-mappning)
     document: DocumentMeta = DocumentMeta()
     questions: list[QuestionResult] = []
 
