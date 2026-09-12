@@ -127,6 +127,8 @@ export type StudentDocumentResult = {
   identificationMethod: string;
   identificationConfidence: number;
   scanPages: string[];
+  /** Ursprungsfilnamn per sida — mappar frontendens filkort mot rätt resultat. */
+  sourceFiles?: string[];
   document: DocumentMeta;
   questions: QuestionResult[];
 };

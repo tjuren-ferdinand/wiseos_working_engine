@@ -119,6 +119,8 @@ export interface StudentResult {
   gradedAt?: string;
   /** Originalskanning(ar) som data-URL, en per sida i sidordning. */
   scanPages?: string[];
+  /** Ursprungsfilnamn per sida — mappar uppladdade filkort mot rätt elevresultat. */
+  sourceFiles?: string[];
   /** Diagnostik från rättningsmotorn (modell, latens, fel). */
   document?: DocumentMeta;
 }
@@ -667,6 +669,7 @@ function mapBatchToStudentResult(
     scannedAt: now,
     gradedAt: now,
     scanPages: b.scanPages,
+    sourceFiles: b.sourceFiles,
     document: b.document,
   };
 }

@@ -148,8 +148,15 @@ class StudentDocument:
 
 # Filnamnssuffix som anger sidnummer: "Anna_Andersson_sida2.jpg", "Anna - p3.png",
 # "Anna_Andersson (2).jpg". Gruppen 'num' är sidnumret.
+#
+# Siffran MÅSTE föregås av en separator (mellanslag/_/-/.//#/() eller ett
+# sid-nyckelord. En naken siffra direkt på stammen — "prov1", "scan3",
+# "bild5" — är inte ett sidsuffix utan del av filnamnet, annars skulle
+# separata elevfiler som heter prov1..prov5 felaktigt grupperas som sidor
+# i samma elevs dokument.
 _PAGE_SUFFIX = re.compile(
-    r"[\s_\-.]*(?:sid(?:a|an)?|page|p|s|del|part)?[\s_\-.#]*\(?(?P<num>\d{1,3})\)?\s*$",
+    r"(?:[\s_\-.#]+\(?|(?:sid(?:a|an)?|page|p|s|del|part)[\s_\-.#]*\(?)"
+    r"(?P<num>\d{1,3})\)?\s*$",
     re.IGNORECASE,
 )
 
@@ -212,6 +219,12 @@ _GENERIC_STEMS = {
     "image", "img", "scan", "scanned", "dokument", "doc", "test", "page",
     "sida", "okand", "okänd", "unknown", "file", "picture", "pic", "photo",
     "bild", "foto", "dsc", "sample", "exempel",
+    # Svenska skol-skanningsstammar — "prov 1", "tenta_2", "klass-3" är
+    # sidnummer på en generisk stam, aldrig ett elevnamn.
+    "prov", "exam", "tenta", "diagnos", "bedömning", "bedomning",
+    "inlämning", "inlamning", "inlupp", "skanning", "klass", "uppgift",
+    "uppg", "matte", "ma", "fysik", "fy", "kemi", "ke", "elev",
+    "screenshot", "whatsapp", "fil", "filen",
 }
 _NUMERIC_ONLY = re.compile(r"^\d+$")
 
@@ -247,6 +260,10 @@ def _resolve_name(
     if not derived or derived == "Okänd elev":
         return f"Okänd elev - {upload.filename}"
     return derived
+
+
+def _same_student(a: str, b: str) -> bool:
+    return " ".join(a.casefold().split()) == " ".join(b.casefold().split())
 
 
 async def identify_and_group_pages(
@@ -292,9 +309,45 @@ async def identify_and_group_pages(
             candidate.identification_method = "name_field"
             candidate.identification_confidence = min(1.0, max(item.confidence for item in identified))
         elif len(names) > 1:
-            candidate.student_name = f"Okänd elev - {candidate.pages[0].filename}"
-            candidate.identification_method = "conflicting_name_fields"
-            candidate.identification_confidence = 0.0
+            # Flera säkert lästa men OLIKA namn i samma filnamnsbucket —
+            # dela upp i separata elevdokument per namnankare istället för
+            # att slå ihop allt till en "Okänd elev". Sidor utan säkert
+            # namn hakar på det öppna segmentet (positionell fortsättning);
+            # sidor före första ankaret blir egna unresolved-poster.
+            open_segment: StudentDocument | None = None
+            for page in candidate.pages:
+                item = extraction_by_file[id(page)]
+                page_name = (item.studentName or "").strip()
+                anchored = bool(page_name) and item.confidence >= 0.85
+                if anchored:
+                    if open_segment is not None and _same_student(
+                        open_segment.student_name, page_name
+                    ):
+                        open_segment.pages.append(page)
+                        open_segment.identification_confidence = min(
+                            open_segment.identification_confidence,
+                            item.confidence,
+                        )
+                    else:
+                        open_segment = StudentDocument(
+                            student_name=page_name,
+                            pages=[page],
+                            identification_method="name_field",
+                            identification_confidence=item.confidence,
+                        )
+                        documents.append(open_segment)
+                elif open_segment is not None:
+                    open_segment.pages.append(page)
+                else:
+                    documents.append(
+                        StudentDocument(
+                            student_name=f"Okänd elev - {page.filename}",
+                            pages=[page],
+                            identification_method="unresolved",
+                            identification_confidence=0.0,
+                        )
+                    )
+            continue
         else:
             stem = re.sub(r"\.[^.]+$", "", candidate.pages[0].filename or "")
             base, _ = _split_page_suffix(stem)
@@ -330,9 +383,6 @@ async def identify_and_group_pages(
     merged: list[StudentDocument] = []
     current_source: str | None = None
     open_segment: StudentDocument | None = None
-
-    def _same_student(a: str, b: str) -> bool:
-        return " ".join(a.casefold().split()) == " ".join(b.casefold().split())
 
     for document in documents:
         source = document.pages[0].source_id
@@ -553,6 +603,9 @@ async def grade_batch(
                 identificationMethod=document.identification_method,
                 identificationConfidence=document.identification_confidence,
                 scanPages=[_data_url(page) for page in document.pages],
+                sourceFiles=list(
+                    dict.fromkeys(p.source_id or p.filename for p in document.pages)
+                ),
                 document=meta,
                 questions=questions,
             )
