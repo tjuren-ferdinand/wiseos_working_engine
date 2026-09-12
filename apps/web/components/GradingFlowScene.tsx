@@ -148,7 +148,7 @@ function StudentCard({
       initial={{ opacity: 0, scale: 0.9, y: 18 }}
       animate={{ opacity: 1, scale: 1, y: lift, rotate: tilt }}
       transition={{ type: "spring", damping: 22, stiffness: 320 }}
-      className="relative w-[240px]"
+      className="relative w-[200px] sm:w-[240px]"
     >
       <motion.div
         drag
@@ -369,7 +369,7 @@ function SidePanel({
       animate={{ opacity: 1, x: 0 }}
       exit={{ opacity: 0, x: 24 }}
       transition={{ type: "spring", damping: 28, stiffness: 320 }}
-      className="absolute bottom-4 right-4 top-[72px] z-20 flex w-[300px] flex-col overflow-hidden rounded-2xl border backdrop-blur-md"
+      className="absolute inset-x-3 bottom-3 top-auto z-20 flex max-h-[55vh] w-auto flex-col overflow-hidden rounded-2xl border backdrop-blur-md sm:inset-x-auto sm:bottom-4 sm:right-4 sm:top-[72px] sm:max-h-none sm:w-[300px]"
       style={{
         borderColor: "rgb(var(--hairline) / 0.12)",
         background: "rgb(var(--surface-elevated) / 0.92)",
@@ -561,7 +561,7 @@ export default function GradingFlowScene({
         initial={{ opacity: 0, x: -16 }}
         animate={{ opacity: 1, x: 0 }}
         transition={{ delay: 0.35, type: "spring", damping: 26, stiffness: 280 }}
-        className="relative z-20 flex w-14 shrink-0 flex-col items-center gap-1.5 border-r py-4"
+        className="relative z-20 flex w-11 shrink-0 flex-col items-center gap-1.5 border-r py-3 sm:w-14 sm:py-4"
         style={{
           borderColor: "rgb(var(--hairline) / 0.08)",
           background: "rgb(var(--surface) / 0.5)",
@@ -583,11 +583,11 @@ export default function GradingFlowScene({
           initial={{ opacity: 0, y: -12 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.45, type: "spring", damping: 26, stiffness: 280 }}
-          className="flex h-14 shrink-0 items-center justify-between gap-4 border-b px-5"
+          className="flex h-14 shrink-0 items-center justify-between gap-2 border-b px-3 sm:gap-4 sm:px-5"
           style={{ borderColor: "rgb(var(--hairline) / 0.08)" }}
         >
           <div className="flex min-w-0 items-baseline gap-3">
-            <span className="shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[rgb(var(--muted))]">
+            <span className="hidden shrink-0 text-[10.5px] font-semibold uppercase tracking-[0.18em] text-[rgb(var(--muted))] sm:inline">
               {isError
                 ? "Rättning avbruten"
                 : isComplete
@@ -598,12 +598,12 @@ export default function GradingFlowScene({
               {provTitle}
             </h2>
           </div>
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-2 sm:gap-3">
             {students.length > 0 && (
               <button
                 type="button"
                 onClick={() => setLayoutVersion((version) => version + 1)}
-                className="rounded-lg border px-3 py-1.5 text-[12px] transition-colors"
+                className="hidden rounded-lg border px-3 py-1.5 text-[12px] transition-colors sm:block"
                 style={{
                   borderColor: "rgb(var(--hairline) / 0.10)",
                   color: "rgb(var(--muted))",
@@ -617,14 +617,16 @@ export default function GradingFlowScene({
             {onClose && (
               <button
                 onClick={onClose}
-                className="rounded-lg border px-3 py-1.5 text-[12px] transition-colors"
+                aria-label="Stäng"
+                className="grid h-9 w-9 place-items-center rounded-lg border transition-colors sm:h-auto sm:w-auto sm:px-3 sm:py-1.5"
                 style={{
                   borderColor: "rgb(var(--hairline) / 0.12)",
                   color: "rgb(var(--muted))",
                   background: "rgb(var(--surface-elevated) / 0.8)",
                 }}
               >
-                Stäng
+                <RailIcon name="x" className="h-4 w-4 sm:hidden" />
+                <span className="hidden text-[12px] sm:inline">Stäng</span>
               </button>
             )}
           </div>
@@ -638,7 +640,7 @@ export default function GradingFlowScene({
           transition={{ delay: 0.55, duration: 0.5 }}
           className="relative flex-1 overflow-y-auto"
         >
-          <div className="mx-auto flex max-w-4xl flex-wrap content-start items-start justify-center gap-4 px-8 py-12">
+          <div className="mx-auto flex max-w-4xl flex-wrap content-start items-start justify-center gap-3 px-4 py-6 sm:gap-4 sm:px-8 sm:py-12">
             <AnimatePresence>
               {students.map((s, i) => (
                 <StudentCard key={`${s.id}-${layoutVersion}`} student={s} index={i} constraintsRef={canvasRef} />
@@ -687,10 +689,10 @@ export default function GradingFlowScene({
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: 16 }}
             transition={{ type: "spring", damping: 26, stiffness: 300, delay: 0.25 }}
-            className="absolute inset-x-0 bottom-6 z-30 mx-auto w-fit"
+            className="absolute inset-x-3 bottom-4 z-30 mx-auto w-fit max-w-full sm:inset-x-0 sm:bottom-6"
           >
             <div
-              className="flex items-center gap-5 rounded-2xl border px-6 py-4 backdrop-blur-md"
+              className="flex flex-col items-stretch gap-4 rounded-2xl border px-5 py-4 backdrop-blur-md sm:flex-row sm:items-center sm:gap-5 sm:px-6"
               style={{
                 borderColor: "rgb(var(--state-success) / 0.3)",
                 background: "rgb(var(--surface-elevated) / 0.95)",
@@ -724,11 +726,11 @@ export default function GradingFlowScene({
                   </div>
                 </div>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
                 {onReview && (
                   <button
                     onClick={onReview}
-                    className="rounded-lg px-4 py-2 text-[12.5px] font-semibold transition-colors"
+                    className="rounded-lg px-4 py-2.5 text-[12.5px] font-semibold transition-colors sm:py-2"
                     style={{
                       background: "rgb(var(--foreground))",
                       color: "rgb(var(--background))",
@@ -740,7 +742,7 @@ export default function GradingFlowScene({
                 {onClose && (
                   <button
                     onClick={onClose}
-                    className="rounded-lg border px-4 py-2 text-[12.5px] font-medium transition-colors"
+                    className="rounded-lg border px-4 py-2.5 text-[12.5px] font-medium transition-colors sm:py-2"
                     style={{
                       borderColor: "rgb(var(--hairline) / 0.15)",
                       color: "rgb(var(--muted))",

@@ -379,7 +379,7 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
   return (
     <div className="max-w-3xl space-y-4">
       {/* Standardinställningar */}
-      <div className="rounded-[16px] p-7 bg-paper-raised border border-ink-hairline shadow-soft">
+      <div className="rounded-[16px] p-5 sm:p-7 bg-paper-raised border border-ink-hairline shadow-soft">
         <h2 className="text-[16px] font-medium tracking-[-0.01em] text-ink">
           Rättningsinställningar
         </h2>
@@ -419,7 +419,7 @@ function ParamsTab({ klassId, initial }: { klassId: string; initial: GradingPara
 
         {showAdvanced && (
           <div className="mt-4 space-y-4 pt-5 border-t border-ink-hairline">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <label className="block">
                 <div className="text-[14px] font-medium text-ink">Enhetsavdrag</div>
                 <div className="text-[12.5px] text-ink-muted">Poäng att dra av om enhet saknas</div>

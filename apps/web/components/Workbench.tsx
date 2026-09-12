@@ -66,7 +66,8 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
               onClick={handlePrint}
               className="btn-secondary"
             >
-              Skriv ut genomgång + Original-PDF
+              <span className="sm:hidden">Skriv ut</span>
+              <span className="hidden sm:inline">Skriv ut genomgång + Original-PDF</span>
             </button>
           </div>
         </div>
