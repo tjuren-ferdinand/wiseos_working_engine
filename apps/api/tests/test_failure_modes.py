@@ -627,6 +627,265 @@ async def test_multi_page_same_student_stays_one_document(monkeypatch):
     assert len(documents[0].pages) == 2
 
 
+# ---------------------------------------------------------------------------
+# Golden: dokumenttypklassificering — blankett/facit flaggas, rättas aldrig
+# som elevinlämning med 0 poäng. Reproducerar test_PROV_2-fallet.
+# ---------------------------------------------------------------------------
+
+
+class _CountingVisionProvider:
+    """Minimal vision-provider som bara räknar anrop."""
+
+    def __init__(self):
+        self.calls = 0
+
+    async def analyze_document(
+        self, *, pages, answer_key, grading_notes, student_label
+    ):
+        self.calls += 1
+        meta = DocumentMeta(
+            pageCount=len(pages), model="test", questionsExpected=len(answer_key)
+        )
+        questions = [
+            QuestionResult(
+                questionNumber=str(i.question_number),
+                found=True,
+                studentWork="elevens svar",
+                correctAnswer=i.final_answer,
+                assessment=Assessment(
+                    status="correct", points=i.max_points, maxPoints=i.max_points
+                ),
+            )
+            for i in answer_key
+        ]
+        return questions, meta
+
+
+async def _noop_math_verification(questions, answer_key):
+    return None
+
+
+async def _noop_feedback_provider(questions):
+    return None
+
+
+def _mock_grading(monkeypatch, provider: _CountingVisionProvider):
+    monkeypatch.setattr(batch_pipeline, "get_vision_provider", lambda: provider)
+    monkeypatch.setattr(
+        batch_pipeline, "apply_math_verification", _noop_math_verification
+    )
+    monkeypatch.setattr(
+        batch_pipeline, "apply_feedback_provider", _noop_feedback_provider
+    )
+
+
+@pytest.mark.asyncio
+async def test_blank_exam_and_key_flagged_not_graded(monkeypatch):
+    """PDF med frågeblad + facit, inget elevarbete: flaggas som
+    'not_student_submission' och rättningsmotorn anropas ALDRIG."""
+    writer = PdfWriter()
+    for _ in range(4):
+        writer.add_blank_page(width=100, height=100)
+    buf = BytesIO()
+    writer.write(buf)
+    files = expand_pdf_uploads(
+        [UploadedFile("test_PROV_2.pdf", buf.getvalue(), "application/pdf")]
+    )
+    assert len(files) == 4
+
+    specs = iter(
+        [
+            ("question_sheet", False),
+            ("question_sheet", False),
+            # Handskriven facit — får aldrig vändas till elevarbete.
+            ("answer_key", True),
+            ("answer_key", True),
+        ]
+    )
+
+    async def identify(page, *, identification_method):
+        page_type, handwriting = next(specs)
+        return IdentifiedName(
+            None, 0.0, "name_field",
+            pageType=page_type, hasHandwriting=handwriting,
+            documentTitle="Prov 1 (Analysdelen)",
+        )
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    provider = _CountingVisionProvider()
+    _mock_grading(monkeypatch, provider)
+
+    results = await batch_pipeline.grade_batch(
+        prov_id="p1",
+        answer_key=[_item()],
+        class_grading_parameters="",
+        test_specific_parameters="",
+        files=files,
+    )
+    assert provider.calls == 0
+    assert results
+    assert all(
+        r.document.documentType == "not_student_submission" for r in results
+    )
+    assert all(
+        q.assessment.status == "needs_review"
+        for r in results
+        for q in r.questions
+    )
+    assert all(
+        "elevinlämning" in q.feedback for r in results for q in r.questions
+    )
+
+
+@pytest.mark.asyncio
+async def test_answer_key_never_absorbs_into_student_segment(monkeypatch):
+    """Facitsida mellan elevsidor i samma PDF: aldrig fortsättningssida —
+    den blir eget flaggat segment och elevens sidor rättas utan den."""
+    writer = PdfWriter()
+    for _ in range(3):
+        writer.add_blank_page(width=100, height=100)
+    buf = BytesIO()
+    writer.write(buf)
+    files = expand_pdf_uploads(
+        [UploadedFile("anna_med_facit.pdf", buf.getvalue(), "application/pdf")]
+    )
+
+    per_page = iter(
+        [
+            IdentifiedName("Anna Andersson", 0.95, "name_field",
+                           pageType="student_work", hasHandwriting=True,
+                           documentTitle="Prov 1"),
+            IdentifiedName(None, 0.0, "name_field",
+                           # Handskriven facit — hasHandwriting får ALDRIG
+                           # vända answer_key till elevarbete.
+                           pageType="answer_key", hasHandwriting=True,
+                           documentTitle="Lösningsförslag"),
+            IdentifiedName("Anna Andersson", 0.95, "name_field",
+                           pageType="student_work", hasHandwriting=True,
+                           documentTitle="Prov 1"),
+        ]
+    )
+
+    async def identify(page, *, identification_method):
+        return next(per_page)
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    provider = _CountingVisionProvider()
+    _mock_grading(monkeypatch, provider)
+
+    results = await batch_pipeline.grade_batch(
+        prov_id="p1",
+        answer_key=[_item()],
+        class_grading_parameters="",
+        test_specific_parameters="",
+        files=files,
+    )
+    student_results = [
+        r for r in results if r.document.documentType == "student_submission"
+    ]
+    flagged = [
+        r for r in results if r.document.documentType == "not_student_submission"
+    ]
+    # Facitsidan är aldrig del av ett elevsegment.
+    assert all(len(r.scanPages) == 1 for r in student_results)
+    assert len(flagged) == 1
+    # Endast elevsegmenten skickas till rättningsmotorn.
+    assert provider.calls == len(student_results)
+
+
+@pytest.mark.asyncio
+async def test_header_boundary_splits_same_source(monkeypatch):
+    """Ny utskriven rubrik mitt i samma källa bryter segmentet — även när
+    sidan saknar namnankare (positionell fortsättning räcker inte över en
+    dokumentgräns)."""
+    writer = PdfWriter()
+    for _ in range(3):
+        writer.add_blank_page(width=100, height=100)
+    buf = BytesIO()
+    writer.write(buf)
+    files = expand_pdf_uploads(
+        [UploadedFile("tvaprov.pdf", buf.getvalue(), "application/pdf")]
+    )
+
+    per_page = iter(
+        [
+            IdentifiedName("Anna Andersson", 0.95, "name_field",
+                           pageType="student_work", hasHandwriting=True,
+                           documentTitle="Prov 1"),
+            IdentifiedName(None, 0.0, "name_field",
+                           pageType="question_sheet", documentTitle="Prov 2"),
+            IdentifiedName(None, 0.0, "name_field",
+                           pageType="student_work", hasHandwriting=True,
+                           documentTitle="Prov 2"),
+        ]
+    )
+
+    async def identify(page, *, identification_method):
+        return next(per_page)
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    documents = await identify_and_group_pages(files)
+    # "Prov 2"-sidorna bryts ut till ett eget segment — de hakar aldrig på
+    # Annas segment trots att de ligger i samma namn-bucket/källa, och de
+    # ärver inte Annas identitet (saknar eget namnankare).
+    assert len(documents) == 2
+    assert documents[0].student_name == "Anna Andersson"
+    assert len(documents[0].pages) == 1
+    assert documents[0].document_type == "student_submission"
+    assert documents[1].student_name != "Anna Andersson"
+    assert len(documents[1].pages) == 2
+    assert documents[1].document_type == "student_submission"
+
+
+@pytest.mark.asyncio
+async def test_failed_classification_stays_gradeable(monkeypatch):
+    """Provideravbrott i extraktionen = ingen signal — dokumentet rättas
+    som förr men flaggas 'unverified' så läraren ser att det är obekräftat."""
+    async def identify(page, *, identification_method):
+        return IdentifiedName(None, 0.0, "name_field_failed")
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    provider = _CountingVisionProvider()
+    _mock_grading(monkeypatch, provider)
+
+    results = await batch_pipeline.grade_batch(
+        prov_id="p1",
+        answer_key=[_item()],
+        class_grading_parameters="",
+        test_specific_parameters="",
+        files=[UploadedFile("elev1.png", b"img", "image/png")],
+    )
+    assert provider.calls == 1
+    assert results[0].document.documentType == "unverified"
+
+
+@pytest.mark.asyncio
+async def test_handwritten_answers_on_question_sheet_still_grade(monkeypatch):
+    """Regressionsskydd: ifyllt frågeblad (tryckt sida + handstil) är
+    elevarbete och rättas normalt — aldrig flaggat som blankett."""
+    async def identify(page, *, identification_method):
+        return IdentifiedName(
+            "Anna Andersson", 0.95, "name_field",
+            pageType="question_sheet", hasHandwriting=True,
+            documentTitle="Prov 1",
+        )
+
+    monkeypatch.setattr(batch_pipeline, "extract_student_name", identify)
+    provider = _CountingVisionProvider()
+    _mock_grading(monkeypatch, provider)
+
+    results = await batch_pipeline.grade_batch(
+        prov_id="p1",
+        answer_key=[_item()],
+        class_grading_parameters="",
+        test_specific_parameters="",
+        files=[UploadedFile("ifylld_blankett.png", b"img", "image/png")],
+    )
+    assert provider.calls == 1
+    assert results[0].document.documentType == "student_submission"
+    assert results[0].questions[0].assessment.status == "correct"
+
+
 def test_feedback_output_never_exposes_internal_reasoning():
     raw = "<think>hemligt resonemang</think><thinking>mer internt</thinking>Bra försök.```"
     assert feedback._safe_output(raw) == "Bra försök."

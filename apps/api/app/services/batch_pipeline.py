@@ -23,7 +23,16 @@ import pymupdf
 from pypdf import PdfReader
 
 from ..config import settings
-from ..schemas import AnswerKeyItem, DocumentMeta, MathVerification, StudentDocumentResult, WolframResult
+from ..schemas import (
+    Annotation,
+    AnswerKeyItem,
+    Assessment,
+    DocumentMeta,
+    MathVerification,
+    QuestionResult,
+    StudentDocumentResult,
+    WolframResult,
+)
 from . import feedback, gemini_vision
 from .batch_identification import IdentifiedName, extract_student_name
 from .gemini_vision import GradingError
@@ -144,6 +153,15 @@ class StudentDocument:
     pages: list[UploadedFile] = field(default_factory=list)
     identification_method: str = "unresolved"
     identification_confidence: float = 0.0
+    # Dokumentverdict — sätts efter sidklassificeringen i
+    # identify_and_group_pages:
+    #   "student_submission"      — elevidentiferat arbete finns, rättas normalt
+    #   "not_student_submission"  — klassificerat som blankett/facit/annat,
+    #                             rättas ALDRIG (flaggas för läraren)
+    #   "unverified"              — sidorna kunde inte klassificeras alls,
+    #                             rättas som förr men flaggas som obekräftat
+    document_type: str = "student_submission"
+    classification_reason: str = ""
 
 
 # Filnamnssuffix som anger sidnummer: "Anna_Andersson_sida2.jpg", "Anna - p3.png",
@@ -361,6 +379,58 @@ async def identify_and_group_pages(
                 candidate.identification_confidence = 0.6
         documents.append(candidate)
 
+    # Del E — sidnivå-uppdelning INOM filnamnsbucketade dokument, innan merge:
+    # en facitsida eller en ny utskriven dokumentrubrik skär segmentet även
+    # när sidorna hamnade i samma namn-bucket (t.ex. "anna_med_facit.pdf").
+    split_documents: list[StudentDocument] = []
+    for document in documents:
+        current: StudentDocument | None = None
+        current_title = ""
+        for page in document.pages:
+            item = extraction_by_file.get(id(page))
+            is_answer_key = item is not None and item.pageType == "answer_key"
+            title = (item.documentTitle or "").strip().casefold() if item else ""
+            starts_new = (
+                current is None
+                or is_answer_key
+                or (title and current_title and title != current_title)
+            )
+            if starts_new:
+                current = StudentDocument(
+                    student_name=document.student_name,
+                    identification_method=document.identification_method,
+                    identification_confidence=document.identification_confidence,
+                )
+                split_documents.append(current)
+                current_title = title
+            current.pages.append(page)
+            # Facitsidan stängs alltid direkt — sidan efter kan vara nästa elev.
+            if is_answer_key:
+                current = None
+                current_title = ""
+
+    # Namn följer bara segment som faktiskt innehåller ett namnankare — ett
+    # delat segment utan säkert namn får inte ärva bucketens identitet.
+    for document in split_documents:
+        anchor = [
+            item
+            for page in document.pages
+            if (item := extraction_by_file.get(id(page))) is not None
+            and item.method == "name_field"
+            and item.studentName
+            and item.confidence >= 0.85
+        ]
+        if anchor:
+            document.student_name = anchor[0].studentName.strip()
+            document.identification_method = "name_field"
+            document.identification_confidence = anchor[0].confidence
+        elif document.identification_method == "name_field":
+            document.student_name = f"Okänd elev - {document.pages[0].filename}"
+            document.identification_method = "unresolved"
+            document.identification_confidence = 0.0
+
+    documents = split_documents
+
     # Slå ihop sidor inom samma uppladdade källa (samma PDF) till elevsegment.
     #
     # Säkerhetsinvariant: bara en sida vars namn lästs med name_field-metoden
@@ -380,19 +450,43 @@ async def identify_and_group_pages(
     #  - Kvarstående risk: en oläslig sida mitt i en bundle som tillhör nästa
     #    elev antas vara fortsättning på föregående. Positionellt antagande,
     #    flaggas alltid för mänsklig granskning via unresolved/needs_review.
+    #
+    # Del E-tillägg — sidklassificering:
+    #  - En sida klassificerad som 'answer_key' (facit/lösningsförslag) får
+    #    ALDRIG absorberas som fortsättningssida i ett elevförankrat segment.
+    #  - En avvikande utskriven dokumentrubrik (documentTitle, t.ex.
+    #    "Lösningsförslag" eller "Prov 2") mitt i samma källa bryter segmentet
+    #    — rubrikankare kompletterar namnankare när flera dokument följer
+    #    efter varandra i en sammanslagen PDF.
+    def _page_extraction(document: StudentDocument) -> IdentifiedName | None:
+        return (
+            extraction_by_file.get(id(document.pages[0])) if document.pages else None
+        )
+
     merged: list[StudentDocument] = []
     current_source: str | None = None
     open_segment: StudentDocument | None = None
+    open_title = ""
 
     for document in documents:
         source = document.pages[0].source_id
         if source is None or source != current_source:
             current_source = source
             open_segment = None
+            open_title = ""
         if source is None:
             # Lös fil (inte PDF-sida) — filnamnsbucketingen ovan gäller redan.
             merged.append(document)
             continue
+
+        item = _page_extraction(document)
+        is_answer_key = item is not None and item.pageType == "answer_key"
+        doc_title = (item.documentTitle or "").strip().casefold() if item else ""
+        open_is_key = open_segment is not None and any(
+            (ex := extraction_by_file.get(id(p))) is not None
+            and ex.pageType == "answer_key"
+            for p in open_segment.pages
+        )
 
         anchored = document.identification_method == "name_field"
         if anchored:
@@ -407,11 +501,86 @@ async def identify_and_group_pages(
             else:
                 merged.append(document)
                 open_segment = document
-        elif open_segment is not None and open_segment.identification_method == "name_field":
+                open_title = doc_title
+        elif (
+            open_segment is not None
+            and not is_answer_key
+            and (
+                # Positionell fortsättning: hakar bara på name_field-förankrade
+                # segment, och aldrig över en rubrikgräns.
+                (
+                    open_segment.identification_method == "name_field"
+                    and not (doc_title and open_title and doc_title != open_title)
+                )
+                # Samma utskrivna dokumenttitel = samma fysiska dokument —
+                # tillåt sammanslagning även utan namnförankring.
+                or (doc_title and open_title and doc_title == open_title)
+                # Facit-fortsättning: sidor utan egen rubrik efter ett
+                # lösningsförslag hör till facit-dokumentet, inte till en
+                # ny elev. En sida med rubrik bryter alltid (nytt prov).
+                or (open_is_key and not doc_title)
+            )
+        ):
             open_segment.pages.extend(document.pages)
         else:
             merged.append(document)
             open_segment = document
+            open_title = doc_title
+
+    # Dokumentverdict — avgör om segmentet över huvud taget är en
+    # elevinlämning INNAN något skickas till rättningsmotorn.
+    #
+    #  - Sida med 'student_work' ELLER handskrift räknas som elevarbete —
+    #    hasHandwriting vinner över pageType (ett ifyllt frågeblad är
+    #    fortfarande elevens arbete, inte en blank blankett).
+    #  - Sidor vars extraktion misslyckades räknas inte som bevis åt något
+    #    håll. Finns inga lyckade klassificeringar alls sätts 'unverified'
+    #    och dokumentet rättas som förr — ett provideravbrott får aldrig
+    #    tyst göra en hel uppladdning orättad.
+    #  - Lyckade klassificeringar utan ett enda elevarbetstecken =>
+    #    'not_student_submission' — flaggas, rättas aldrig.
+    for document in merged:
+        usable = [
+            item
+            for page in document.pages
+            if (item := extraction_by_file.get(id(page))) is not None
+            and item.method == "name_field"
+        ]
+        # Facit förgiftar segmentet: ett dokument som innehåller EN ENDA
+        # answer_key-sida är inte en elevinlämning, oavsett om det även
+        # råkar innehålla arbetslika sidor (facit-fortsättningar).
+        # hasHandwriting vinner över pageType — men aldrig över answer_key:
+        # en handskriven facit är fortfarande lärarens dokument.
+        has_key = any(item.pageType == "answer_key" for item in usable)
+        has_work = any(
+            (item.pageType == "student_work" or item.hasHandwriting)
+            and item.pageType != "answer_key"
+            for item in usable
+        )
+        if has_key:
+            document.document_type = "not_student_submission"
+            document.classification_reason = (
+                "Dokumentet verkar vara facit eller lösningsförslag — "
+                "inget elevarbete hittades."
+            )
+        elif has_work:
+            document.document_type = "student_submission"
+        elif usable:
+            document.document_type = "not_student_submission"
+            if all(
+                item.pageType in ("question_sheet", "cover", "blank")
+                for item in usable
+            ):
+                document.classification_reason = (
+                    "Dokumentet verkar vara en tom provblankett — "
+                    "inga ifyllda elevuppgifter hittades."
+                )
+            else:
+                document.classification_reason = (
+                    "Inget elevarbete kunde identifieras på sidorna."
+                )
+        else:
+            document.document_type = "unverified"
 
     return merged
 
@@ -530,6 +699,30 @@ async def apply_feedback_provider(questions: list) -> None:
 _MAX_CONCURRENT_DOCUMENTS = 3
 
 
+def _not_student_submission_question(item: AnswerKeyItem, reason: str) -> QuestionResult:
+    """Flaggat dokument: rättas aldrig, men ytas som needs_review med tydlig
+    orsak så läraren ser att fel fil laddades — inte en falsk 0-poängare."""
+    return QuestionResult(
+        questionNumber=str(item.question_number).strip(),
+        found=False,
+        inAnswerKey=True,
+        questionText=item.question_text,
+        studentWork="",
+        transcriptionConfidence=0.0,
+        correctAnswer=item.final_answer,
+        assessment=Assessment(
+            status="needs_review", points=0.0, maxPoints=float(item.max_points or 1.0)
+        ),
+        feedback=(
+            "Detta dokument verkar inte vara en elevinlämning — "
+            "ingen uppgift bedömdes."
+        ),
+        annotation=Annotation(summary=reason),
+        aiVerdict="needs_review",
+        baseAnnotation=reason,
+    )
+
+
 async def grade_batch(
     *,
     prov_id: str,
@@ -568,28 +761,52 @@ async def grade_batch(
                 if gemini_vision.is_supported_document(page.content_type or "")
             ]
             unsupported = len(document.pages) - len(pages)
-            try:
-                questions, meta = await get_vision_provider().analyze_document(
-                    pages=pages,
-                    answer_key=answer_key,
-                    grading_notes=grading_notes,
-                    student_label=document.student_name,
-                )
-            except GradingError as e:
-                # Circuit-open or provider-level error → needs_review, never fabricated data.
+            if document.document_type == "not_student_submission":
+                # Sidorna klassificerades som blankett/facit/annat — inget
+                # elevarbete. Rättningsmotorn anropas aldrig; varje fråga
+                # blir needs_review med tydlig orsak för läraren.
                 meta = DocumentMeta(
-                    pageCount=len(pages),
+                    pageCount=len(document.pages),
                     model=settings.GEMINI_MODEL,
                     questionsExpected=len(answer_key),
-                    error=str(e),
+                    documentType="not_student_submission",
+                    classificationReason=document.classification_reason,
+                    error=document.classification_reason,
                     needsReviewCount=len(answer_key) or 1,
                 )
                 questions = [
-                    gemini_vision._failed_question(i, str(e))
-                    for i in answer_key
+                    _not_student_submission_question(item, document.classification_reason)
+                    for item in answer_key
                 ]
-            await apply_math_verification(questions, answer_key)
-            await apply_feedback_provider(questions)
+            else:
+                try:
+                    questions, meta = await get_vision_provider().analyze_document(
+                        pages=pages,
+                        answer_key=answer_key,
+                        grading_notes=grading_notes,
+                        student_label=document.student_name,
+                    )
+                except GradingError as e:
+                    # Circuit-open or provider-level error → needs_review, never fabricated data.
+                    meta = DocumentMeta(
+                        pageCount=len(pages),
+                        model=settings.GEMINI_MODEL,
+                        questionsExpected=len(answer_key),
+                        error=str(e),
+                        needsReviewCount=len(answer_key) or 1,
+                    )
+                    questions = [
+                        gemini_vision._failed_question(i, str(e))
+                        for i in answer_key
+                    ]
+                meta.documentType = document.document_type
+                if document.document_type == "unverified":
+                    meta.classificationReason = (
+                        "Sidorna kunde inte klassificeras — "
+                        "kontrollera att dokumentet är en elevinlämning."
+                    )
+                await apply_math_verification(questions, answer_key)
+                await apply_feedback_provider(questions)
             if unsupported:
                 note = f"{unsupported} sida/sidor hade filformat som inte kan analyseras."
                 meta.error = f"{meta.error} | {note}" if meta.error else note

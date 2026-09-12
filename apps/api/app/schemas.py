@@ -203,6 +203,11 @@ class DocumentMeta(BaseModel):
     studentName: str | None = None
     # Sätts om HELA dokumentanalysen fallerade tekniskt.
     error: str | None = None
+    # Dokumentverdict från sidklassificeringen: "student_submission" (normalt),
+    # "not_student_submission" (blankett/facit — rättades aldrig) eller
+    # "unverified" (klassificering saknade signal — rättades men obekräftat).
+    documentType: str = "student_submission"
+    classificationReason: str = ""
 
 
 class StudentDocumentResult(BaseModel):

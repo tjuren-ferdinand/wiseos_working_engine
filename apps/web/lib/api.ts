@@ -117,6 +117,9 @@ export type DocumentMeta = {
   questionsFound: number;
   needsReviewCount: number;
   error: string | null;
+  /** "student_submission" | "not_student_submission" | "unverified" */
+  documentType?: string;
+  classificationReason?: string;
 };
 
 export type StudentDocumentResult = {
