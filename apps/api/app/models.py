@@ -217,3 +217,23 @@ class AnswerKeyRecord(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     test: Mapped[Test] = relationship(back_populates="answer_key")
+
+
+class AccessRequest(Base):
+    """Förfrågan om åtkomst från en intresserad lärare/skola.
+
+    Publik endpoint — ingen autentisering krävs. Besökare på landningssidan
+    kan lämna sina uppgifter för att få åtkomst till pilotprogrammet.
+    """
+
+    __tablename__ = "access_requests"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    name: Mapped[str] = mapped_column(String(255))
+    school: Mapped[str] = mapped_column(String(255))
+    email: Mapped[str] = mapped_column(String(255), index=True)
+    message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), default="pending")  # pending | approved | rejected
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    reviewed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
