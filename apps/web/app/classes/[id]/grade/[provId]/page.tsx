@@ -45,7 +45,7 @@ export default function GradePage() {
           prov={prov}
           klass={klass}
           onBack={() => router.push(`/classes/${klass.id}/grade/${prov.id}`)}
-          onPrint={() => window.print()}
+          onPrint={() => router.push(`/classes/${klass.id}/grade/${prov.id}/print?student=${result.id}`)}
         />
         <PrintLayout klass={klass} prov={prov} result={result} />
       </>
