@@ -464,8 +464,9 @@ def test_pdf_upload_is_split_into_traceable_single_page_documents():
     assert len(expanded) == 2
     assert [page.page_number for page in expanded] == [1, 2]
     assert all(page.source_id == "klassprov.pdf" for page in expanded)
-    assert all(page.content_type == "image/png" for page in expanded)
-    assert all(page.content.startswith(b"\x89PNG") for page in expanded)
+    # JPEG-rasterisering: skannade sidor är foton — 5–10× mindre än PNG.
+    assert all(page.content_type == "image/jpeg" for page in expanded)
+    assert all(page.content.startswith(b"\xff\xd8\xff") for page in expanded)
 
 
 @pytest.mark.asyncio

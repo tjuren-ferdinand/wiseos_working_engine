@@ -547,19 +547,19 @@ function Header({
         <div className="flex items-center gap-2">
           <Link
             href="/demo"
-            className="btn-tertiary px-4 py-2 text-[13px]"
+            className="btn-tertiary hidden whitespace-nowrap px-4 py-2 text-[13px] sm:inline-flex"
           >
             Se demo
           </Link>
           <button
             onClick={() => openAuth("login")}
-            className="btn-tertiary px-4 py-2 text-[13px]"
+            className="btn-tertiary whitespace-nowrap px-4 py-2 text-[13px]"
           >
             Logga in
           </button>
           <button
             onClick={() => openAuth("access")}
-            className="btn-primary px-4 py-2 text-[13px]"
+            className="btn-primary whitespace-nowrap px-4 py-2 text-[13px]"
           >
             Begär åtkomst
           </button>
@@ -780,7 +780,7 @@ function Hero({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
           </div>
 
           <div
-            className="h-[55vh] w-full md:absolute md:right-[-4%] md:top-[6%] md:h-[100%] md:w-[75%]"
+            className="h-8 w-full md:absolute md:right-[-4%] md:top-[6%] md:h-[100%] md:w-[75%]"
             style={{
               WebkitMaskImage: "linear-gradient(to right, transparent 0%, black 15%)",
               maskImage: "linear-gradient(to right, transparent 0%, black 15%)",

@@ -39,7 +39,8 @@ logger = logging.getLogger("wiseos.grading")
 router = APIRouter(prefix="/api/v1/batch", tags=["batch"])
 
 MAX_FILES = 60
-MAX_BYTES_PER_FILE = 15 * 1024 * 1024  # 15 MB
+MAX_BYTES_PER_FILE = 100 * 1024 * 1024  # 100 MB — en skannad provbunt kan vara stor
+MAX_BYTES_TOTAL = 200 * 1024 * 1024  # 200 MB sammanlagt per batch
 ALLOWED_MIMES = {
     "image/png",
     "image/jpeg",
@@ -219,12 +220,18 @@ async def batch_grade(
         raise HTTPException(413, f"Max {MAX_FILES} filer per batch")
 
     uploads: list[UploadedFile] = []
+    total_bytes = 0
     for f in files:
         if f.content_type and f.content_type not in ALLOWED_MIMES:
             raise HTTPException(415, f"Filtyp {f.content_type} stöds inte ({f.filename})")
         data = await f.read()
         if len(data) > MAX_BYTES_PER_FILE:
-            raise HTTPException(413, f"{f.filename} är större än 15 MB")
+            raise HTTPException(413, f"{f.filename} är större än 100 MB")
+        total_bytes += len(data)
+        if total_bytes > MAX_BYTES_TOTAL:
+            raise HTTPException(
+                413, "Batchen är sammanlagt större än 200 MB — dela upp i fler omgångar"
+            )
         uploads.append(
             UploadedFile(
                 filename=f.filename or "okand.bin",

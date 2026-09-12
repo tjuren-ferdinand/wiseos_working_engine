@@ -166,6 +166,17 @@ export default function BatchGradingPipeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [phase]);
 
+  // Vid fel: markera alla kort som inte hunnit bli klara som misslyckade
+  // istf att de fastnar på "Analyserar…"/"I kö" för evigt.
+  useEffect(() => {
+    if (phase !== "error") return;
+    timersRef.current.forEach((t) => window.clearTimeout(t));
+    timersRef.current = [];
+    setFlowStudents((prev) =>
+      prev.map((s) => (s.status === "done" ? s : { ...s, status: "failed" })),
+    );
+  }, [phase]);
+
   // Mappa filkort → resultat via sourceFiles (ursprungsfilnamn per sida).
   // Backend returnerar ett resultat per elevDOKUMENT, inte per fil — en
   // sammanslagen PDF eller flersidigt prov täcker flera/ett filkort. Kort

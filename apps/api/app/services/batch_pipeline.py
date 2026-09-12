@@ -95,17 +95,18 @@ class UploadedFile:
 
 
 def _rasterize_pdf_page(pdf_bytes: bytes, page_number: int, dpi: int = 200) -> tuple[bytes, str]:
-    """Rendera en PDF-sida till en PNG-bild så att den kan skickas till vision-modeller.
+    """Rendera en PDF-sida till en JPEG-bild så att den kan skickas till vision-modeller.
 
-    Vision-modeller har generellt sett bättre stöd för bilder (PNG/JPEG) än för
-    råa PDF-bytes, och Workbench kan visa en data-URL med image/* som en <img>.
+    Skannade provsidor är fotografier — JPEG q85 är 5–10× mindre än PNG utan
+    läsbarhetsförlust, vilket håller nere minne, DB-payload (scanPages) och
+    uppladdningsstorlek till vision-providern.
     """
     doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
     try:
         page = doc.load_page(page_number)
         matrix = pymupdf.Matrix(dpi / 72.0, dpi / 72.0)
         pixmap = page.get_pixmap(matrix=matrix)
-        return pixmap.tobytes("png"), "image/png"
+        return pixmap.tobytes("jpg", jpg_quality=85), "image/jpeg"
     finally:
         doc.close()
 
@@ -135,9 +136,9 @@ def expand_pdf_uploads(files: list[UploadedFile], max_pages: int = 300) -> list[
             page_number = page_index + 1
             expanded.append(
                 UploadedFile(
-                    filename=f"{stem}_sida_{page_number}.png",
+                    filename=f"{stem}_sida_{page_number}.jpg",
                     content=image_bytes,
-                    content_type="image/png",
+                    content_type="image/jpeg",
                     source_id=upload.filename,
                     page_number=page_number,
                 )
