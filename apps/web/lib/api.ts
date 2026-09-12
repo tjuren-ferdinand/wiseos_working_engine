@@ -419,7 +419,21 @@ export const api = {
         headers: authHeader,
         signal: controller.signal,
       });
-      if (!res.ok) throw new Error(`Batch ${res.status}: ${await res.text()}`);
+      if (!res.ok) {
+        const text = await res.text();
+        let detail = "";
+        try {
+          detail = JSON.parse(text)?.detail ?? "";
+        } catch { /* inte JSON — falla tillbaka på råtexten */ }
+        if (detail) throw new Error(detail);
+        if (res.status === 413) {
+          throw new Error("Filerna är för stora — max 100 MB per fil, 200 MB totalt per omgång.");
+        }
+        if (res.status === 415) {
+          throw new Error("Filtypen stöds inte — ladda upp PDF eller bilder.");
+        }
+        throw new Error(`Rättningen misslyckades (status ${res.status}). Försök igen.`);
+      }
       return res.json();
     } catch (error) {
       if ((error as Error).name === "AbortError") {

@@ -37,13 +37,35 @@ export default function GradingWizard({
   const [identificationMethod, setIdentificationMethod] = useState<'name_field' | 'qr_code' | 'barcode' | 'student_id'>('name_field');
   
   const [files, setFiles] = useState<File[]>([]);
+  const [fileError, setFileError] = useState<string | null>(null);
   const [aiDescription, setAiDescription] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const answerKeyInputRef = useRef<HTMLInputElement>(null);
 
+  const MAX_FILE_BYTES = 100 * 1024 * 1024;
+  const MAX_TOTAL_BYTES = 200 * 1024 * 1024;
+
   const addFiles = (incoming: File[]) => {
-    if (incoming.length) setFiles((prev) => [...prev, ...incoming]);
+    setFileError(null);
+    if (!incoming.length) return;
+    const accepted: File[] = [];
+    const errors: string[] = [];
+    let total = files.reduce((sum, f) => sum + f.size, 0);
+    for (const f of incoming) {
+      if (f.size > MAX_FILE_BYTES) {
+        errors.push(`${f.name} är större än 100 MB`);
+        continue;
+      }
+      total += f.size;
+      if (total > MAX_TOTAL_BYTES) {
+        errors.push("Totalt för mycket data — max 200 MB per omgång, dela upp i fler omgångar");
+        break;
+      }
+      accepted.push(f);
+    }
+    if (errors.length) setFileError(errors.join(". "));
+    if (accepted.length) setFiles((prev) => [...prev, ...accepted]);
   };
 
   const removeFile = (index: number) => {
@@ -428,6 +450,12 @@ export default function GradingWizard({
                     </li>
                   ))}
                 </ul>
+              )}
+
+              {fileError && (
+                <p className="rounded-xl bg-state-danger/10 px-3 py-2 text-[12.5px] text-state-danger">
+                  {fileError}
+                </p>
               )}
             </Field>
 

@@ -21,7 +21,7 @@ export type FlowPhase = "uploading" | "processing" | "saving" | "complete" | "er
 export type FlowStudent = {
   id: string;
   name: string;
-  status: "queued" | "working" | "done" | "merged";
+  status: "queued" | "working" | "done" | "merged" | "failed";
   score?: number;
   maxScore?: number;
   percentage?: number;
@@ -136,6 +136,7 @@ function StudentCard({
   const done = student.status === "done";
   const working = student.status === "working";
   const merged = student.status === "merged";
+  const failed = student.status === "failed";
 
   // Liten deterministisk spridning så korten känns placerade på en canvas,
   // inte i en stel grid — alternerar lutning och vertikalförskjutning.
@@ -160,11 +161,15 @@ function StudentCard({
         style={{
           borderColor: done
             ? "rgb(var(--state-success) / 0.35)"
+            : failed
+            ? "rgb(var(--state-danger) / 0.35)"
             : working
             ? "rgb(var(--foreground) / 0.24)"
             : "rgb(var(--hairline) / 0.10)",
           background: done
             ? "rgb(var(--state-success) / 0.07)"
+            : failed
+            ? "rgb(var(--state-danger) / 0.06)"
             : working
             ? "rgb(var(--surface-elevated))"
             : "rgb(var(--surface) / 0.85)",
@@ -178,6 +183,11 @@ function StudentCard({
             <span
               className="inline-flex h-2 w-2 rounded-full"
               style={{ background: "rgb(var(--state-success))" }}
+            />
+          ) : failed ? (
+            <span
+              className="inline-flex h-2 w-2 rounded-full"
+              style={{ background: "rgb(var(--state-danger))" }}
             />
           ) : working ? (
             <>
@@ -208,6 +218,8 @@ function StudentCard({
               ? "Analyserar…"
               : merged
               ? "Slås samman"
+              : failed
+              ? "Kunde inte analyseras"
               : "I kö"}
           </div>
         </div>
@@ -414,6 +426,8 @@ function SidePanel({
                     background:
                       s.status === "done"
                         ? "rgb(var(--state-success))"
+                        : s.status === "failed"
+                        ? "rgb(var(--state-danger))"
                         : s.status === "working"
                         ? "rgb(var(--foreground) / 0.58)"
                         : s.status === "merged"
@@ -427,6 +441,8 @@ function SidePanel({
                 <span className="text-[11.5px] tabular-nums text-[rgb(var(--muted-2))]">
                   {s.status === "done"
                     ? `${s.score?.toFixed(1) ?? "–"} p`
+                    : s.status === "failed"
+                    ? "fel"
                     : s.status === "working"
                     ? "…"
                     : s.status === "merged"
