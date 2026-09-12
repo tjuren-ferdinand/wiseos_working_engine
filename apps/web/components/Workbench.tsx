@@ -85,6 +85,8 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
         />
       </Surface>
 
+      <DocumentTypeBanner meta={result.document} />
+
       <div className="grid lg:grid-cols-[1.1fr_1fr] gap-6">
         {/* Vänster: skannat original */}
         <ScanPanel
@@ -105,6 +107,35 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
       </div>
       </div>
     </>
+  );
+}
+
+/** Lugn men tydlig markering när sidklassificeringen bedömer att dokumentet
+ *  inte är en elevinlämning (blankett/facit) eller inte kunde bekräftas.
+ *  Renderas aldrig för normala inlämningar. */
+function DocumentTypeBanner({ meta }: { meta: StudentResult["document"] }) {
+  const kind = meta?.documentType;
+  if (kind !== "not_student_submission" && kind !== "unverified") return null;
+
+  const isFlagged = kind === "not_student_submission";
+  return (
+    <div className="rounded-xl border border-state-warning/25 bg-state-warning/[0.07] px-5 py-4 flex items-start gap-3.5">
+      <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-state-warning/15 text-state-warning">
+        <LineIcon name="file" className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <div className="text-[14px] font-medium text-ink">
+          {isFlagged
+            ? "Detta verkar inte vara en elevinlämning"
+            : "Dokumentet kunde inte bekräftas som elevinlämning"}
+        </div>
+        <p className="mt-1 text-[13px] leading-relaxed text-ink-secondary">
+          {isFlagged
+            ? `${meta?.classificationReason || "Inget elevarbete hittades på sidorna."} Ingen uppgift har bedömts — kontrollera att rätt fil laddades upp.`
+            : "Rättningen kördes, men sidorna kunde inte klassificeras. Granska originalen till vänster innan du godkänner."}
+        </p>
+      </div>
+    </div>
   );
 }
 
