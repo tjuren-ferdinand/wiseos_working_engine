@@ -26,13 +26,23 @@ async def require_admin(
 
     Access is granted ONLY if:
       - user.id is in settings.admin_user_ids (from ADMIN_USER_IDS env var), OR
+      - user.email is in settings.admin_emails (from ADMIN_EMAILS env var), OR
       - user.role == "admin" (from Supabase JWT).
 
-    If ADMIN_USER_IDS is empty/unset AND Supabase does not set role="admin",
-    this returns 403 for EVERY authenticated user. That is the intended
-    behavior — no silent admin access.
+    ADMIN_EMAILS är det permanenta ägundantaget: e-postadressen är stabil
+    även om användarens Supabase-UUID ändras, och kontrolleras FÖRE alla
+    framtida åtkomstmekanismer (domän-allowlist, pending-approval) så att
+    ägarkontot aldrig kan låsas ute.
+
+    If ADMIN_USER_IDS/ADMIN_EMAILS are empty/unset AND Supabase does not set
+    role="admin", this returns 403 for EVERY authenticated user. That is the
+    intended behavior — no silent admin access.
     """
-    if user.id in settings.admin_user_ids or user.role == "admin":
+    if (
+        user.id in settings.admin_user_ids
+        or (user.email and user.email.lower() in settings.admin_emails)
+        or user.role == "admin"
+    ):
         return user
     raise HTTPException(403, "Admin access required")
 
