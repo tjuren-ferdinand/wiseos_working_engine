@@ -10,6 +10,8 @@ import {
 } from "@/lib/store";
 import { useTheme } from "@/lib/theme";
 import LineIcon from "./LineIcon";
+import MathText from "./Math";
+import "katex/dist/katex.min.css";
 
 type Props = {
   result: StudentResult;
@@ -326,7 +328,7 @@ function StepCard({
           Elev:
         </span>{" "}
         {step.studentWork ? (
-          <span className="whitespace-pre-wrap">{step.studentWork}</span>
+          <MathText content={step.studentWork} />
         ) : (
           <span
             className={
@@ -372,14 +374,14 @@ function StepCard({
             AI-annotation
           </span>
 
-          {annotation?.summary && <p className="mt-1">{annotation.summary}</p>}
+          {annotation?.summary && <p className="mt-1"><MathText content={annotation.summary} /></p>}
 
           {annotation?.evidence?.length ? (
             <ul className="mt-1.5 space-y-0.5">
               {annotation.evidence.map((item, i) => (
                 <li key={`ev-${i}`} className="flex gap-1.5">
                   <span className={"text-state-success"}>✓</span>
-                  <span>{item}</span>
+                  <span><MathText content={item} /></span>
                 </li>
               ))}
             </ul>
@@ -390,7 +392,7 @@ function StepCard({
               {annotation.issues.map((item, i) => (
                 <li key={`is-${i}`} className="flex gap-1.5">
                   <span className={"text-state-danger"}>✗</span>
-                  <span>{item}</span>
+                  <span><MathText content={item} /></span>
                 </li>
               ))}
             </ul>
@@ -401,7 +403,7 @@ function StepCard({
               {annotation.suggestions.map((item, i) => (
                 <li key={`sg-${i}`} className="flex gap-1.5">
                   <span className={"text-state-warning"}>→</span>
-                  <span>{item}</span>
+                  <span><MathText content={item} /></span>
                 </li>
               ))}
             </ul>
@@ -412,7 +414,7 @@ function StepCard({
       {step.mathVerification && step.mathVerification.status !== "not_applicable" && (
         <div className="mt-2 rounded-xl border border-ink-hairline bg-paper-secondary/50 p-3 text-xs leading-relaxed text-ink-secondary">
           <span className="font-semibold text-ink">Matematisk verifiering:</span>{" "}
-          {step.mathVerification.message}
+          <MathText content={step.mathVerification.message} />
           <span className="ml-2 text-ink-muted">
             {step.mathVerification.provider === "wolfram" ? "Wolfram" : "Lokal kontroll"}
             {step.mathVerification.confidence > 0
@@ -430,7 +432,7 @@ function StepCard({
           }`}
         >
           <span className="font-semibold mr-1">Feedback:</span>
-          {step.feedback}
+          <MathText content={step.feedback} />
         </div>
       )}
 

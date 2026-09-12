@@ -1,6 +1,8 @@
 "use client";
 
 import { type Klass, type Prov, type StudentResult } from "@/lib/store";
+import MathText from "./Math";
+import "katex/dist/katex.min.css";
 
 /**
  * Print-only layout. Visas bara via @media print.
@@ -108,18 +110,18 @@ export default function PrintLayout({
               {step.studentWork && (
                 <div className="print-step-row">
                   <span className="print-step-tag">Elev:</span>
-                  <span className="print-step-answer">{step.studentWork}</span>
+                  <span className="print-step-answer"><MathText content={step.studentWork} /></span>
                 </div>
               )}
               {step.correctAnswer && (
                 <div className="print-step-row">
                   <span className="print-step-tag">Facit:</span>
-                  <span className="print-step-answer print-step-facit">{step.correctAnswer}</span>
+                  <span className="print-step-answer print-step-facit"><MathText content={step.correctAnswer} /></span>
                 </div>
               )}
               {step.feedback && (
                 <div className="print-step-feedback">
-                  <span className="print-step-tag">AI-feedback:</span> {step.feedback}
+                  <span className="print-step-tag">AI-feedback:</span> <MathText content={step.feedback} />
                 </div>
               )}
             </li>
