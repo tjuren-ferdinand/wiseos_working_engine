@@ -39,7 +39,16 @@ export default function GradingWizard({
   const [files, setFiles] = useState<File[]>([]);
   const [aiDescription, setAiDescription] = useState("");
   const inputRef = useRef<HTMLInputElement>(null);
+  const cameraInputRef = useRef<HTMLInputElement>(null);
   const answerKeyInputRef = useRef<HTMLInputElement>(null);
+
+  const addFiles = (incoming: File[]) => {
+    if (incoming.length) setFiles((prev) => [...prev, ...incoming]);
+  };
+
+  const removeFile = (index: number) => {
+    setFiles((prev) => prev.filter((_, i) => i !== index));
+  };
   
   // Batch grading pipeline state
   const [showBatchPipeline, setShowBatchPipeline] = useState(false);
@@ -302,7 +311,7 @@ export default function GradingWizard({
                 onDragOver={(e) => e.preventDefault()}
                 onDrop={(e) => {
                   e.preventDefault();
-                  setFiles(Array.from(e.dataTransfer.files));
+                  addFiles(Array.from(e.dataTransfer.files));
                 }}
                 className="cursor-pointer rounded-2xl border-2 border-dashed border-ink-hairline bg-paper hover:bg-paper-secondary hover:border-ink-hairline transition-all p-10 text-center"
               >
@@ -332,9 +341,68 @@ export default function GradingWizard({
                   multiple
                   accept="application/pdf,image/*"
                   className="hidden"
-                  onChange={(e) => setFiles(Array.from(e.target.files || []))}
+                  onChange={(e) => {
+                    addFiles(Array.from(e.target.files || []));
+                    e.currentTarget.value = "";
+                  }}
                 />
               </div>
+
+              {/* Kamera-uppladdning — fotografera prov direkt med telefonen.
+                  På mobil öppnar capture="environment" kameran direkt; på
+                  desktop faller den tillbaka på vanlig filväljare. */}
+              <div className="flex flex-wrap items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => cameraInputRef.current?.click()}
+                  className="btn-tertiary gap-2 px-4 py-2.5 text-[13px]"
+                >
+                  <LineIcon name="upload" className="h-4 w-4" />
+                  Fota med kameran
+                </button>
+                <span className="text-xs text-ink-muted">
+                  En elev i taget — foton läggs till i listan
+                </span>
+                <input
+                  ref={cameraInputRef}
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  className="hidden"
+                  onChange={(e) => {
+                    addFiles(Array.from(e.target.files || []));
+                    e.currentTarget.value = "";
+                  }}
+                />
+              </div>
+
+              {/* Vald fillista — mobilvänlig: varje fil kan tas bort */}
+              {files.length > 0 && (
+                <ul className="space-y-1.5">
+                  {files.map((f, i) => (
+                    <li
+                      key={`${f.name}-${i}`}
+                      className="flex items-center gap-3 rounded-xl border border-ink-hairline bg-paper-secondary px-3 py-2"
+                    >
+                      <LineIcon name="file" className="h-4 w-4 shrink-0 text-ink-secondary" />
+                      <span className="min-w-0 flex-1 truncate text-[13px] text-ink">
+                        {f.name}
+                      </span>
+                      <span className="shrink-0 text-[11px] tabular-nums text-ink-muted">
+                        {(f.size / 1024 / 1024).toFixed(1)} MB
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => removeFile(i)}
+                        aria-label={`Ta bort ${f.name}`}
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-ink-muted hover:bg-paper hover:text-ink"
+                      >
+                        <LineIcon name="x" className="h-3.5 w-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
             </Field>
 
             <div className="rounded-2xl border border-ink-hairline bg-paper-secondary p-3 text-xs text-ink-secondary leading-snug">
