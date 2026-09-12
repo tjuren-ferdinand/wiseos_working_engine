@@ -225,7 +225,7 @@ function ResultCard({
           href={scanPage}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-sm text-blue-600 hover:underline"
+          className="rounded-[10px] text-sm text-ink underline underline-offset-4 hover:decoration-ink-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 focus-visible:ring-offset-2 focus-visible:ring-offset-paper"
         >
           Visa originalfil
         </a>

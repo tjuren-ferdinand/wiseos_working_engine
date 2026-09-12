@@ -107,7 +107,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
           <div className="text-[11px] uppercase tracking-[0.1em] font-medium text-ink-muted">
             Genomsnitt
           </div>
-          <div className="mt-2 text-[36px] font-medium tracking-[-0.02em] text-ink tabular-nums">
+          <div className="mt-2 text-[28px] font-medium tracking-[-0.02em] text-ink tabular-nums">
             {avgPercentage}%
           </div>
         </Surface>
@@ -128,7 +128,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
             Trend
           </div>
           <div
-            className={`mt-2 text-[36px] font-medium tracking-[-0.02em] flex items-center gap-2 ${
+            className={`mt-2 text-[28px] font-medium tracking-[-0.02em] flex items-center gap-2 ${
               trend.direction === "up"
                 ? "text-state-success"
                 : trend.direction === "down"
@@ -147,7 +147,7 @@ export default function StudentProfilePage({ params }: { params: { id: string } 
         <div className="space-y-3">
           {provStats.map((stat) => (
             <Surface key={stat.result.id} padding="p-5">
-              <div className="flex items-center justify-between gap-4">
+              <div className="flex flex-wrap items-center justify-between gap-4">
                 <div>
                   <div className="text-[15px] font-medium text-ink">
                     {stat.provData?.title ?? "Prov"}

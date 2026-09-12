@@ -1,6 +1,6 @@
 from datetime import datetime
 from typing import Any, Literal
-from pydantic import BaseModel, Field, ConfigDict
+from pydantic import BaseModel, Field, ConfigDict, model_validator
 
 
 class AssignmentCreate(BaseModel):
@@ -242,12 +242,18 @@ class GradingParamsSchema(BaseModel):
 
 
 class GradeThresholdsSchema(BaseModel):
-    A: float = 90
-    B: float = 80
-    C: float = 65
-    D: float = 50
-    E: float = 35
-    F: float = 0
+    A: float = Field(default=90, ge=0, le=100, allow_inf_nan=False)
+    B: float = Field(default=80, ge=0, le=100, allow_inf_nan=False)
+    C: float = Field(default=65, ge=0, le=100, allow_inf_nan=False)
+    D: float = Field(default=50, ge=0, le=100, allow_inf_nan=False)
+    E: float = Field(default=35, ge=0, le=100, allow_inf_nan=False)
+    F: float = Field(default=0, ge=0, le=100, allow_inf_nan=False)
+
+    @model_validator(mode="after")
+    def validate_order(self):
+        if not self.A >= self.B >= self.C >= self.D >= self.E >= self.F:
+            raise ValueError("Grade thresholds must satisfy A >= B >= C >= D >= E >= F")
+        return self
 
 
 class CourseCreate(BaseModel):

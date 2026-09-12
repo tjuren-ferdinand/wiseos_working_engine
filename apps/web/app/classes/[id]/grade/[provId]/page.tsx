@@ -4,10 +4,12 @@ import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
 import { useMemo } from "react";
 import { useStore, deriveStep } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
 import ProcessingScene from "@/components/ProcessingScene";
 import Workbench from "@/components/Workbench";
-import PrintLayout from "@/components/PrintLayout";
+import Breadcrumb from "@/components/ui/Breadcrumb";
+import EmptyState from "@/components/ui/EmptyState";
+import PageHeader from "@/components/ui/PageHeader";
+import Surface from "@/components/ui/Surface";
 
 export default function GradePage() {
   const params = useParams<{ id: string; provId: string }>();
@@ -19,36 +21,31 @@ export default function GradePage() {
   const allProv = useStore((s) => s.prov);
   const results = useStore((s) => s.results);
 
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
-
   const klass = useMemo(() => klasser.find((k) => k.id === params.id), [klasser, params.id]);
   const prov = useMemo(() => allProv.find((p) => p.id === params.provId), [allProv, params.provId]);
   const allResults = useMemo(() => results.filter((r) => r.provId === params.provId), [results, params.provId]);
 
   if (!klass || !prov) {
     return (
-      <div className={`text-center py-20 ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
-        Provet kunde inte hittas. <Link href={`/`} className="text-ink-secondary underline">Till klasslistan</Link>
-      </div>
+      <EmptyState
+        title="Provet kunde inte hittas."
+        action={<Link href="/classes" className="btn-secondary">Till klasslistan</Link>}
+      />
     );
   }
 
   // Workbench mode
   if (studentId) {
     const result = allResults.find((r) => r.id === studentId);
-    if (!result) return <div className="text-center py-20 text-ink-secondary">Elev saknas.</div>;
+    if (!result) return <EmptyState title="Elev saknas." />;
     return (
-      <>
-        <Workbench
-          result={result}
-          prov={prov}
-          klass={klass}
-          onBack={() => router.push(`/classes/${klass.id}/grade/${prov.id}`)}
-          onPrint={() => router.push(`/classes/${klass.id}/grade/${prov.id}/print?student=${result.id}`)}
-        />
-        <PrintLayout klass={klass} prov={prov} result={result} />
-      </>
+      <Workbench
+        result={result}
+        prov={prov}
+        klass={klass}
+        onBack={() => router.push(`/classes/${klass.id}/grade/${prov.id}`)}
+        onPrint={() => window.print()}
+      />
     );
   }
 
@@ -66,20 +63,19 @@ export default function GradePage() {
   // Folder grid
   return (
     <div className="space-y-8 print:hidden">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <div>
-          <Link href={`/classes/${klass.id}`} className={`text-sm transition-colors ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>← {klass.name}</Link>
-          <h1 className={`mt-3 text-[40px] font-bold tracking-[-0.02em] text-ink`}>{prov.title}</h1>
-          <div className={`mt-2 text-sm ${isDark ? "text-paper/50" : "text-ink-secondary"}`}>
-            Klassmapp · {allResults.length} elever rättade
-          </div>
-        </div>
+      <div className="space-y-4">
+        <Breadcrumb items={[
+          { label: klass.name, href: `/classes/${klass.id}` },
+          { label: prov.title },
+        ]} />
+        <PageHeader
+          title={prov.title}
+          subtitle={`Klassmapp · ${allResults.length} elever rättade`}
+        />
       </div>
 
       {allResults.length === 0 ? (
-        <div className={`rounded-2xl border-2 border-dashed p-12 text-center ${isDark ? "border-paper-raised/10 bg-paper-raised/5 text-paper/50" : "border-ink-hairline bg-paper-raised text-ink-secondary"}`}>
-          Inga resultat ännu.
-        </div>
+        <EmptyState title="Inga resultat ännu." />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
           {allResults.map((r) => {
@@ -91,53 +87,50 @@ export default function GradePage() {
             const pct = max ? total / max : 0;
             const needsAttention = r.steps.some((st) => st.status !== "correct");
             return (
-              <Link
+              <Surface
                 key={r.id}
                 href={`/classes/${klass.id}/grade/${prov.id}?student=${r.id}`}
-                className={`group rounded-2xl border p-5 hover:-translate-y-0.5 transition-all relative ${
-                  isDark 
-                    ? "border-paper-raised/10 bg-paper-raised/5 hover:bg-paper-raised/10 hover:border-paper-raised/20" 
-                    : "border-ink-hairline/70 bg-paper-raised shadow-sm hover:border-ink hover:shadow-lg"
-                }`}
+                padding="p-5"
+                className="relative !shadow-card"
               >
-                {needsAttention && (
-                  <span className="absolute top-3 right-3 inline-flex items-center gap-1 text-[10px] font-semibold text-state-warning bg-state-warning/10 ring-1 ring-state-warning/20 rounded-full px-2 py-0.5">
-                    <span className="h-1.5 w-1.5 rounded-full bg-state-warning" />
-                    Granska
-                  </span>
-                )}
+                <div className="mb-3 flex min-h-5 justify-end">
+                  {needsAttention && (
+                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-state-warning bg-state-warning/10 ring-1 ring-state-warning/20 rounded-full px-2 py-0.5">
+                      <span className="h-1.5 w-1.5 rounded-full bg-state-warning" />
+                      Granska
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-3">
-                  <div className={`h-11 w-11 rounded-full grid place-items-center font-serif text-lg font-semibold ${
-                    isDark ? "bg-ink/10 text-ink-secondary" : "bg-ink/10 text-ink-secondary"
-                  }`}>
+                  <div className="h-11 w-11 shrink-0 rounded-full grid place-items-center font-sans text-lg font-medium bg-ink/10 text-ink-secondary">
                     {r.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                   </div>
                   <div className="min-w-0 flex-1">
-                    <div className={`text-sm font-semibold truncate ${isDark ? "text-ink group-hover:text-ink-secondary" : "text-ink group-hover:text-ink-secondary"}`}>
+                    <div className="text-sm font-medium truncate text-ink group-hover:text-ink-secondary">
                       {r.studentName}
                     </div>
-                    <div className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>{r.steps.length} steg</div>
+                    <div className="text-xs text-ink-secondary">{r.steps.length} steg</div>
                   </div>
                 </div>
                 <div className="mt-4">
                   <div className="flex items-baseline justify-between mb-1.5">
-                    <span className={`text-xs ${isDark ? "text-ink-muted" : "text-ink-secondary"}`}>Poäng</span>
-                    <span className={`font-mono text-sm font-semibold tabular-nums ${isDark ? "text-paper" : "text-ink"}`}>
-                      {total}<span className={isDark ? "text-paper/30" : "text-ink-muted"}>/{max}</span>
+                    <span className="text-xs text-ink-secondary">Poäng</span>
+                    <span className="font-sans text-sm font-medium tabular-nums text-ink">
+                      {total}<span className="text-ink-muted">/{max}</span>
                     </span>
                   </div>
-                  <div className={`h-1.5 rounded-full overflow-hidden ${isDark ? "bg-paper-raised/10" : "bg-paper-secondary"}`}>
+                  <div className="h-1.5 rounded-full overflow-hidden bg-paper-secondary">
                     <div
                       className={`h-full transition-all ${
                         pct >= 0.85 ? "bg-state-success"
                         : pct >= 0.5 ? "bg-state-warning"
-                        : "bg-rose-500"
+                        : "bg-state-danger"
                       }`}
                       style={{ width: `${pct * 100}%` }}
                     />
                   </div>
                 </div>
-              </Link>
+              </Surface>
             );
           })}
         </div>

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   actions,
   type StudentResult,
@@ -8,9 +9,12 @@ import {
   type Klass,
   type Step,
 } from "@/lib/store";
-import { useTheme } from "@/lib/theme";
 import LineIcon from "./LineIcon";
 import MathText from "./Math";
+import Breadcrumb from "./ui/Breadcrumb";
+import EmptyState from "./ui/EmptyState";
+import PageHeader from "./ui/PageHeader";
+import Surface from "./ui/Surface";
 import "katex/dist/katex.min.css";
 
 type Props = {
@@ -42,43 +46,48 @@ function reviewReason(step: Step): string | null {
 }
 
 export default function Workbench({ result, prov, klass, onBack, onPrint }: Props) {
-  const { theme } = useTheme();
-  const isDark = theme === "dark";
+  const router = useRouter();
   
   // Beräkna total från V2 Step structure
   const total = result.steps.reduce((s, st) => s + st.earnedPoints, 0);
   const max = result.steps.reduce((s, st) => s + st.maxPoints, 0);
 
+  const handlePrint = () => {
+    router.push(`/classes/${klass.id}/grade/${prov.id}/print?student=${result.id}`);
+  };
+
   return (
     <>
       <div className="space-y-6 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button onClick={onBack} className={`text-sm transition-colors ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>← Tillbaka till klassmapp</button>
+          <button onClick={onBack} className="btn-tertiary">← Tillbaka till klassmapp</button>
           <div className="flex items-center gap-3">
             <button
-              onClick={onPrint}
-              className={`rounded-full border px-4 py-2 text-sm font-medium transition-colors ${isDark ? "border-paper-raised/20 bg-paper-raised/5 text-paper hover:bg-paper-raised/10" : "border-ink-hairline bg-paper-raised text-ink hover:bg-paper-secondary"}`}
+              onClick={handlePrint}
+              className="btn-secondary"
             >
               Skriv ut genomgång + Original-PDF
             </button>
           </div>
         </div>
 
-      <header className={`rounded-2xl border p-6 flex flex-wrap items-center justify-between gap-4 ${isDark ? "border-paper-raised/10 bg-paper-raised/5" : "border-ink-hairline bg-paper-raised shadow-sm"}`}>
-        <div>
-          <div className={`text-[11px] uppercase tracking-[0.08em] font-medium ${"text-ink-secondary"}`}>
-            {klass.name} · {prov.title}
-          </div>
-          <h1 className={`mt-1 text-2xl font-semibold tracking-tight text-ink`}>{result.studentName}</h1>
-        </div>
-        <ScoreBadge total={total} max={max} isDark={isDark} />
-      </header>
+      <Surface className="space-y-4 !shadow-card">
+        <Breadcrumb items={[
+          { label: klass.name, href: `/classes/${klass.id}` },
+          { label: prov.title, href: `/classes/${klass.id}/grade/${prov.id}` },
+          { label: result.studentName },
+        ]} className="flex-wrap" />
+        <PageHeader
+          title={result.studentName}
+          action={<ScoreBadge total={total} max={max} />}
+          className="flex-wrap"
+        />
+      </Surface>
 
       <div className="grid lg:grid-cols-[1.1fr_1fr] gap-6">
         {/* Vänster: skannat original */}
         <ScanPanel
           pages={result.scanPages || []}
-          isDark={isDark}
         />
 
         {/* Höger: AI-annotationer per steg */}
@@ -88,10 +97,9 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
               key={step.id}
               step={step}
               resultId={result.id}
-              isDark={isDark}
             />
           ))}
-          <ClassParamsSummary klass={klass} prov={prov} isDark={isDark} />
+          <ClassParamsSummary klass={klass} prov={prov} />
         </div>
       </div>
       </div>
@@ -99,52 +107,43 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
   );
 }
 
-function ScoreBadge({ total, max, isDark }: { total: number; max: number; isDark: boolean }) {
+function ScoreBadge({ total, max }: { total: number; max: number }) {
   const pct = max ? total / max : 0;
-  const scoreColor = isDark
-    ? pct >= 0.85 ? "text-state-success"
-      : pct >= 0.5 ? "text-state-warning"
-      : "text-rose-400"
-    : pct >= 0.85 ? "text-state-success"
-      : pct >= 0.5 ? "text-state-warning"
-      : "text-rose-700";
+  const scoreColor = pct >= 0.85 ? "text-state-success"
+    : pct >= 0.5 ? "text-state-warning"
+    : "text-state-danger";
   return (
     <div className={`rounded-2xl border border-ink-hairline shadow-card px-5 py-3 bg-paper-elevated text-ink`}>
       <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-secondary">Slutpoäng</div>
-      <div className={`mt-0.5 text-2xl font-semibold tabular-nums ${scoreColor}`}>
+      <div className={`mt-0.5 font-sans text-2xl font-medium tabular-nums ${scoreColor}`}>
         {total}<span className={`text-base text-ink-muted`}> / {max}</span>
       </div>
     </div>
   );
 }
 
-function ScanPanel({
-  pages,
-  isDark,
-}: {
-  pages: string[];
-  isDark: boolean;
-}) {
+function ScanPanel({ pages }: { pages: string[] }) {
   const totalPages = pages.length;
   return (
-    <div className={`rounded-[24px] overflow-hidden shadow-lg shadow-ink/5 ${isDark ? "bg-ink/[0.03]" : "bg-paper-raised"}`}>
-      <div className={`px-5 py-3 flex items-center justify-between ${isDark ? "bg-ink/[0.02]" : "bg-paper-secondary/50"}`}>
-        <div className={`text-xs font-medium uppercase tracking-wider ${"text-ink-secondary"}`}>Originaldokument · skannat</div>
-        <div className={`text-xs ${"text-ink-muted"}`}>{totalPages} sida{totalPages !== 1 ? "or" : ""}</div>
+    <Surface padding="p-0" className="overflow-hidden !shadow-card">
+      <div className="px-5 py-3 flex items-center justify-between gap-3 bg-paper-secondary">
+        <div className="text-xs font-medium uppercase tracking-wider text-ink-secondary">Originaldokument · skannat</div>
+        <div className="text-xs text-ink-muted">{totalPages} {totalPages === 1 ? "sida" : "sidor"}</div>
       </div>
-      <div className={`p-4 space-y-4 ${isDark ? "" : "bg-[radial-gradient(circle_at_50%_0%,rgb(var(--accent) / 0.04),transparent_60%)]"}`}>
+      <div className="p-4 space-y-4">
         {pages.length === 0 ? (
-          <div className="rounded-2xl border border-state-warning/30 bg-state-warning/10 p-6 text-sm text-ink-secondary">
-            Originaldokumentet saknas. Resultatet måste granskas mot den ursprungliga filen.
-          </div>
+          <EmptyState
+            title="Originaldokumentet saknas."
+            description="Resultatet måste granskas mot den ursprungliga filen."
+          />
         ) : (
           pages.map((src, i) => {
-            if (src.startsWith("data:image")) {
+            if (src.startsWith("data:image") || src.startsWith("/") || src.startsWith("http")) {
               return (
-                <div key={i} className="relative rounded-2xl overflow-hidden shadow-md">
+                <div key={i} className="relative rounded-2xl overflow-hidden shadow-card">
                   {/* eslint-disable-next-line @next/next/no-img-element */}
                   <img src={src} alt={`Sida ${i + 1}`} className="w-full" />
-                  <div className="absolute top-2 right-2 text-[10px] font-mono bg-ink/80 text-paper px-2 py-0.5 rounded">
+                  <div className="absolute top-2 right-2 text-[10px] font-sans tabular-nums bg-ink/80 text-paper px-2 py-0.5 rounded">
                     sida {i + 1}
                   </div>
                 </div>
@@ -157,7 +156,7 @@ function ScanPanel({
                   data={src}
                   type="application/pdf"
                   aria-label={`Originaldokument sida ${i + 1}`}
-                  className="h-[70vh] w-full rounded-2xl bg-paper-raised shadow-md"
+                  className="h-[70vh] w-full rounded-2xl bg-paper-raised shadow-card"
                 >
                   <a href={src} download={`original-sida-${i + 1}.pdf`} className="text-sm underline">
                     Öppna originalets PDF-sida
@@ -173,56 +172,36 @@ function ScanPanel({
           })
         )}
       </div>
-    </div>
+    </Surface>
   );
 }
 
 function StepCard({
   step,
   resultId,
-  isDark,
 }: {
   step: Step;
   resultId: string;
-  isDark: boolean;
 }) {
   const [editing, setEditing] = useState(false);
 
   const status = step.status;
-  const ringMap: Record<Step["status"], string> = isDark
-    ? {
-        correct: "ring-state-success/30 bg-state-success/10",
-        partial: "ring-state-warning/30 bg-state-warning/10",
-        incorrect: "ring-rose-500/30 bg-rose-500/10",
-        needs_review: "ring-state-warning/30 bg-amber-500/10",
-        pending: "ring-paper-raised/10",
-      }
-    : {
-        correct: "ring-state-success/30 bg-state-success/10/30",
-        partial: "ring-state-warning/30 bg-state-warning/10/40",
-        incorrect: "ring-rose-300 bg-rose-50/40",
-        needs_review: "ring-amber-300 bg-amber-50/40",
-        pending: "ring-ink-hairline",
-      };
+  const ringMap: Record<Step["status"], string> = {
+    correct: "ring-state-success/30",
+    partial: "ring-state-warning/30",
+    incorrect: "ring-state-danger/30",
+    needs_review: "ring-state-warning/30",
+    pending: "ring-ink-hairline",
+  };
 
-  const verdictColor = isDark
-    ? status === "correct"
-      ? "text-state-success"
-      : status === "partial"
-      ? "text-state-warning"
-      : status === "incorrect"
-      ? "text-rose-400"
-      : status === "needs_review"
-      ? "text-amber-300"
-      : "text-paper/50"
-    : status === "correct"
+  const verdictColor = status === "correct"
     ? "text-state-success"
     : status === "partial"
     ? "text-state-warning"
     : status === "incorrect"
-    ? "text-rose-700"
+    ? "text-state-danger"
     : status === "needs_review"
-    ? "text-amber-600"
+    ? "text-state-warning"
     : "text-ink-secondary";
 
   const reason = reviewReason(step);
@@ -257,9 +236,7 @@ function StepCard({
 
   return (
     <div
-      className={`rounded-2xl ring-1 ${ringMap[status]} p-5 transition-all ${
-        isDark ? "bg-paper-raised/5" : "bg-paper-raised"
-      }`}
+      className={`rounded-[16px] bg-paper-raised shadow-card ring-1 ${ringMap[status]} p-5 transition-all`}
     >
       <div className="flex items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
@@ -296,15 +273,11 @@ function StepCard({
             Poäng
           </div>
           <div
-            className={`font-mono text-lg font-semibold tabular-nums ${
-              isDark ? "text-paper" : "text-ink"
-            }`}
+            className="font-sans text-lg font-medium tabular-nums text-ink"
           >
             {step.earnedPoints}
             <span
-              className={
-                isDark ? "text-paper/30" : "text-ink-muted"
-              }
+              className="text-ink-muted"
             >
               /{step.maxPoints}
             </span>
@@ -314,16 +287,10 @@ function StepCard({
 
       {/* Elevens svar */}
       <div
-        className={`mt-3 rounded-xl p-3 text-xs leading-relaxed font-mono ${
-          isDark
-            ? "bg-paper-raised/[0.08] text-ink"
-            : "bg-paper-secondary/70 text-ink"
-        }`}
+        className="mt-3 rounded-xl p-3 text-xs leading-relaxed font-mono bg-paper-secondary text-ink"
       >
         <span
-          className={
-            isDark ? "text-ink-secondary" : "text-ink-muted"
-          }
+          className="text-ink-secondary"
         >
           Elev:
         </span>{" "}
@@ -331,9 +298,7 @@ function StepCard({
           <MathText content={step.studentWork} />
         ) : (
           <span
-            className={
-              isDark ? "text-paper/30 italic" : "text-ink-muted italic"
-            }
+            className="text-ink-muted italic"
           >
             {step.found === false
               ? "Uppgiften hittades inte i dokumentet."
@@ -345,11 +310,7 @@ function StepCard({
       {/* Varför uppgiften behöver granskas – visas bara när det faktiskt gäller */}
       {reason && (
         <div
-          className={`mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed ${
-            isDark
-              ? "bg-amber-400/10 ring-amber-400/25 text-amber-200"
-              : "bg-amber-50 ring-amber-200/70 text-amber-900"
-          }`}
+          className="mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed bg-state-warning/10 ring-state-warning/30 text-ink"
         >
           <span className="font-semibold mr-1">Behöver granskas:</span>
           {reason}
@@ -359,11 +320,7 @@ function StepCard({
       {/* AI-annotation – strukturerad data från backend, aldrig genererad här */}
       {hasAnnotation && (
         <div
-          className={`mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed ${
-            isDark
-              ? "bg-ink/5 ring-ink/15 text-ink"
-              : "bg-ink/5 ring-ink/15 text-ink"
-          }`}
+          className="mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed bg-ink/5 ring-ink/15 text-ink"
         >
           <span
             className={`inline-flex items-center gap-1 font-semibold mb-1 align-[-2px] ${
@@ -427,9 +384,7 @@ function StepCard({
       {/* Feedback till eleven */}
       {step.feedback && (
         <div
-          className={`mt-2 rounded-xl p-3 text-xs leading-relaxed ${
-            isDark ? "bg-paper-raised/[0.08] text-ink" : "bg-paper-secondary/70 text-ink"
-          }`}
+          className="mt-2 rounded-xl p-3 text-xs leading-relaxed bg-paper-secondary text-ink"
         >
           <span className="font-semibold mr-1">Feedback:</span>
           <MathText content={step.feedback} />
@@ -441,7 +396,6 @@ function StepCard({
           step={step}
           resultId={resultId}
           onDone={() => setEditing(false)}
-          isDark={isDark}
         />
       )}
 
@@ -449,21 +403,18 @@ function StepCard({
         <ActionBtn
           variant="primary"
           onClick={approve}
-          isDark={isDark}
         >
           Godkänn
         </ActionBtn>
         <ActionBtn
           variant="secondary"
           onClick={() => setEditing(true)}
-          isDark={isDark}
         >
           Anpassa
         </ActionBtn>
         <ActionBtn
           variant="ghost"
           onClick={redo}
-          isDark={isDark}
         >
           Gör om
         </ActionBtn>
@@ -473,17 +424,16 @@ function StepCard({
 }
 
 function EditStep({
-  step, resultId, onDone, isDark,
+  step, resultId, onDone,
 }: {
   step: Step;
   resultId: string;
   onDone: () => void;
-  isDark: boolean;
 }) {
   const [pts, setPts] = useState(step.earnedPoints);
 
   return (
-    <div className={`mt-4 rounded-xl p-4 space-y-3 ${isDark ? "bg-paper-raised/[0.03]" : "bg-paper-secondary"}`}>
+    <div className="mt-4 rounded-xl p-4 space-y-3 bg-paper-secondary">
       <div className="flex items-center gap-3">
         <span className={`text-xs font-medium ${"text-ink-secondary"}`}>Poäng:</span>
         <input
@@ -493,12 +443,12 @@ function EditStep({
           max={step.maxPoints}
           value={pts}
           onChange={(e) => setPts(Number(e.target.value))}
-          className={`w-24 py-1.5 text-sm rounded-lg border px-3 ${"bg-paper-raised/5 border-paper-raised/10 text-ink"}`}
+          className="input w-24 font-sans tabular-nums"
         />
         <span className={`text-xs ${"text-ink-muted"}`}>/ {step.maxPoints}</span>
       </div>
       <div className="flex justify-end gap-2">
-        <button onClick={onDone} className={`text-xs px-2 ${isDark ? "text-paper/50 hover:text-paper" : "text-ink-secondary hover:text-ink"}`}>Avbryt</button>
+        <button onClick={onDone} className="btn-secondary">Avbryt</button>
         <button
           onClick={() => {
             actions.updateStep(resultId, step.id, {
@@ -506,7 +456,7 @@ function EditStep({
             });
             onDone();
           }}
-          className="rounded-xl bg-ink text-paper text-xs font-semibold px-4 py-1.5 hover:bg-ink/90"
+          className="btn-primary"
         >
           Spara ändring
         </button>
@@ -516,41 +466,36 @@ function EditStep({
 }
 
 function ActionBtn({
-  variant, children, onClick, disabled, isDark,
+  variant, children, onClick, disabled,
 }: {
   variant: "primary" | "secondary" | "ghost";
   children: React.ReactNode;
   onClick: () => void;
   disabled?: boolean;
-  isDark: boolean;
 }) {
-  const cls = isDark ? {
-    primary: "bg-paper-raised text-ink hover:bg-paper-raised/90 disabled:bg-state-success disabled:text-paper disabled:opacity-90",
-    secondary: "bg-paper-raised/10 ring-1 ring-paper-raised/20 text-paper hover:bg-paper-raised/20",
-    ghost: "text-paper/50 hover:text-paper hover:bg-paper-raised/10",
-  }[variant] : {
-    primary: "bg-ink text-paper hover:bg-paper-secondary disabled:bg-state-success disabled:opacity-90",
-    secondary: "bg-paper-raised ring-1 ring-ink-hairline text-ink hover:bg-paper-secondary",
-    ghost: "text-ink-secondary hover:text-ink hover:bg-paper-secondary",
+  const cls = {
+    primary: "btn-primary",
+    secondary: "btn-secondary",
+    ghost: "btn-tertiary",
   }[variant];
   return (
     <button
       onClick={onClick}
       disabled={disabled}
-      className={`rounded-full px-4 py-1.5 text-xs font-semibold transition-all ${cls}`}
+      className={`${cls} disabled:cursor-not-allowed disabled:opacity-50`}
     >
       {children}
     </button>
   );
 }
 
-function ClassParamsSummary({ klass, prov, isDark }: { klass: Klass; prov: Prov; isDark: boolean }) {
+function ClassParamsSummary({ klass, prov }: { klass: Klass; prov: Prov }) {
   const hasCustomRules = klass.gradingParams?.customRules?.length > 0;
   if (!hasCustomRules && !prov.customParams) return null;
   
   return (
-    <div className={`rounded-2xl border border-dashed p-4 text-xs leading-relaxed ${isDark ? "border-paper-raised/10 bg-paper-raised/[0.02] text-ink-secondary" : "border-ink-hairline bg-paper-secondary/40 text-ink-secondary"}`}>
-      <div className={`font-medium mb-2 ${isDark ? "text-paper" : "text-ink"}`}>Rättningsparametrar</div>
+    <Surface padding="p-4" className="!shadow-card text-xs leading-relaxed text-ink-secondary">
+      <div className="font-medium mb-2 text-ink">Rättningsparametrar</div>
       {hasCustomRules && (
         <div className="mb-1">
           <span className={"text-ink-muted"}>Klassregler:</span>
@@ -564,6 +509,6 @@ function ClassParamsSummary({ klass, prov, isDark }: { klass: Klass; prov: Prov;
       {prov.customParams && (
         <div><span className={"text-ink-muted"}>Provet:</span> <span className="italic">{prov.customParams}</span></div>
       )}
-    </div>
+    </Surface>
   );
 }

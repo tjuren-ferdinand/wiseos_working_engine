@@ -7,10 +7,11 @@ import { useRouter } from "next/navigation";
 import { motion, useInView, useScroll, useMotionValueEvent } from "framer-motion";
 import Logo from "@/components/Logo";
 import { createClient } from "@/lib/supabase/client";
+import { API_URL } from "@/lib/api";
 import LineIcon, { type IconName } from "@/components/LineIcon";
 import Surface from "@/components/ui/Surface";
 
-type AuthMode = "login" | "signup";
+type AuthMode = "login" | "signup" | "access";
 
 const subjects = ["Matte", "Fysik", "Kemi"];
 
@@ -29,9 +30,13 @@ function AuthModal({
   const [mode, setMode] = useState<AuthMode>(initialMode);
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [name, setName] = useState("");
+  const [school, setSchool] = useState("");
+  const [message, setMessage] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [signupDone, setSignupDone] = useState(false);
+  const [accessDone, setAccessDone] = useState(false);
   const dialogRef = useRef<HTMLDivElement>(null);
   const closeRef = useRef(onClose);
   closeRef.current = onClose;
@@ -41,6 +46,10 @@ function AuthModal({
     setMode(initialMode);
     setError(null);
     setSignupDone(false);
+    setAccessDone(false);
+    setName("");
+    setSchool("");
+    setMessage("");
     const previousFocus = document.activeElement as HTMLElement | null;
     const dialog = dialogRef.current;
     const focusable = () =>
@@ -82,6 +91,36 @@ function AuthModal({
 
   if (!open) return null;
   if (typeof document === "undefined") return null;
+
+  const handleAccessRequest = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    setLoading(true);
+
+    try {
+      const res = await fetch(`${API_URL}/api/v1/access-requests`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: name.trim(),
+          school: school.trim(),
+          email: email.trim().toLowerCase(),
+          message: message.trim() || undefined,
+        }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.detail || "Kunde inte skicka förfrågan");
+      }
+
+      setAccessDone(true);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Något gick fel");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const handleGoogleLogin = async () => {
     setError(null);
@@ -152,7 +191,11 @@ function AuthModal({
             id="auth-title"
             className="text-[20px] font-medium tracking-[-0.01em] text-ink"
           >
-            {mode === "login" ? "Välkommen tillbaka" : "Kom igång med WiseOS"}
+            {mode === "login"
+              ? "Välkommen tillbaka"
+              : mode === "access"
+              ? "Begär åtkomst"
+              : "Kom igång med WiseOS"}
           </h2>
           <button
             onClick={onClose}
@@ -181,6 +224,40 @@ function AuthModal({
               Tillbaka till inloggning
             </button>
           </div>
+        ) : accessDone ? (
+          <div className="space-y-4 text-center">
+            <p className="text-[13.5px] leading-relaxed text-ink">
+              Tack! Vi återkommer inom kort till {email}.
+            </p>
+            <p className="text-[12px] text-ink-muted">
+              WiseOS är just nu tillgängligt för utvalda pilotskolor.
+            </p>
+            <button
+              type="button"
+              onClick={onClose}
+              className="text-[13px] font-medium text-ink hover:underline"
+            >
+              Stäng
+            </button>
+          </div>
+        ) : mode === "access" ? (
+          <AccessRequestForm
+            name={name}
+            school={school}
+            email={email}
+            message={message}
+            loading={loading}
+            error={error}
+            onNameChange={setName}
+            onSchoolChange={setSchool}
+            onEmailChange={setEmail}
+            onMessageChange={setMessage}
+            onSubmit={handleAccessRequest}
+            onSwitchToLogin={() => {
+              setError(null);
+              setMode("login");
+            }}
+          />
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
@@ -272,7 +349,7 @@ function AuthModal({
           </form>
         )}
 
-        {!signupDone && (
+        {!signupDone && !accessDone && mode !== "access" && (
           <p className="mt-5 text-center text-[13px] text-ink-secondary">
             {mode === "login" ? (
               <>
@@ -281,11 +358,11 @@ function AuthModal({
                   type="button"
                   onClick={() => {
                     setError(null);
-                    setMode("signup");
+                    setMode("access");
                   }}
                   className="font-medium text-ink hover:underline"
                 >
-                  Skapa ett här
+                  Begär åtkomst
                 </button>
               </>
             ) : (
@@ -308,6 +385,139 @@ function AuthModal({
       </div>
     </div>,
     document.body
+  );
+}
+
+function AccessRequestForm({
+  name,
+  school,
+  email,
+  message,
+  loading,
+  error,
+  onNameChange,
+  onSchoolChange,
+  onEmailChange,
+  onMessageChange,
+  onSubmit,
+  onSwitchToLogin,
+}: {
+  name: string;
+  school: string;
+  email: string;
+  message: string;
+  loading: boolean;
+  error: string | null;
+  onNameChange: (v: string) => void;
+  onSchoolChange: (v: string) => void;
+  onEmailChange: (v: string) => void;
+  onMessageChange: (v: string) => void;
+  onSubmit: (e: React.FormEvent) => void;
+  onSwitchToLogin: () => void;
+}) {
+  return (
+    <form onSubmit={onSubmit} className="space-y-4">
+      <p className="text-[13px] leading-relaxed text-ink-secondary">
+        WiseOS är just nu tillgängligt för utvalda pilotskolor. Lämna dina
+        uppgifter så återkommer vi inom kort.
+      </p>
+
+      <div>
+        <label
+          htmlFor="access-name"
+          className="mb-1.5 block text-[12.5px] font-medium text-ink-secondary"
+        >
+          Namn
+        </label>
+        <input
+          id="access-name"
+          type="text"
+          required
+          autoComplete="name"
+          value={name}
+          onChange={(e) => onNameChange(e.target.value)}
+          placeholder="Anna Andersson"
+          className="input"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="access-school"
+          className="mb-1.5 block text-[12.5px] font-medium text-ink-secondary"
+        >
+          Skola / organisation
+        </label>
+        <input
+          id="access-school"
+          type="text"
+          required
+          autoComplete="organization"
+          value={school}
+          onChange={(e) => onSchoolChange(e.target.value)}
+          placeholder="Exempelvis: Katedralskolan"
+          className="input"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="access-email"
+          className="mb-1.5 block text-[12.5px] font-medium text-ink-secondary"
+        >
+          E-post
+        </label>
+        <input
+          id="access-email"
+          type="email"
+          required
+          autoComplete="email"
+          value={email}
+          onChange={(e) => onEmailChange(e.target.value)}
+          placeholder="namn@skola.se"
+          className="input"
+        />
+      </div>
+
+      <div>
+        <label
+          htmlFor="access-message"
+          className="mb-1.5 block text-[12.5px] font-medium text-ink-secondary"
+        >
+          Meddelande{" "}
+          <span className="font-normal text-ink-muted">(valfritt)</span>
+        </label>
+        <textarea
+          id="access-message"
+          rows={3}
+          value={message}
+          onChange={(e) => onMessageChange(e.target.value)}
+          placeholder="Berätta gärna om din situation — t.ex. vilka ämnen du undervisar i"
+          className="input resize-none"
+        />
+      </div>
+
+      {error && (
+        <p className="rounded-xl bg-state-danger/10 px-3 py-2 text-[12.5px] text-state-danger">
+          {error}
+        </p>
+      )}
+
+      <button type="submit" disabled={loading} className="btn-primary w-full">
+        {loading ? "Skickar…" : "Skicka förfrågan"}
+      </button>
+
+      <p className="text-center text-[13px] text-ink-secondary">
+        Har du redan ett konto?{" "}
+        <button
+          type="button"
+          onClick={onSwitchToLogin}
+          className="font-medium text-ink hover:underline"
+        >
+          Logga in
+        </button>
+      </p>
+    </form>
   );
 }
 
@@ -335,6 +545,12 @@ function Header({
           </span>
         </Link>
         <div className="flex items-center gap-2">
+          <Link
+            href="/demo"
+            className="btn-tertiary px-4 py-2 text-[13px]"
+          >
+            Se demo
+          </Link>
           <button
             onClick={() => openAuth("login")}
             className="btn-tertiary px-4 py-2 text-[13px]"
@@ -342,10 +558,10 @@ function Header({
             Logga in
           </button>
           <button
-            onClick={() => openAuth("signup")}
+            onClick={() => openAuth("access")}
             className="btn-primary px-4 py-2 text-[13px]"
           >
-            Kom igång
+            Begär åtkomst
           </button>
         </div>
       </div>
@@ -353,95 +569,130 @@ function Header({
   );
 }
 
-function ProductDemo({
-  className = "",
-  compact = false,
-}: {
-  className?: string;
-  compact?: boolean;
-}) {
+/* ---------------------------------------------------------------------------
+ * ProductDemo — realistisk komposition baserad på faktisk WiseOS Workbench.
+ * Vänster: skannat original (handskrivet). Höger: per-uppgift bedömning med
+ * poäng, AI-annotation och lärar-kontroll. Inget påhittat dashboard.
+ * ------------------------------------------------------------------------- */
+function ProductDemo({ compact = false }: { compact?: boolean }) {
   return (
-    <div
-      className={`relative ${className}`}
-      style={{ perspective: "1200px" }}
-    >
-      <div className="relative z-10 flex flex-col gap-3">
-        {/* Original document */}
-        <Surface
-          className={`${
-            compact ? "p-4" : "p-5"
-          } overflow-hidden bg-paper-elevated shadow-card`}
-        >
-          <div className="flex items-center justify-between gap-3 border-b border-ink-hairline/5 pb-3">
-            <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted">
-              Originaluppgift
-            </span>
-            <span className="text-[11px] text-ink-muted">Uppgift 4</span>
-          </div>
-          <div className="mt-4 space-y-3">
-            <p className={`${compact ? "text-[13px]" : "text-[14px]"} text-ink`}>
-              Lös ekvationen och visa alla steg:
-            </p>
-            <div className="overflow-x-auto rounded-[10px] border border-ink-hairline/5 bg-paper px-4 py-3 font-serif text-ink">
-              <p className={compact ? "text-[15px]" : "text-[17px]"}>
-                2x + 5 = 17
-              </p>
-              <p className="mt-2 text-ink-secondary">
-                x = ?
-              </p>
+    <div className="grid gap-4 lg:grid-cols-[1.05fr_1fr]">
+      {/* Skannat original — speglar Workbench.ScanPanel */}
+      <Surface padding="p-0" className="overflow-hidden !shadow-card">
+        <div className="flex items-center justify-between gap-3 bg-paper-secondary px-5 py-3">
+          <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-secondary">
+            Originaldokument · skannat
+          </span>
+          <span className="text-[11px] text-ink-muted">1 sida</span>
+        </div>
+        <div className="p-5">
+          <motion.div
+            initial={{ opacity: 0, y: 8 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            transition={{ duration: 0.6, ease: [0.22, 1, 0.36, 1] }}
+            className="relative overflow-hidden rounded-2xl shadow-card"
+          >
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img
+              src="/demo/demo-exam-scan.png"
+              alt="Skannat elevsvar — A. Andersson, NA1"
+              className="block w-full"
+            />
+            <div className="absolute right-3 top-3 rounded bg-ink/80 px-2 py-0.5 text-[10px] font-sans tabular-nums text-paper">
+              sida 1
             </div>
-            <div
-              className={`rounded-[10px] border border-ink-hairline/5 bg-paper-secondary p-4 ${
-                compact ? "text-[13px]" : "text-[14px]"
-              } text-ink`}
-            >
-              <p>2x = 17 − 5</p>
-              <p>2x = 12</p>
-              <p className="font-medium">x = 6</p>
-            </div>
-          </div>
-        </Surface>
+          </motion.div>
+        </div>
+      </Surface>
 
-        {/* Assessment panel */}
+      {/* Per-uppgift bedömning — speglar Workbench.StepCard */}
+      <div className="space-y-3">
         <motion.div
           initial={{ opacity: 0, y: 12 }}
           whileInView={{ opacity: 1, y: 0 }}
           viewport={{ once: true }}
-          transition={{ duration: 0.7, delay: 0.15, ease: [0.22, 1, 0.36, 1] }}
+          transition={{ duration: 0.6, delay: 0.1, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-[16px] bg-paper-raised p-5 shadow-card ring-1 ring-state-success/30"
         >
-          <Surface
-            className={`${
-              compact ? "p-4" : "p-5"
-            } overflow-hidden border-l-4 border-l-state-success bg-paper-elevated shadow-card`}
-          >
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <span className="text-[11px] font-medium uppercase tracking-[0.1em] text-ink-muted">
-                  Bedömning
-                </span>
-                <h4 className={`mt-1 font-medium text-ink ${compact ? "text-[14px]" : "text-[16px]"}`}>
-                  Korrekt lösningsgång
-                </h4>
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-ink-muted">
+                Uppgift 4
               </div>
-              <div className="flex items-baseline gap-1.5 text-ink">
-                <span className={`font-semibold tabular-nums ${compact ? "text-[22px]" : "text-[26px]"}`}>
-                  2
-                </span>
-                <span className="text-[13px] text-ink-muted">/ 2</span>
+              <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-state-success">
+                <LineIcon name="check" className="h-3.5 w-3.5" />
+                Korrekt
               </div>
             </div>
-            <p
-              className={`mt-3 leading-relaxed text-ink-secondary ${
-                compact ? "text-[12px]" : "text-[13px]"
-              }`}
-            >
-              Alla steg är redovisade och slutsvaret är rätt.
-            </p>
-            <div className="mt-4 flex items-center gap-2 text-[12px] text-ink-muted">
-              <span className="inline-flex h-1.5 w-1.5 rounded-full bg-state-success" />
-              Granskad av lärare
+            <div className="shrink-0 text-right">
+              <div className="text-[11px] uppercase tracking-wider text-ink-muted">Poäng</div>
+              <div className="font-sans text-lg font-medium tabular-nums text-ink">
+                2<span className="text-ink-muted">/2</span>
+              </div>
             </div>
-          </Surface>
+          </div>
+
+          <div className="mt-3 rounded-xl bg-paper-secondary p-3 text-xs leading-relaxed font-mono text-ink">
+            <span className="text-ink-secondary">Elev:</span>{" "}
+            <span className="whitespace-pre-wrap">2x + 5 = 17 → x = 6</span>
+          </div>
+
+          <div className="mt-2 rounded-xl bg-ink/5 p-3 text-xs leading-relaxed text-ink ring-1 ring-ink/15">
+            <span className="mb-1 inline-flex items-center gap-1 font-semibold align-[-2px] text-ink">
+              <LineIcon name="pen" className="h-3.5 w-3.5" />
+              AI-annotation
+            </span>
+            <p className="mt-1">Alla steg är redovisade och slutsvaret är rätt.</p>
+            <ul className="mt-1.5 space-y-0.5">
+              <li className="flex gap-1.5">
+                <span className="text-state-success">✓</span>
+                <span>Korrekt isolering av x</span>
+              </li>
+              <li className="flex gap-1.5">
+                <span className="text-state-success">✓</span>
+                <span>Rätt slutvärde</span>
+              </li>
+            </ul>
+          </div>
+
+          <div className="mt-4 flex flex-wrap gap-2">
+            <span className="rounded-[10px] bg-ink px-3 py-1.5 text-xs font-medium text-paper">
+              Godkänd
+            </span>
+            <span className="rounded-[10px] border border-ink-hairline bg-paper-elevated px-3 py-1.5 text-xs font-medium text-ink">
+              Anpassa
+            </span>
+          </div>
+        </motion.div>
+
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          transition={{ duration: 0.6, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
+          className="rounded-[16px] bg-paper-raised p-5 shadow-card ring-1 ring-state-warning/30"
+        >
+          <div className="flex items-start justify-between gap-3">
+            <div className="min-w-0 flex-1">
+              <div className="text-[11px] uppercase tracking-wider font-semibold text-ink-muted">
+                Uppgift 2
+              </div>
+              <div className="mt-1 flex items-center gap-1.5 text-sm font-medium text-state-warning">
+                Behöver granskas
+              </div>
+            </div>
+            <div className="shrink-0 text-right">
+              <div className="text-[11px] uppercase tracking-wider text-ink-muted">Poäng</div>
+              <div className="font-sans text-lg font-medium tabular-nums text-ink">
+                3<span className="text-ink-muted">/3</span>
+              </div>
+            </div>
+          </div>
+          <div className="mt-2 rounded-xl bg-state-warning/10 p-3 text-xs leading-relaxed text-ink ring-1 ring-state-warning/30">
+            <span className="font-semibold mr-1">Behöver granskas:</span>
+            AI:n är osäker på handstilen (62% säkerhet). Kontrollera transkriptionen mot originalet.
+          </div>
         </motion.div>
       </div>
     </div>
@@ -505,17 +756,17 @@ function Hero({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
               className="mt-8 flex flex-wrap items-center gap-3"
             >
               <button
-                onClick={() => openAuth("signup")}
+                onClick={() => openAuth("access")}
                 className="btn-primary px-7 py-3.5"
               >
-                Kom igång
+                Begär åtkomst
               </button>
-              <button
-                onClick={() => openAuth("login")}
+              <Link
+                href="/demo"
                 className="btn-secondary px-7 py-3.5"
               >
-                Logga in
-              </button>
+                Se demo
+              </Link>
             </motion.div>
 
             <motion.p
@@ -750,40 +1001,40 @@ function ProductProof({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
   return (
     <div ref={ref}>
       <Section>
-      <div className="mx-auto max-w-6xl px-6">
-        <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
-          <div>
-            <Eyebrow>Produktvy</Eyebrow>
-            <h2 className="mt-4 text-[32px] font-medium leading-[1.1] tracking-[-0.025em] text-ink md:text-[44px]">
-              AI gör grovjobbet.
-              <br />
-              <span className="text-ink-secondary">Du behåller kontrollen.</span>
-            </h2>
-            <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-secondary">
-              WiseOS hjälper dig att förstå och bedöma elevens faktiska arbete.
-              Du granskar resultatet innan du godkänner.
-            </p>
-            <div className="mt-8">
-              <button
-                onClick={() => openAuth("signup")}
-                className="btn-primary px-7 py-3.5"
-              >
-                Se hur det fungerar
-              </button>
+        <div className="mx-auto max-w-6xl px-6">
+          <div className="grid gap-12 lg:grid-cols-2 lg:gap-16">
+            <div className="flex flex-col justify-center">
+              <Eyebrow>Produktvy</Eyebrow>
+              <h2 className="mt-4 text-[32px] font-medium leading-[1.1] tracking-[-0.025em] text-ink md:text-[44px]">
+                AI gör grovjobbet.
+                <br />
+                <span className="text-ink-secondary">Du behåller kontrollen.</span>
+              </h2>
+              <p className="mt-6 max-w-md text-[16px] leading-relaxed text-ink-secondary">
+                WiseOS hjälper dig att förstå och bedöma elevens faktiska arbete.
+                Du granskar resultatet innan du godkänner.
+              </p>
+              <div className="mt-8">
+                <button
+                  onClick={() => openAuth("access")}
+                  className="btn-primary px-7 py-3.5"
+                >
+                  Begär åtkomst
+                </button>
+              </div>
             </div>
-          </div>
 
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={isInView ? { opacity: 1, y: 0 } : {}}
-            transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
-          >
-            <ProductDemo />
-          </motion.div>
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={isInView ? { opacity: 1, y: 0 } : {}}
+              transition={{ duration: 0.8, ease: [0.22, 1, 0.36, 1] }}
+            >
+              <ProductDemo />
+            </motion.div>
+          </div>
         </div>
-      </div>
-    </Section>
-  </div>
+      </Section>
+    </div>
   );
 }
 
@@ -872,17 +1123,17 @@ function FinalCTA({ openAuth }: { openAuth: (mode: AuthMode) => void }) {
         </p>
         <div className="mt-10 flex flex-wrap items-center justify-center gap-3">
           <button
-            onClick={() => openAuth("signup")}
+            onClick={() => openAuth("access")}
             className="btn-primary px-8 py-4 text-[15px]"
           >
-            Kom igång
+            Begär åtkomst
           </button>
-          <button
-            onClick={() => openAuth("login")}
+          <Link
+            href="/demo"
             className="btn-secondary px-8 py-4 text-[15px]"
           >
-            Logga in
-          </button>
+            Se demo
+          </Link>
         </div>
       </div>
     </Section>

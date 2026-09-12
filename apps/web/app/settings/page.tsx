@@ -83,10 +83,10 @@ export default function SettingsPage() {
                 </div>
               </div>
             </div>
-            <div className="flex gap-1 rounded-[12px] bg-ink/[0.04] border border-ink-hairline p-1">
+            <div className="flex gap-1 rounded-[14px] bg-ink/[0.04] border border-ink-hairline p-1">
               <button
                 onClick={() => setTheme("light")}
-                className={`flex items-center gap-1.5 rounded-[9px] px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+                className={`flex items-center gap-1.5 rounded-[10px] px-3.5 py-1.5 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
                   theme === "light" ? "bg-paper-raised text-ink shadow-soft" : "text-ink-secondary hover:text-ink"
                 }`}
               >
@@ -95,7 +95,7 @@ export default function SettingsPage() {
               </button>
               <button
                 onClick={() => setTheme("dark")}
-                className={`flex items-center gap-1.5 rounded-[9px] px-3.5 py-1.5 text-[13px] font-medium transition-all ${
+                className={`flex items-center gap-1.5 rounded-[10px] px-3.5 py-1.5 text-[13px] font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
                   theme === "dark" ? "bg-paper-elevated text-ink shadow-soft" : "text-ink-secondary hover:text-ink"
                 }`}
               >
@@ -113,7 +113,7 @@ export default function SettingsPage() {
                   key={t.id}
                   type="button"
                   onClick={() => setAccentTheme(t.id)}
-                  className={`flex items-center gap-2 rounded-[10px] border-2 px-3 py-2.5 text-left transition-all ${
+                  className={`flex items-center gap-2 rounded-[10px] border-2 px-3 py-2.5 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
                     accentTheme === t.id
                       ? "border-ink bg-ink/5 ring-1 ring-ink/20"
                       : "border-ink-hairline hover:bg-paper-secondary"
@@ -174,7 +174,7 @@ export default function SettingsPage() {
               key={layout.id}
               type="button"
               onClick={() => setReviewLayout(layout.id)}
-              className={`group flex flex-col overflow-hidden rounded-[14px] border-2 text-left transition-all ${
+              className={`group flex flex-col overflow-hidden rounded-[16px] border-2 text-left transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/40 ${
                 reviewLayout === layout.id
                   ? "border-ink ring-1 ring-ink/20"
                   : "border-ink-hairline hover:bg-paper-secondary"
@@ -251,7 +251,7 @@ export default function SettingsPage() {
             type="button"
             onClick={handleLogout}
             disabled={isLoggingOut}
-            className="w-full rounded-[10px] border border-ink-hairline bg-paper-elevated px-5 py-2.5 text-[13px] font-medium text-red-600 transition-all hover:bg-red-50 hover:text-red-700 active:scale-[0.98] disabled:opacity-50"
+            className="w-full rounded-[10px] border border-state-danger/20 bg-paper-elevated px-5 py-2.5 text-[13px] font-medium text-state-danger transition-all enabled:hover:bg-state-danger/[0.08] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-state-danger/40 focus-visible:ring-offset-2 focus-visible:ring-offset-paper enabled:active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-50"
           >
             {isLoggingOut ? "Loggar ut..." : "Logga ut"}
           </button>

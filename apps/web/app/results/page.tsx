@@ -46,11 +46,11 @@ export default function ResultsPage() {
                 </div>
                 <div className="mt-1.5 text-[15px] font-medium text-ink">{r.studentName}</div>
                 <div className="mt-3 flex items-baseline gap-2">
-                  <span className="text-[24px] font-medium tracking-[-0.01em] text-ink tabular-nums">
+                  <span className="text-[28px] font-medium tracking-[-0.01em] text-ink tabular-nums">
                     {totalPoints}/{maxPoints}
                   </span>
-                  <span className={`text-[13px] font-medium tabular-nums ${
-                    pct >= 80 ? "text-state-success" : pct >= 50 ? "text-ink-secondary" : "text-state-danger"
+                  <span className={`rounded-lg px-2.5 py-1 text-[13px] font-medium tabular-nums ${
+                    pct >= 80 ? "bg-state-success/10 text-state-success" : pct >= 50 ? "bg-state-warning/10 text-state-warning" : "bg-state-danger/10 text-state-danger"
                   }`}>
                     {pct}%
                   </span>
