@@ -59,6 +59,12 @@ BACKOFF_MAX_SECONDS = 30.0
 # uppgiftslistan delas upp så att långa prov inte slår i output-taket.
 QUESTIONS_PER_CALL = 8
 
+# Max antal sidor per Gemini-anrop. Dokument med fler sidor delas upp i
+# överlappande sidchunkar (1-sidors överlapp) så att en uppgift som spänner
+# en chunkgräns inte klipps. Resultat dedupliceras på questionNumber —
+# behåller den med found=True och högst transcriptionConfidence.
+MAX_PAGES_PER_CALL = 20
+
 MAX_OUTPUT_TOKENS = 8192
 
 # Under detta värde litar vi inte på transkriptionen och lämnar till lärare.
@@ -789,6 +795,23 @@ def _failed_question(item: AnswerKeyItem, error: str) -> QuestionResult:
     )
 
 
+def _better_result(a: QuestionResult, b: QuestionResult) -> bool:
+    """Returnerar True om `a` är ett bättre resultat än `b` för samma questionNumber.
+
+    Används för deduplicering över sidchunkar: föredrar found=True, sedan
+    högst transcriptionConfidence, sedan icke-needs_review.
+    """
+    if a.found and not b.found:
+        return True
+    if not a.found and b.found:
+        return False
+    if a.transcriptionConfidence != b.transcriptionConfidence:
+        return a.transcriptionConfidence > b.transcriptionConfidence
+    a_ok = a.assessment.status != "needs_review"
+    b_ok = b.assessment.status != "needs_review"
+    return a_ok and not b_ok
+
+
 # ---------------------------------------------------------------------------
 # Publikt API
 # ---------------------------------------------------------------------------
@@ -916,26 +939,63 @@ async def analyze_document(
     attempts_total = 0
     errors: list[str] = []
 
-    for chunk in chunks:
-        try:
-            chunk_results, chunk_unlisted, attempts = await _analyze_chunk(
-                pages, chunk, grading_notes, request_id
-            )
-            graded.extend(chunk_results)
-            unlisted.extend(chunk_unlisted)
-            attempts_total += attempts
-        except GradingError as e:
-            logger.error(
-                "grade_chunk_failed request_id=%s kind=%s error=%s",
-                request_id, e.kind, e,
-            )
-            errors.append(f"{e.kind}: {e}")
-            graded.extend(_failed_question(item, f"{e.kind}: {e}") for item in chunk)
-            attempts_total += MAX_ATTEMPTS
-        except Exception as e:  # oväntat – ska ändå aldrig krascha batchen
-            logger.exception("grade_chunk_crashed request_id=%s", request_id)
-            errors.append(f"unexpected: {e}")
-            graded.extend(_failed_question(item, f"unexpected: {e}") for item in chunk)
+    # Sidchunking: om dokumentet har fler sidor än MAX_PAGES_PER_CALL, dela
+    # upp i överlappande chunkar (1-sidors överlapp) så att en uppgift som
+    # spänner en chunkgräns inte klipps. Resultat dedupliceras på
+    # questionNumber — behåller found=True och högst transcriptionConfidence.
+    if len(pages) > MAX_PAGES_PER_CALL:
+        page_chunks: list[list[tuple[bytes, str]]] = []
+        step = MAX_PAGES_PER_CALL - 1  # 1-sidors överlapp
+        for i in range(0, len(pages), step):
+            page_chunks.append(pages[i : i + MAX_PAGES_PER_CALL])
+            if i + MAX_PAGES_PER_CALL >= len(pages):
+                break
+        logger.info(
+            "grade_page_chunks request_id=%s total_pages=%d chunks=%d overlap=1",
+            request_id, len(pages), len(page_chunks),
+        )
+    else:
+        page_chunks = [pages]
+
+    # Samla resultat per questionNumber för deduplicering över sidchunkar.
+    best_by_number: dict[str, QuestionResult] = {}
+    all_unlisted: list[QuestionResult] = []
+
+    for page_chunk in page_chunks:
+        for chunk in chunks:
+            try:
+                chunk_results, chunk_unlisted, attempts = await _analyze_chunk(
+                    page_chunk, chunk, grading_notes, request_id
+                )
+                attempts_total += attempts
+                # Deduplicera: behåll found=True och högst transcriptionConfidence.
+                for q in chunk_results:
+                    existing = best_by_number.get(q.questionNumber)
+                    if existing is None:
+                        best_by_number[q.questionNumber] = q
+                    elif _better_result(q, existing):
+                        best_by_number[q.questionNumber] = q
+                all_unlisted.extend(chunk_unlisted)
+            except GradingError as e:
+                logger.error(
+                    "grade_chunk_failed request_id=%s kind=%s error=%s",
+                    request_id, e.kind, e,
+                )
+                errors.append(f"{e.kind}: {e}")
+                # Bara markera som failed om vi inte redan har ett bättre resultat.
+                for item in chunk:
+                    if item.question_number not in best_by_number:
+                        best_by_number[item.question_number] = _failed_question(item, f"{e.kind}: {e}")
+                attempts_total += MAX_ATTEMPTS
+            except Exception as e:  # oväntat – ska ändå aldrig krascha batchen
+                logger.exception("grade_chunk_crashed request_id=%s", request_id)
+                errors.append(f"unexpected: {e}")
+                for item in chunk:
+                    if item.question_number not in best_by_number:
+                        best_by_number[item.question_number] = _failed_question(item, f"unexpected: {e}")
+
+    graded = list(best_by_number.values())
+    unlisted = all_unlisted
 
     # Uppgifter som finns i dokumentet men saknas i facit läggs sist,
     # deduplicerade mot facitnumren.

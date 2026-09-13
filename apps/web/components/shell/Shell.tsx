@@ -38,6 +38,8 @@ export default function Shell({ children }: { children: React.ReactNode }) {
   const nextThemeLabel = theme === "light" ? "Byt till krämtema" : theme === "cream" ? "Byt till mörkt tema" : "Byt till ljust tema";
   const isPublic =
     pathname === "/login" ||
+    pathname === "/demo" ||
+    pathname.startsWith("/demo/") ||
     pathname === "/faq" ||
     pathname === "/legal" ||
     pathname === "/_not-found" ||

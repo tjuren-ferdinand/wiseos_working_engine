@@ -3,7 +3,7 @@
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useMemo } from "react";
 import Link from "next/link";
-import { useStore } from "@/lib/store";
+import { useStore, actions } from "@/lib/store";
 import MathText from "@/components/Math";
 import "katex/dist/katex.min.css";
 import s from "./print.module.css";
@@ -29,6 +29,13 @@ export default function PrintPage() {
     () => results.find((r) => r.id === studentId),
     [results, studentId],
   );
+
+  // Hämta scanPages on-demand (listvyn returnerar inte scanPages).
+  useEffect(() => {
+    if (studentId && result && (!result.scanPages || result.scanPages.length === 0)) {
+      void actions.fetchResultDetail(studentId);
+    }
+  }, [studentId, result]);
 
   useEffect(() => {
     if (result) {

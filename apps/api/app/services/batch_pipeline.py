@@ -94,26 +94,48 @@ class UploadedFile:
     page_number: int = 1
 
 
-def _rasterize_pdf_page(pdf_bytes: bytes, page_number: int, dpi: int = 200) -> tuple[bytes, str]:
+def _rasterize_pdf_page(doc: "pymupdf.Document", page_number: int, dpi: int = 200) -> tuple[bytes, str]:
     """Rendera en PDF-sida till en JPEG-bild så att den kan skickas till vision-modeller.
 
     Skannade provsidor är fotografier — JPEG q85 är 5–10× mindre än PNG utan
     läsbarhetsförlust, vilket håller nere minne, DB-payload (scanPages) och
     uppladdningsstorlek till vision-providern.
+
+    Tar ett redan öppet pymupdf.Document istället för raw bytes — undviker
+    att öppna samma PDF hundratals gånger vid stora uppladdningar.
     """
-    doc = pymupdf.open(stream=pdf_bytes, filetype="pdf")
-    try:
-        page = doc.load_page(page_number)
-        matrix = pymupdf.Matrix(dpi / 72.0, dpi / 72.0)
-        pixmap = page.get_pixmap(matrix=matrix)
-        return pixmap.tobytes("jpg", jpg_quality=85), "image/jpeg"
-    finally:
-        doc.close()
+    page = doc.load_page(page_number)
+    matrix = pymupdf.Matrix(dpi / 72.0, dpi / 72.0)
+    pixmap = page.get_pixmap(matrix=matrix)
+    return pixmap.tobytes("jpg", jpg_quality=85), "image/jpeg"
 
 
 def expand_pdf_uploads(files: list[UploadedFile], max_pages: int = 300) -> list[UploadedFile]:
     expanded: list[UploadedFile] = []
     for upload in files:
+        # HEIC (iPhone-foton) konverteras till JPEG — Gemini stödjer inte
+        # image/heic direkt. Konverteringen sker innan bilden når
+        # identifierings- eller rättningsmotorn.
+        if upload.content_type == "image/heic":
+            try:
+                import pillow_heif
+                img = pillow_heif.read_heif(upload.content)
+                from PIL import Image
+                pil_img = Image.frombytes(img.mode, img.size, img.data)
+                buf = BytesIO()
+                pil_img.save(buf, format="JPEG", quality=92)
+                upload = UploadedFile(
+                    filename=re.sub(r"\.heic$", ".jpg", upload.filename or "bild.heic", flags=re.IGNORECASE),
+                    content=buf.getvalue(),
+                    content_type="image/jpeg",
+                    source_id=upload.source_id,
+                    page_number=upload.page_number,
+                )
+            except Exception as exc:
+                raise ValueError(
+                    f"{upload.filename} är en HEIC-bild som inte kunde konverteras. "
+                    f"Spara som JPEG och försök igen."
+                ) from exc
         if upload.content_type != "application/pdf":
             if len(expanded) >= max_pages:
                 raise ValueError(f"Uppladdningen innehåller fler än {max_pages} sidor")
@@ -128,21 +150,26 @@ def expand_pdf_uploads(files: list[UploadedFile], max_pages: int = 300) -> list[
         if len(expanded) + len(reader.pages) > max_pages:
             raise ValueError(f"Uppladdningen innehåller fler än {max_pages} sidor")
         stem = re.sub(r"\.[^.]+$", "", upload.filename or "dokument")
-        for page_index, _page in enumerate(reader.pages):
-            try:
-                image_bytes, _ = _rasterize_pdf_page(upload.content, page_index, dpi=200)
-            except Exception as exc:
-                raise ValueError(f"Kunde inte rendera sida {page_index + 1} i {upload.filename}") from exc
-            page_number = page_index + 1
-            expanded.append(
-                UploadedFile(
-                    filename=f"{stem}_sida_{page_number}.jpg",
-                    content=image_bytes,
-                    content_type="image/jpeg",
-                    source_id=upload.filename,
-                    page_number=page_number,
+        # Öppna PDF:en EN gång för alla sidor — inte en gång per sida.
+        doc = pymupdf.open(stream=upload.content, filetype="pdf")
+        try:
+            for page_index, _page in enumerate(reader.pages):
+                try:
+                    image_bytes, _ = _rasterize_pdf_page(doc, page_index, dpi=200)
+                except Exception as exc:
+                    raise ValueError(f"Kunde inte rendera sida {page_index + 1} i {upload.filename}") from exc
+                page_number = page_index + 1
+                expanded.append(
+                    UploadedFile(
+                        filename=f"{stem}_sida_{page_number}.jpg",
+                        content=image_bytes,
+                        content_type="image/jpeg",
+                        source_id=upload.filename,
+                        page_number=page_number,
+                    )
                 )
-            )
+        finally:
+            doc.close()
     return expanded
 
 
@@ -260,25 +287,6 @@ def _generic_filename(base: str) -> bool:
     if not re.search(r"[a-zåäö]", base, re.IGNORECASE):
         return True
     return False
-
-
-def _resolve_name(
-    extracted: IdentifiedName,
-    upload: UploadedFile,
-    identification_method: str,
-) -> str:
-    """Pick the best student name for a page: extracted name, derived filename, or unknown."""
-    if identification_method == "name_field" and extracted.studentName:
-        return extracted.studentName.strip()
-
-    stem = re.sub(r"\.[^.]+$", "", upload.filename or "")
-    base, _ = _split_page_suffix(stem)
-    if _generic_filename(base):
-        return f"Okänd elev - {upload.filename}"
-    derived = derive_student_name(base)
-    if not derived or derived == "Okänd elev":
-        return f"Okänd elev - {upload.filename}"
-    return derived
 
 
 def _same_student(a: str, b: str) -> bool:
@@ -471,17 +479,17 @@ async def identify_and_group_pages(
 
     for document in documents:
         source = document.pages[0].source_id
-        if source is None or source != current_source:
-            current_source = source
-            open_segment = None
-            open_title = ""
-        if source is None:
-            # Lös fil (inte PDF-sida) — filnamnsbucketingen ovan gäller redan.
-            merged.append(document)
-            continue
+        source_changed = source is None or source != current_source
+        current_source = source
 
         item = _page_extraction(document)
         is_answer_key = item is not None and item.pageType == "answer_key"
+        # Kolla om NÅGON sida i dokumentet är facit (inte bara första sidan).
+        doc_has_key = any(
+            (ex := extraction_by_file.get(id(p))) is not None
+            and ex.pageType == "answer_key"
+            for p in document.pages
+        )
         doc_title = (item.documentTitle or "").strip().casefold() if item else ""
         open_is_key = open_segment is not None and any(
             (ex := extraction_by_file.get(id(p))) is not None
@@ -490,6 +498,41 @@ async def identify_and_group_pages(
         )
 
         anchored = document.identification_method == "name_field"
+
+        # Cross-source merge: två dokument med samma säkert lästa namn från
+        # olika källor (t.ex. två lösa foton, eller PDF + löst foto) slås
+        # ihop om och endast om:
+        #  - Båda är name_field-förankrade (confidence ≥ 0.85).
+        #  - Samma normaliserade namn.
+        #  - Inget dokument innehåller facit-sidor.
+        #  - Dokumenttitlarna är kompatibla (båda tomma, eller båda samma).
+        # Detta fixar huvudbuggen där IMG_4521.jpg + IMG_4522.jpg av samma
+        # elev blev två separata resultat. Tvetydiga fall (samma namn,
+        # olika rubrik) flaggas senare som name_field_ambiguous.
+        if (
+            anchored
+            and open_segment is not None
+            and open_segment.identification_method == "name_field"
+            and _same_student(open_segment.student_name, document.student_name)
+            and not doc_has_key
+            and not open_is_key
+            and not (doc_title and open_title and doc_title != open_title)
+        ):
+            open_segment.pages.extend(document.pages)
+            open_segment.identification_confidence = min(
+                open_segment.identification_confidence,
+                document.identification_confidence,
+            )
+            if doc_title and not open_title:
+                open_title = doc_title
+            continue
+
+        # Källbyte: återställ positionell kontext (men cross-source merge
+        # ovan hinner köras före återställningen).
+        if source_changed:
+            open_segment = None
+            open_title = ""
+
         if anchored:
             if open_segment is not None and _same_student(
                 open_segment.student_name, document.student_name
@@ -527,6 +570,32 @@ async def identify_and_group_pages(
             merged.append(document)
             open_segment = document
             open_title = doc_title
+
+    # Flagga tvetydiga samma-namn-dokument (olika documentTitle) för manuell
+    # granskning. Två elever som heter "Anna Andersson" men skriver olika
+    # prov ("Prov 1" vs "Prov 2") får inte automatiskt slås ihop.
+    _name_groups: dict[str, list[StudentDocument]] = {}
+    for document in merged:
+        if document.identification_method != "name_field":
+            continue
+        key = " ".join(document.student_name.casefold().split())
+        _name_groups.setdefault(key, []).append(document)
+    for group in _name_groups.values():
+        if len(group) <= 1:
+            continue
+        titles: set[str] = set()
+        for d in group:
+            ex = _page_extraction(d)
+            t = (ex.documentTitle or "").strip().casefold() if ex else ""
+            titles.add(t)
+        if len(titles) > 1:
+            for d in group:
+                d.identification_method = "name_field_ambiguous"
+                d.classification_reason = (
+                    "Flera elever med samma namn hittades med olika "
+                    "provtitlar — granska manuellt om detta är samma elev "
+                    "eller olika elever."
+                )
 
     # Dokumentverdict — avgör om segmentet över huvud taget är en
     # elevinlämning INNAN något skickas till rättningsmotorn.

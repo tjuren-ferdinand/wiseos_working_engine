@@ -6,7 +6,7 @@ from .config import settings
 from .db import engine, init_db
 from .logging_config import configure_logging
 from .middleware.request_id import RequestIDMiddleware
-from .routers import admin, ocr, wolfram_test, batch, auth, classes, courses, results, claude, supabase_auth, access_requests
+from .routers import admin, ocr, wolfram_test, batch, classes, courses, results, claude, supabase_auth, access_requests
 from .services.batch_pipeline import integration_status
 from .services.gemini_client import ping as gemini_ping
 
@@ -78,9 +78,6 @@ async def health_integrations():
     status["gemini_reachable"] = await gemini_ping()
     return status
 
-
-if settings.ENABLE_LEGACY_AUTH:
-    app.include_router(auth.router)
 
 app.include_router(ocr.router)
 app.include_router(wolfram_test.router)

@@ -2,8 +2,8 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useMemo } from "react";
-import { useStore, deriveStep } from "@/lib/store";
+import { useEffect, useMemo } from "react";
+import { useStore, deriveStep, actions } from "@/lib/store";
 import ProcessingScene from "@/components/ProcessingScene";
 import Workbench from "@/components/Workbench";
 import Breadcrumb from "@/components/ui/Breadcrumb";
@@ -24,6 +24,16 @@ export default function GradePage() {
   const klass = useMemo(() => klasser.find((k) => k.id === params.id), [klasser, params.id]);
   const prov = useMemo(() => allProv.find((p) => p.id === params.provId), [allProv, params.provId]);
   const allResults = useMemo(() => results.filter((r) => r.provId === params.provId), [results, params.provId]);
+
+  // Hämta scanPages on-demand när Workbench öppnas (listvyn returnerar inte scanPages).
+  useEffect(() => {
+    if (studentId) {
+      const result = allResults.find((r) => r.id === studentId);
+      if (result && (!result.scanPages || result.scanPages.length === 0)) {
+        void actions.fetchResultDetail(studentId);
+      }
+    }
+  }, [studentId, allResults]);
 
   if (!klass || !prov) {
     return (

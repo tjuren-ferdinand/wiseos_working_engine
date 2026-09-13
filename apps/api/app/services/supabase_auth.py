@@ -66,4 +66,30 @@ async def get_current_supabase_user(
         )
 
     data = resp.json()
-    return SupabaseUser(id=data["id"], email=data.get("email"), role=data.get("role"))
+    user = SupabaseUser(id=data["id"], email=data.get("email"), role=data.get("role"))
+
+    # Allowlist-gate: bara godkända lärare får åtkomst till API:et.
+    # Admin-user IDs bypassar gaten (de behöver kunna administrera allowlisten).
+    # Se planen Spår 3.2 för fullständig design.
+    if user.id not in settings.admin_user_ids:
+        from ..db import SessionLocal
+        from .. import models
+
+        db = SessionLocal()
+        try:
+            email = (user.email or "").strip().lower()
+            allowed = (
+                db.query(models.AllowedTeacher)
+                .filter(models.AllowedTeacher.email == email)
+                .first()
+            )
+            if not allowed:
+                raise HTTPException(
+                    status_code=status.HTTP_403_FORBIDDEN,
+                    detail="Din åtkomstförfrågan är under behandling. "
+                           "Du får ett email när den är godkänd.",
+                )
+        finally:
+            db.close()
+
+    return user

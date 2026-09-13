@@ -237,3 +237,19 @@ class AccessRequest(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     reviewed_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     reviewed_by: Mapped[str | None] = mapped_column(String(255), nullable=True)
+
+
+class AllowedTeacher(Base):
+    """Email-baserad allowlist för lärare som får använda appen.
+
+    En lärare måste finnas här för att få åtkomst till API:et.
+    Admin lägger till manuellt eller automatiskt när en AccessRequest godkänns.
+    """
+
+    __tablename__ = "allowed_teachers"
+
+    id: Mapped[str] = mapped_column(String(36), primary_key=True, default=_uuid)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True)
+    supabase_user_id: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    created_by: Mapped[str | None] = mapped_column(String(255), nullable=True)

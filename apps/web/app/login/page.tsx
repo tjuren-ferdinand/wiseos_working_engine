@@ -19,10 +19,12 @@ function AuthModal({
   open,
   onClose,
   initialMode,
+  initialError,
 }: {
   open: boolean;
   onClose: () => void;
   initialMode: AuthMode;
+  initialError?: string | null;
 }) {
   const router = useRouter();
   const supabase = createClient();
@@ -44,7 +46,7 @@ function AuthModal({
   useEffect(() => {
     if (!open) return;
     setMode(initialMode);
-    setError(null);
+    setError(initialError ?? null);
     setSignupDone(false);
     setAccessDone(false);
     setName("");
@@ -87,7 +89,7 @@ function AuthModal({
       document.removeEventListener("keydown", handleKeyDown);
       previousFocus?.focus();
     };
-  }, [open, initialMode]);
+  }, [open, initialMode, initialError]);
 
   if (!open) return null;
   if (typeof document === "undefined") return null;
@@ -141,15 +143,32 @@ function AuthModal({
     setLoading(true);
 
     if (mode === "login") {
-      const { error: signInError } = await supabase.auth.signInWithPassword({
+      const { data: signInData, error: signInError } = await supabase.auth.signInWithPassword({
         email,
         password,
       });
-      setLoading(false);
       if (signInError) {
+        setLoading(false);
         setError(signInError.message);
         return;
       }
+      // Allowlist-gate (Spår 3.2): kontrollera om användaren är godkänd.
+      if (signInData.session?.access_token) {
+        try {
+          const checkRes = await fetch(`${API_URL}/api/v1/auth/supabase/me`, {
+            headers: { Authorization: `Bearer ${signInData.session.access_token}` },
+          });
+          if (checkRes.status === 403) {
+            await supabase.auth.signOut();
+            setLoading(false);
+            setError("Din åtkomstförfrågan är under behandling. Du får ett email när den är godkänd.");
+            return;
+          }
+        } catch {
+          // Om API:t inte nås: släpp igenom (backend-gaten fångar upp vid API-anrop).
+        }
+      }
+      setLoading(false);
       router.push("/");
       router.refresh();
       return;
@@ -1151,6 +1170,7 @@ function Footer() {
 export default function LoginPage() {
   const [authOpen, setAuthOpen] = useState(false);
   const [authMode, setAuthMode] = useState<AuthMode>("login");
+  const [authError, setAuthError] = useState<string | null>(null);
 
   const { scrollY } = useScroll();
   const [scrolled, setScrolled] = useState(false);
@@ -1159,8 +1179,22 @@ export default function LoginPage() {
     setScrolled(latest > 32);
   });
 
+  // Allowlist-gate: om OAuth-callback redirectar med ?error=not_allowed,
+  // öppna login-modalen med felmeddelande.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("error") === "not_allowed") {
+      setAuthError("Din åtkomstförfrågan är under behandling. Du får ett email när den är godkänd.");
+      setAuthMode("login");
+      setAuthOpen(true);
+      // Rensa URL:en.
+      window.history.replaceState({}, "", window.location.pathname);
+    }
+  }, []);
+
   const openAuth = (mode: AuthMode) => {
     setAuthMode(mode);
+    setAuthError(null);
     setAuthOpen(true);
   };
 
@@ -1185,6 +1219,7 @@ export default function LoginPage() {
         open={authOpen}
         onClose={() => setAuthOpen(false)}
         initialMode={authMode}
+        initialError={authError}
       />
     </div>
   );
