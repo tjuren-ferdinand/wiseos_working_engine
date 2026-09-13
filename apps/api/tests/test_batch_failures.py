@@ -183,10 +183,12 @@ async def test_feedback_provider_failure_leaves_question_unchanged():
         feedbackProvider="gemini-vision",
     )
 
-    with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
-        mock_get.side_effect = RuntimeError("no provider configured")
+    with patch("app.services.batch_pipeline.feedback") as mock_feedback:
+        mock_feedback.provider_name.return_value = "anthropic"
+        with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
+            mock_get.side_effect = RuntimeError("no provider configured")
 
-        await apply_feedback_provider([question])
+            await apply_feedback_provider([question])
 
     assert question.feedbackProvider == "gemini-vision"
     assert question.feedback == "Gemini redan gav feedback"
@@ -222,13 +224,15 @@ async def test_feedback_provider_non_runtime_error_graceful():
     class FakeAuthError(Exception):
         """Simulates anthropic.AuthenticationError — not a RuntimeError."""
 
-    with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
-        mock_fb = AsyncMock()
-        mock_fb.generate_feedback = AsyncMock(side_effect=FakeAuthError("401 Unauthorized"))
-        mock_fb.name = "anthropic"
-        mock_get.return_value = mock_fb
+    with patch("app.services.batch_pipeline.feedback") as mock_feedback:
+        mock_feedback.provider_name.return_value = "anthropic"
+        with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
+            mock_fb = AsyncMock()
+            mock_fb.generate_feedback = AsyncMock(side_effect=FakeAuthError("401 Unauthorized"))
+            mock_fb.name = "anthropic"
+            mock_get.return_value = mock_fb
 
-        await apply_feedback_provider([question])
+            await apply_feedback_provider([question])
 
     # Feedback preserved, no crash — the pipeline continues
     assert question.feedbackProvider == "gemini-vision"
@@ -244,13 +248,15 @@ async def test_feedback_provider_error_keeps_existing_feedback():
         feedbackProvider="gemini-vision",
     )
 
-    with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
-        mock_adapter = AsyncMock()
-        mock_adapter.generate_feedback = AsyncMock(side_effect=RuntimeError("API error"))
-        mock_adapter.name = "test"
-        mock_get.return_value = mock_adapter
+    with patch("app.services.batch_pipeline.feedback") as mock_feedback:
+        mock_feedback.provider_name.return_value = "anthropic"
+        with patch("app.services.batch_pipeline.get_feedback_provider") as mock_get:
+            mock_adapter = AsyncMock()
+            mock_adapter.generate_feedback = AsyncMock(side_effect=RuntimeError("API error"))
+            mock_adapter.name = "test"
+            mock_get.return_value = mock_adapter
 
-        await apply_feedback_provider([question])
+            await apply_feedback_provider([question])
 
     assert question.feedback == "Existing feedback"
     assert question.feedbackProvider == "gemini-vision"

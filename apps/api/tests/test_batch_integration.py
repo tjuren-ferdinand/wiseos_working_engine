@@ -69,25 +69,41 @@ async def test_batch_end_to_end():
             mock_math.return_value = mock_math_adapter
 
             with patch("app.services.batch_pipeline.apply_feedback_provider", new_callable=AsyncMock):
-                results = await grade_batch(
-                    prov_id="test-prov",
-                    answer_key=[AnswerKeyItem(
-                        question_number="1",
-                        question_text="Lös x + 1 = 3",
-                        final_answer="x = 2",
-                        max_points=2,
-                    )],
-                    class_grading_parameters="",
-                    test_specific_parameters="",
-                    files=[
-                        UploadedFile(
-                            filename="anna_andersson.png",
-                            content=PNG_1PX,
-                            content_type="image/png",
+                # Utan WOLFRAM_APP_ID/API_URL markeras verifieringen "degraded"
+                # och uppgraderar aldrig till "correct" — sätt en fake-config
+                # direkt på settings-singletonen (övriga attribut behålls).
+                import app.services.batch_pipeline as bp
+                with patch.object(bp.settings, "WOLFRAM_APP_ID", "TEST-APP-ID"):
+                    with patch(
+                        "app.services.batch_pipeline.extract_student_name",
+                        new_callable=AsyncMock,
+                        # pageType="student_work" krävs — annars klassas
+                        # dokumentet som not_student_submission och rättas
+                        # aldrig (alla frågor blir needs_review).
+                        return_value=IdentifiedName(
+                            studentName="Anna Andersson", confidence=0.95,
+                            method="name_field", pageType="student_work",
+                        ),
+                    ):
+                        results = await grade_batch(
+                            prov_id="test-prov",
+                            answer_key=[AnswerKeyItem(
+                                question_number="1",
+                                question_text="Lös x + 1 = 3",
+                                final_answer="x = 2",
+                                max_points=2,
+                            )],
+                            class_grading_parameters="",
+                            test_specific_parameters="",
+                            files=[
+                                UploadedFile(
+                                    filename="anna_andersson.png",
+                                    content=PNG_1PX,
+                                    content_type="image/png",
+                                )
+                            ],
+                            identification_method="name_field",
                         )
-                    ],
-                    identification_method="name_field",
-                )
 
     assert len(results) == 1
     r = results[0]
