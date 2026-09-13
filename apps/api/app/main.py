@@ -42,6 +42,32 @@ app.add_middleware(
 @app.on_event("startup")
 def _startup():
     init_db()
+    _seed_allowlist()
+
+
+def _seed_allowlist():
+    """Lägg till INITIAL_ALLOWED_TEACHERS-emails i allowed_teachers om de inte finns."""
+    from .db import SessionLocal
+    from . import models
+    emails = {
+        e.strip().lower()
+        for e in settings.INITIAL_ALLOWED_TEACHERS.split(",")
+        if e.strip()
+    }
+    if not emails:
+        return
+    db = SessionLocal()
+    try:
+        existing = {
+            r.email for r in db.query(models.AllowedTeacher).filter(
+                models.AllowedTeacher.email.in_(emails)
+            ).all()
+        }
+        for email in emails - existing:
+            db.add(models.AllowedTeacher(email=email, created_by="system"))
+        db.commit()
+    finally:
+        db.close()
 
 
 @app.get("/")

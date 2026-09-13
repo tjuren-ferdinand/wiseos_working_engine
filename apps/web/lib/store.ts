@@ -107,7 +107,7 @@ export interface StudentResult {
   provId: string;
   studentId: string;
   studentName: string;
-  identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id';
+  identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id' | 'name_field_ambiguous' | 'unresolved';
   identificationConfidence: number;
   steps: Step[];
   totalScore: number;

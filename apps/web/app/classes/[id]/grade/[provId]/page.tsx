@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useParams, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useStore, deriveStep, actions } from "@/lib/store";
 import ProcessingScene from "@/components/ProcessingScene";
 import Workbench from "@/components/Workbench";
@@ -20,6 +20,7 @@ export default function GradePage() {
   const klasser = useStore((s) => s.klasser);
   const allProv = useStore((s) => s.prov);
   const results = useStore((s) => s.results);
+  const [hoveredResult, setHoveredResult] = useState<string | null>(null);
 
   const klass = useMemo(() => klasser.find((k) => k.id === params.id), [klasser, params.id]);
   const prov = useMemo(() => allProv.find((p) => p.id === params.provId), [allProv, params.provId]);
@@ -96,51 +97,89 @@ export default function GradePage() {
             const max = r.steps.reduce((s, st) => s + st.maxPoints, 0);
             const pct = max ? total / max : 0;
             const needsAttention = r.steps.some((st) => st.status !== "correct");
+            const reviewCount = r.steps.filter((st) => st.status === "needs_review").length;
+            const isAmbiguous = r.identificationMethod === "name_field_ambiguous";
             return (
-              <Surface
+              <div
                 key={r.id}
-                href={`/classes/${klass.id}/grade/${prov.id}?student=${r.id}`}
-                padding="p-5"
-                className="relative !shadow-card"
+                className="relative"
+                onMouseEnter={() => setHoveredResult(r.id)}
+                onMouseLeave={() => setHoveredResult(null)}
               >
-                <div className="mb-3 flex min-h-5 justify-end">
-                  {needsAttention && (
-                    <span className="inline-flex items-center gap-1 text-[10px] font-medium text-state-warning bg-state-warning/10 ring-1 ring-state-warning/20 rounded-full px-2 py-0.5">
-                      <span className="h-1.5 w-1.5 rounded-full bg-state-warning" />
-                      Granska
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-3">
-                  <div className="h-11 w-11 shrink-0 rounded-full grid place-items-center font-sans text-lg font-medium bg-ink/10 text-ink-secondary">
-                    {r.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
+                <Surface
+                  href={`/classes/${klass.id}/grade/${prov.id}?student=${r.id}`}
+                  padding="p-5"
+                  className="relative !shadow-card"
+                >
+                  <div className="mb-3 flex min-h-5 justify-end">
+                    {needsAttention && (
+                      <span className="inline-flex items-center gap-1 text-[10px] font-medium text-state-warning bg-state-warning/10 ring-1 ring-state-warning/20 rounded-full px-2 py-0.5">
+                        <span className="h-1.5 w-1.5 rounded-full bg-state-warning" />
+                        Granska
+                      </span>
+                    )}
                   </div>
-                  <div className="min-w-0 flex-1">
-                    <div className="text-sm font-medium truncate text-ink group-hover:text-ink-secondary">
-                      {r.studentName}
+                  <div className="flex items-center gap-3">
+                    <div className="h-11 w-11 shrink-0 rounded-full grid place-items-center font-sans text-lg font-medium bg-ink/10 text-ink-secondary">
+                      {r.studentName.split(" ").map((p) => p[0]).slice(0, 2).join("")}
                     </div>
-                    <div className="text-xs text-ink-secondary">{r.steps.length} steg</div>
+                    <div className="min-w-0 flex-1">
+                      <div className="text-sm font-medium truncate text-ink group-hover:text-ink-secondary">
+                        {r.studentName}
+                      </div>
+                      <div className="text-xs text-ink-secondary">{r.steps.length} steg</div>
+                    </div>
                   </div>
-                </div>
-                <div className="mt-4">
-                  <div className="flex items-baseline justify-between mb-1.5">
-                    <span className="text-xs text-ink-secondary">Poäng</span>
-                    <span className="font-sans text-sm font-medium tabular-nums text-ink">
-                      {total}<span className="text-ink-muted">/{max}</span>
-                    </span>
+                  <div className="mt-4">
+                    <div className="flex items-baseline justify-between mb-1.5">
+                      <span className="text-xs text-ink-secondary">Poäng</span>
+                      <span className="font-sans text-sm font-medium tabular-nums text-ink">
+                        {total}<span className="text-ink-muted">/{max}</span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 rounded-full overflow-hidden bg-paper-secondary">
+                      <div
+                        className={`h-full transition-all ${
+                          pct >= 0.85 ? "bg-state-success"
+                          : pct >= 0.5 ? "bg-state-warning"
+                          : "bg-state-danger"
+                        }`}
+                        style={{ width: `${pct * 100}%` }}
+                      />
+                    </div>
                   </div>
-                  <div className="h-1.5 rounded-full overflow-hidden bg-paper-secondary">
-                    <div
-                      className={`h-full transition-all ${
-                        pct >= 0.85 ? "bg-state-success"
-                        : pct >= 0.5 ? "bg-state-warning"
-                        : "bg-state-danger"
-                      }`}
-                      style={{ width: `${pct * 100}%` }}
-                    />
+                </Surface>
+
+                {/* Snabb-sammanfattning — visas på hover (desktop), klick navigerar direkt på mobil */}
+                {hoveredResult === r.id && (
+                  <div className="absolute left-0 right-0 top-full z-20 mt-2 hidden rounded-xl border border-ink-hairline bg-paper-raised p-4 shadow-float sm:block">
+                    <div className="text-sm font-medium text-ink">{r.studentName}</div>
+                    <div className="mt-1 text-xs text-ink-secondary">
+                      {total}/{max} poäng
+                      {pct >= 0.85 ? " · Godkänd" : pct >= 0.5 ? " · Gränsfall" : " · Underkänd"}
+                    </div>
+                    <div className="mt-2 space-y-1 text-xs">
+                      {reviewCount > 0 && (
+                        <div className="flex items-center gap-1.5 text-state-warning">
+                          <span className="h-1.5 w-1.5 rounded-full bg-state-warning" />
+                          {reviewCount} steg behöver granskas
+                        </div>
+                      )}
+                      {isAmbiguous && (
+                        <div className="flex items-center gap-1.5 text-state-danger">
+                          <span className="h-1.5 w-1.5 rounded-full bg-state-danger" />
+                          Namn-ambiguitet — granska manuellt
+                        </div>
+                      )}
+                      {!needsAttention && !isAmbiguous && (
+                        <div className="text-ink-secondary">
+                          {r.steps.filter((s) => s.status === "correct").length}/{r.steps.length} steg korrekta
+                        </div>
+                      )}
+                    </div>
                   </div>
-                </div>
-              </Surface>
+                )}
+              </div>
             );
           })}
         </div>
