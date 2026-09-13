@@ -43,7 +43,9 @@ class Settings(BaseSettings):
     OPENROUTER_API_KEY: str = ""
     OPENROUTER_VISION_MODEL: str = "meta-llama/llama-3.2-11b-vision-instruct:free"
     ANTHROPIC_API_KEY: str = ""
-    ANTHROPIC_MODEL: str = "claude-sonnet-4-20250514"
+    # claude-sonnet-4-20250514 retirerades 2026-06-15 — se Anthropic
+    # deprecation-schemat. 4.6-generationen använder datumfria ID:n.
+    ANTHROPIC_MODEL: str = "claude-sonnet-4-6"
     MATHPIX_APP_ID: str = ""
     MATHPIX_APP_KEY: str = ""
 
