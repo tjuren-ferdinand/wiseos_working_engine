@@ -393,37 +393,51 @@ async def _solve_manifest(manifest: list[dict]) -> list[AnswerKeyItem]:
         raise QuestionSheetInferenceError("Ingen textmodell är konfigurerad", kind="provider_error")
     solved: list[AnswerKeyItem] = []
     last_error: Exception | None = None
-    for attempt in range(1, 3):
-        try:
-            if gemini_client.gemini_enabled():
-                raw = await gemini_client.complete_text(
-                    GENERATE_PROMPT,
-                    user_message,
-                    max_tokens=3000,
-                    temperature=0.0,
-                    json_mode=True,
-                    response_schema=_SOLVED_ITEMS_SCHEMA,
+    providers = []
+    if groq_client.groq_enabled():
+        providers.append("groq")
+    if gemini_client.gemini_enabled():
+        providers.append("gemini")
+    for provider in providers:
+        for attempt in range(1, 3):
+            try:
+                if provider == "groq":
+                    raw = await groq_client.complete_text(
+                        GENERATE_PROMPT,
+                        user_message,
+                        max_tokens=4000,
+                        temperature=0.0,
+                        json_mode=True,
+                    )
+                else:
+                    raw = await gemini_client.complete_text(
+                        GENERATE_PROMPT,
+                        user_message,
+                        max_tokens=8192,
+                        temperature=0.0,
+                        json_mode=True,
+                        response_schema=_SOLVED_ITEMS_SCHEMA,
+                    )
+                solved = _parse_items(json.dumps(_balanced_json(raw), ensure_ascii=False))
+                break
+            except (json.JSONDecodeError, ValueError) as exc:
+                last_error = exc
+                logger.warning(
+                    "question_sheet_solution_json_retry provider=%s attempt=%d/2 error=%s",
+                    provider, attempt, exc,
                 )
-            else:
-                raw = await groq_client.complete_text(
-                    GENERATE_PROMPT,
-                    user_message,
-                    max_tokens=3000,
-                    temperature=0.0,
-                    json_mode=True,
-                )
-            solved = _parse_items(json.dumps(_balanced_json(raw), ensure_ascii=False))
+                if attempt < 2:
+                    await asyncio.sleep(0.25)
+            except Exception as exc:
+                last_error = exc
+                logger.warning("question_sheet_solution_provider_failed provider=%s error=%s", provider, exc)
+                break
+        if solved:
             break
-        except (json.JSONDecodeError, ValueError) as exc:
-            last_error = exc
-            logger.warning("question_sheet_solution_json_retry attempt=%d/2 error=%s", attempt, exc)
-            if attempt < 2:
-                await asyncio.sleep(0.25)
-        except Exception as exc:
-            raise QuestionSheetInferenceError(str(exc), kind="provider_error") from exc
-    else:
+    if not solved:
+        kind = "invalid_json" if isinstance(last_error, (json.JSONDecodeError, ValueError)) else "provider_error"
         raise QuestionSheetInferenceError(
-            f"Det infererade facitet kunde inte tolkas: {last_error}", kind="invalid_json"
+            f"Det infererade facitet kunde inte skapas: {last_error}", kind=kind
         )
     expected = {item["question_number"] for item in manifest}
     solved = [item for item in solved if item.question_number in expected and item.final_answer.strip()]
