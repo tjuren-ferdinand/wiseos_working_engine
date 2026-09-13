@@ -77,6 +77,10 @@ class Settings(BaseSettings):
     # åtkomstkontroller (domän-allowlist, pending-approval).
     ADMIN_EMAILS: str = ""
 
+    # Admin-gate via email: komma-separerade emails som räknas som admin
+    # oavsett Supabase user ID. Matchning sker lowercase/strippad.
+    ADMIN_EMAILS: str = ""
+
     # Allowlist-seeding: komma-separerade emails som automatiskt läggs till i
     # allowed_teachers vid startup. Används för att säkra att befintliga
     # lärare inte låses ut vid första deploy av allowlist-gaten.

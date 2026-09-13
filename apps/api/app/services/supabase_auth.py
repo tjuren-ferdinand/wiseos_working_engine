@@ -69,15 +69,15 @@ async def get_current_supabase_user(
     user = SupabaseUser(id=data["id"], email=data.get("email"), role=data.get("role"))
 
     # Allowlist-gate: bara godkända lärare får åtkomst till API:et.
-    # Admin-user IDs bypassar gaten (de behöver kunna administrera allowlisten).
-    # Se planen Spår 3.2 för fullständig design.
-    if user.id not in settings.admin_user_ids:
+    # Admin-user IDs/emails bypassar gaten (de behöver kunna administrera
+    # allowlisten). Se planen Spår 3.2 för fullständig design.
+    email = (user.email or "").strip().lower()
+    if user.id not in settings.admin_user_ids and email not in settings.admin_emails:
         from ..db import SessionLocal
         from .. import models
 
         db = SessionLocal()
         try:
-            email = (user.email or "").strip().lower()
             allowed = (
                 db.query(models.AllowedTeacher)
                 .filter(models.AllowedTeacher.email == email)
