@@ -375,6 +375,15 @@ export const actions = {
   hydrate: async (): Promise<void> => {
     useStore.setState({ loading: true, error: null });
     try {
+      // Utan Supabase-session finns inget att hämta — API:t svarar 403 på
+      // anonyma anrop, vilket annars triggade allowlist-redirecten i en loop
+      // på publika sidor som /login.
+      const { createClient } = await import("@/lib/supabase/client");
+      const { data: sessionData } = await createClient().auth.getSession();
+      if (!sessionData.session) {
+        useStore.setState({ loading: false, hydrated: true });
+        return;
+      }
       const [backendClasses, backendTests, backendCourses] = await Promise.all([
         api.listClasses(),
         api.listAllTests(),

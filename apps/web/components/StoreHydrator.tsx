@@ -12,7 +12,17 @@ export default function StoreHydrator() {
   const pathname = usePathname();
   const hydrated = useStore((s) => s.hydrated);
   const error = useStore((s) => s.error);
-  const isolated = pathname === "/design-lab" || pathname.startsWith("/design-lab/");
+  // Publika sidor ska aldrig anropa backend — hydrate() utan session får
+  // 403 som annars tolkas som allowlist-nekad och redirectar i en loop.
+  const isolated =
+    pathname === "/design-lab" ||
+    pathname.startsWith("/design-lab/") ||
+    pathname === "/login" ||
+    pathname === "/demo" ||
+    pathname.startsWith("/demo/") ||
+    pathname === "/faq" ||
+    pathname === "/legal" ||
+    pathname.endsWith("/print");
 
   useEffect(() => {
     if (!isolated && !hydrated) {
