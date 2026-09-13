@@ -120,6 +120,8 @@ export type DocumentMeta = {
   /** "student_submission" | "not_student_submission" | "unverified" */
   documentType?: string;
   classificationReason?: string;
+  /** "uploaded" | "generated" | "inferred_question_sheet" | "none" */
+  answerKeySource?: string;
 };
 
 export type StudentDocumentResult = {

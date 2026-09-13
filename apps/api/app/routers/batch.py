@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import json
 import logging
+import time
 from datetime import datetime
 
 from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile
@@ -26,8 +27,10 @@ from .. import models, schemas
 from ..db import get_db
 from ..services.rate_limits import limit_batch_grade
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
+from ..services.answer_key import infer_question_sheet
 from ..services.batch_pipeline import (
     UploadedFile,
+    scanner_group,
     active_rules,
     expand_pdf_uploads,
     grade_batch,
@@ -96,18 +99,21 @@ def _persist_batch(
     test: models.Test,
     results: list[schemas.StudentDocumentResult],
     answer_key: list[schemas.AnswerKeyItem],
+    answer_key_source: str | None = None,
 ) -> None:
+    if answer_key_source is None:
+        answer_key_source = "generated" if test.facit_mode == "ai_generated" else "uploaded"
     if answer_key:
         items = [item.model_dump(mode="json") for item in answer_key]
         if test.answer_key:
             test.answer_key.items = items
-            test.answer_key.source = "generated" if test.facit_mode == "ai_generated" else "uploaded"
+            test.answer_key.source = answer_key_source
         else:
             db.add(
                 models.AnswerKeyRecord(
                     test_id=test.id,
                     items=items,
-                    source="generated" if test.facit_mode == "ai_generated" else "uploaded",
+                    source=answer_key_source,
                 )
             )
         test.questions = [
@@ -244,10 +250,43 @@ async def batch_grade(
     except ValueError as exc:
         raise HTTPException(422, str(exc)) from exc
 
-    # 3. Kör pipelinen. Logga metadata, inte elevdata.
+    # 3. Bestäm bedömningsunderlag. Ett e00-dokument är lärarens explicita
+    # frågeblads-/facitfas. I facitfritt läge infereras ett konsekvent underlag
+    # en gång och används för alla elever — e00 rättas aldrig som elevarbete.
+    answer_key_source = (
+        "generated"
+        if answer_key and test.facit_mode == "ai_generated"
+        else "uploaded"
+        if answer_key
+        else "none"
+    )
+    reference_pages = [
+        (upload.content, upload.content_type)
+        for upload in uploads
+        if scanner_group(upload.filename) == 0
+    ]
+    if not answer_key and reference_pages:
+        inference_started = time.perf_counter()
+        answer_key = await infer_question_sheet(reference_pages)
+        logger.info(
+            "question_sheet_inferred prov_id=%s pages=%d questions=%d latency_ms=%d",
+            prov_id,
+            len(reference_pages),
+            len(answer_key),
+            int((time.perf_counter() - inference_started) * 1000),
+        )
+        if not answer_key:
+            raise HTTPException(
+                422,
+                "Kunde inte läsa frågorna från frågebladet. Ta en renare bild "
+                "utan bildvisargränssnitt eller ladda upp ett eget facit.",
+            )
+        answer_key_source = "inferred_question_sheet"
+
+    # 4. Kör pipelinen. Logga metadata, inte elevdata.
     logger.info(
-        "batch_request prov_id=%s uploads=%d answer_key_items=%d",
-        prov_id, len(uploads), len(answer_key),
+        "batch_request prov_id=%s uploads=%d answer_key_items=%d source=%s",
+        prov_id, len(uploads), len(answer_key), answer_key_source,
     )
     results = await grade_batch(
         prov_id=prov_id,
@@ -256,16 +295,23 @@ async def batch_grade(
         test_specific_parameters=test_specific_parameters,
         files=uploads,
         identification_method=identification_method,
+        answer_key_source=answer_key_source,
     )
 
-    _persist_batch(db, test, results, answer_key)
+    _persist_batch(db, test, results, answer_key, answer_key_source)
     combined_params = f"{class_grading_parameters}\n{test_specific_parameters}"
 
     return schemas.BatchGradeResponse(
         provId=prov_id,
         results=results,
         activeRules=active_rules(combined_params),
-        totalStudents=len(results),
-        totalQuestions=sum(len(r.questions) for r in results),
+        totalStudents=sum(
+            r.document.documentType != "not_student_submission" for r in results
+        ),
+        totalQuestions=sum(
+            len(r.questions)
+            for r in results
+            if r.document.documentType != "not_student_submission"
+        ),
         integrations=integration_status(),
     )

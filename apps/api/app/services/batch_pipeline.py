@@ -15,6 +15,7 @@ import asyncio
 import base64
 import logging
 import re
+import time
 import uuid
 from dataclasses import dataclass, field
 from io import BytesIO
@@ -303,7 +304,7 @@ def _same_student(a: str, b: str) -> bool:
 _SCAN_GROUP = re.compile(r"-e(\d+)-\d+$", re.IGNORECASE)
 
 
-def _scan_group(filename: str | None) -> int | None:
+def scanner_group(filename: str | None) -> int | None:
     """Parsar skannerns elevgrupp ur filnamnet, annars None."""
     if not filename:
         return None
@@ -319,7 +320,7 @@ def _unresolved_label(filename: str | None) -> str:
     elevinlämningar — döp dem "Facit/frågeblad" så raden blir tydlig i
     resultatgriden istället för att se ut som en misslyckad elevidentitet.
     """
-    if _scan_group(filename) == 0:
+    if scanner_group(filename) == 0:
         return "Facit/frågeblad"
     return f"Okänd elev - {filename}"
 
@@ -339,6 +340,17 @@ async def identify_and_group_pages(
     semaphore = asyncio.Semaphore(5)
 
     async def _get_name(upload: UploadedFile) -> IdentifiedName:
+        # e00 är en explicit lärarsignal: sidan är frågeunderlag, aldrig
+        # elevarbete. Skippa probabilistisk klassificering som annars kan
+        # luras av handskrift eller läckande text längs bildkanten.
+        if scanner_group(upload.filename) == 0:
+            return IdentifiedName(
+                studentName=None,
+                confidence=1.0,
+                method="scanner_reference",
+                pageType="question_sheet",
+                hasHandwriting=False,
+            )
         async with semaphore:
             return await extract_student_name(
                 (upload.content, upload.content_type),
@@ -517,7 +529,7 @@ async def identify_and_group_pages(
         # Lärarens markering går före både namnförankring och positionell
         # fortsättning. Filer utan markör (doc_group=None) beter sig
         # exakt som tidigare — Del G-invarianterna är oförändrade.
-        doc_group = _scan_group(document.pages[0].filename)
+        doc_group = scanner_group(document.pages[0].filename)
         source = (
             document.pages[0].source_id
             or (f"scan-group:{doc_group}" if doc_group is not None else None)
@@ -642,7 +654,7 @@ async def identify_and_group_pages(
             ex = _page_extraction(d)
             t = (ex.documentTitle or "").strip().casefold() if ex else ""
             titles.add(t)
-            g = _scan_group(d.pages[0].filename)
+            g = scanner_group(d.pages[0].filename)
             if g is not None:
                 scan_groups.add(g)
         if len(titles) > 1 or len(scan_groups) > 1:
@@ -672,6 +684,18 @@ async def identify_and_group_pages(
     #  - Lyckade klassificeringar utan ett enda elevarbetstecken =>
     #    'not_student_submission' — flaggas, rättas aldrig.
     for document in merged:
+        # Grupp 0 kommer från scannerns explicita facit/frågebladsfas.
+        # Lärarens deterministiska signal väger alltid tyngre än AI-verdict:
+        # e00 rättas aldrig, även om bilden innehåller handskrift eller text
+        # från en intilliggande bild som annars kunde ge hasHandwriting=true.
+        if any(scanner_group(page.filename) == 0 for page in document.pages):
+            document.student_name = "Facit/frågeblad"
+            document.document_type = "not_student_submission"
+            document.classification_reason = (
+                "Läraren markerade dokumentet som facit/frågeblad — "
+                "det används endast som bedömningsunderlag och har inte rättats."
+            )
+            continue
         usable = [
             item
             for page in document.pages
@@ -741,20 +765,25 @@ async def apply_math_verification(
     items = {str(item.question_number).strip(): item for item in answer_key}
     verifier = get_math_provider()
     configured = bool(settings.WOLFRAM_API_URL or settings.WOLFRAM_APP_ID)
-    for question in questions:
+    semaphore = asyncio.Semaphore(3)
+
+    async def _verify(question: QuestionResult) -> None:
         item = items.get(question.questionNumber)
         if not item or not requires_math_verification(item):
             question.mathVerification = MathVerification()
-            continue
+            return
         if not question.found or not question.studentWork.strip():
             question.mathVerification = MathVerification(
                 provider="wolfram" if configured else "development-local",
                 status="unavailable",
                 message="Matematisk verifiering kräver ett läsbart elevsvar.",
             )
-            continue
+            return
         try:
-            verification = await verifier.verify_equation(question.studentWork, item.final_answer)
+            async with semaphore:
+                verification = await verifier.verify_equation(
+                    question.studentWork, item.final_answer
+                )
         except Exception:
             logger.exception("math_verification_crashed question=%s", question.questionNumber)
             question.mathVerification = MathVerification(
@@ -763,7 +792,7 @@ async def apply_math_verification(
                 message="Den matematiska verifieringen misslyckades och kräver lärargranskning.",
             )
             question.assessment.status = "needs_review"
-            continue
+            return
 
         if not configured:
             status = "degraded"
@@ -793,16 +822,32 @@ async def apply_math_verification(
             question.assessment.status = "needs_review"
             question.assessment.points = 0.0
 
+    await asyncio.gather(*[_verify(question) for question in questions])
+
 
 async def apply_feedback_provider(questions: list) -> None:
     provider = feedback.provider_name()
-    for question in questions:
+    semaphore = asyncio.Semaphore(3)
+
+    async def _feedback(question: QuestionResult) -> None:
         if question.error or not question.found or not question.studentWork.strip():
             question.feedbackProvider = "system"
-            continue
+            return
+        # Gemini Vision har redan skapat feedback i samma source-of-truth-anrop.
+        # Behåll den i säkra normalfall; ett andra modell-anrop är både långsamt
+        # och kan motsäga den kanoniska bedömningen. Eskalera endast osäkra fall.
+        confident = (
+            bool(question.feedback.strip())
+            and question.transcriptionConfidence >= 0.7
+            and question.assessment.confidence >= 0.7
+            and question.assessment.status != "needs_review"
+        )
+        if confident:
+            question.feedbackProvider = "gemini-vision"
+            return
         if provider == "unavailable":
             question.feedbackProvider = "gemini-vision" if settings.GEMINI_API_KEY else "unavailable"
-            continue
+            return
         math = question.mathVerification
         wolfram = WolframResult(
             is_correct=bool(math.isEquivalent),
@@ -810,20 +855,23 @@ async def apply_feedback_provider(questions: list) -> None:
             notes=math.message or None,
         )
         try:
-            fb = get_feedback_provider()
-            generated, used = await fb.generate_feedback(
-                problem=question.questionText,
-                student_answer=question.studentWork,
-                correct_answer=question.correctAnswer,
-                wolfram=wolfram,
-            )
+            async with semaphore:
+                fb = get_feedback_provider()
+                generated, used = await fb.generate_feedback(
+                    problem=question.questionText,
+                    student_answer=question.studentWork,
+                    correct_answer=question.correctAnswer,
+                    wolfram=wolfram,
+                )
         except Exception:
             logger.exception("feedback_provider_failed question=%s provider=%s", question.questionNumber, provider)
             question.feedbackProvider = "gemini-vision" if question.feedback else "unavailable"
-            continue
+            return
         if generated:
             question.feedback = generated
             question.feedbackProvider = used
+
+    await asyncio.gather(*[_feedback(question) for question in questions])
 
 
 # Så många elevdokument analyseras samtidigt. Håller nere risken för 429
@@ -863,6 +911,7 @@ async def grade_batch(
     test_specific_parameters: str,
     files: list[UploadedFile],
     identification_method: str = "name_field",
+    answer_key_source: str = "none",
 ) -> list[StudentDocumentResult]:
     """Rättar en batch elevdokument bildförst.
 
@@ -871,7 +920,10 @@ async def grade_batch(
       2. Modellen transkriberar elevens faktiska arbete och bedömer det.
       3. Originalsidorna bevaras som data-URL:er i sidordning.
     """
+    batch_started = time.perf_counter()
+    identification_started = time.perf_counter()
     documents = await identify_and_group_pages(files, identification_method)
+    identification_ms = int((time.perf_counter() - identification_started) * 1000)
     grading_notes = "\n".join(
         part.strip()
         for part in (class_grading_parameters, test_specific_parameters)
@@ -887,6 +939,7 @@ async def grade_batch(
 
     async def _process(document: StudentDocument) -> StudentDocumentResult:
         async with semaphore:
+            document_started = time.perf_counter()
             pages = [
                 (page.content, page.content_type or "image/png")
                 for page in document.pages
@@ -906,10 +959,17 @@ async def grade_batch(
                     error=document.classification_reason,
                     needsReviewCount=len(answer_key) or 1,
                 )
-                questions = [
-                    _not_student_submission_question(item, document.classification_reason)
-                    for item in answer_key
-                ]
+                is_scanner_reference = any(
+                    scanner_group(page.filename) == 0 for page in document.pages
+                )
+                questions = (
+                    []
+                    if is_scanner_reference
+                    else [
+                        _not_student_submission_question(item, document.classification_reason)
+                        for item in answer_key
+                    ]
+                )
             else:
                 try:
                     questions, meta = await get_vision_provider().analyze_document(
@@ -937,14 +997,40 @@ async def grade_batch(
                         "Sidorna kunde inte klassificeras — "
                         "kontrollera att dokumentet är en elevinlämning."
                     )
+                math_started = time.perf_counter()
                 await apply_math_verification(questions, answer_key)
+                math_ms = int((time.perf_counter() - math_started) * 1000)
+                feedback_started = time.perf_counter()
                 await apply_feedback_provider(questions)
+                feedback_ms = int((time.perf_counter() - feedback_started) * 1000)
+                logger.info(
+                    "document_postprocess student=%s math_ms=%d feedback_ms=%d",
+                    document.student_name, math_ms, feedback_ms,
+                )
+            meta.answerKeySource = answer_key_source
+            if (
+                document.document_type == "student_submission"
+                and not questions
+            ):
+                meta.error = (
+                    "Inga uppgifter kunde kopplas till elevdokumentet. "
+                    "Kontrollera bildens utsnitt och frågeunderlaget."
+                )
+                meta.needsReviewCount = max(1, meta.needsReviewCount)
+                meta.classificationReason = meta.error
             if unsupported:
                 note = f"{unsupported} sida/sidor hade filformat som inte kan analyseras."
                 meta.error = f"{meta.error} | {note}" if meta.error else note
 
             # Föredra namn som extraherats från bilden (name_field) framför filnamnet.
             resolved_name = meta.studentName or document.student_name
+            logger.info(
+                "document_done student=%s total_ms=%d questions=%d source=%s",
+                resolved_name,
+                int((time.perf_counter() - document_started) * 1000),
+                len(questions),
+                answer_key_source,
+            )
             return StudentDocumentResult(
                 id=str(uuid.uuid4()),
                 provId=prov_id,
@@ -963,10 +1049,14 @@ async def grade_batch(
     results = list(results)
 
     logger.info(
-        "batch_done prov_id=%s documents=%d needs_review=%d",
+        "batch_done prov_id=%s documents=%d needs_review=%d "
+        "identification_ms=%d total_ms=%d answer_key_source=%s",
         prov_id,
         len(results),
         sum(r.document.needsReviewCount for r in results),
+        identification_ms,
+        int((time.perf_counter() - batch_started) * 1000),
+        answer_key_source,
     )
     return results
 

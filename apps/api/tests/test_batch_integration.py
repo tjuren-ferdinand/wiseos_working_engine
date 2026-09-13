@@ -424,7 +424,8 @@ async def test_scanner_facit_group_named_facit_and_not_submission():
     with patch(
         "app.services.batch_pipeline.extract_student_name",
         new_callable=AsyncMock,
-        side_effect=[facit, anna],
+        # e00 är auktoritativt och skickas inte längre till AI-klassificering.
+        return_value=anna,
     ):
         docs = await identify_and_group_pages(files)
 
@@ -433,3 +434,49 @@ async def test_scanner_facit_group_named_facit_and_not_submission():
     assert docs[0].document_type == "not_student_submission"
     assert docs[1].student_name == "Anna Ahl"
     assert docs[1].document_type == "student_submission"
+
+
+async def test_scanner_reference_is_never_graded_even_if_edge_text_looks_handwritten():
+    """e00 är lärarauktoritativt: bara elevgruppen skickas till graderaren,
+    och båda resultaten märks med det AI-infererade underlagets source."""
+    question = QuestionResult(
+        questionNumber="1",
+        found=True,
+        studentWork="4",
+        assessment=Assessment(status="correct", points=1.0, maxPoints=1.0, confidence=0.95),
+        feedback="Korrekt.",
+        transcriptionConfidence=0.95,
+    )
+    meta = DocumentMeta(pageCount=1, model="test", questionsExpected=1, questionsFound=1)
+    anna = IdentifiedName(
+        studentName="Anna Ahl", confidence=0.95, method="name_field",
+        pageType="student_work", hasHandwriting=True,
+    )
+    files = [
+        UploadedFile(filename="scan-abc-e00-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+        UploadedFile(filename="scan-abc-e01-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+    ]
+    with patch("app.services.batch_pipeline.extract_student_name", new_callable=AsyncMock, return_value=anna), \
+         patch("app.services.batch_pipeline.get_vision_provider") as get_vision, \
+         patch("app.services.batch_pipeline.apply_math_verification", new_callable=AsyncMock), \
+         patch("app.services.batch_pipeline.apply_feedback_provider", new_callable=AsyncMock):
+        adapter = AsyncMock()
+        adapter.analyze_document = AsyncMock(return_value=([question], meta))
+        get_vision.return_value = adapter
+        results = await grade_batch(
+            prov_id="test-prov",
+            answer_key=[AnswerKeyItem(question_number="1", question_text="2+2", final_answer="4")],
+            class_grading_parameters="",
+            test_specific_parameters="",
+            files=files,
+            answer_key_source="inferred_question_sheet",
+        )
+
+    assert adapter.analyze_document.await_count == 1
+    assert len(results) == 2
+    reference = next(r for r in results if r.studentName == "Facit/frågeblad")
+    student = next(r for r in results if r.studentName == "Anna Ahl")
+    assert reference.document.documentType == "not_student_submission"
+    assert reference.questions == []
+    assert reference.document.answerKeySource == "inferred_question_sheet"
+    assert student.document.answerKeySource == "inferred_question_sheet"

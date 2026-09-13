@@ -1,13 +1,17 @@
 """Answer-key extraction for uploaded facit documents."""
 from __future__ import annotations
 
+import asyncio
 import base64
 import json
+import logging
 import re
 
 from ..config import settings
 from ..schemas import AnswerKeyItem
 from . import groq_client, vision_ocr
+
+logger = logging.getLogger("wiseos.grading")
 
 
 SYSTEM_PROMPT = """Du är facit-extraheraren i wiseOS. Analysera det uppladdade facitdokumentet och extrahera varje uppgift som ett JSON-objekt. För varje uppgift, fång:
@@ -147,3 +151,59 @@ async def extract_answer_key(file_bytes: bytes, mime_type: str) -> list[AnswerKe
     except Exception:
         items = await _extract_with_vision(file_bytes, mime_type)
         return items if items else _mock_answer_key(len(file_bytes))
+
+
+QUESTION_SHEET_PROMPT = f"""{SYSTEM_PROMPT}
+
+Detta är INTE ett officiellt facit utan ett frågeblad som läraren uttryckligen
+markerat som referensunderlag. Skapa ett AI-INFERERAT bedömningsunderlag:
+- Läs endast provets tryckta uppgifter, uppgiftsnummer och synliga maxpoäng.
+- Lös varje tryckt uppgift själv för att ange final_answer.
+- Ignorera helt webbläsar-/bildvisargränssnitt, knappar, klockslag, filnamn,
+  text från en intilliggande bild och allt som bara läcker in längs bildkanterna.
+- Ignorera handskrivna eller fristående numeriska svar i marginalen. De är
+  aldrig elevsvar och får inte kopieras som facit utan egen kontrollräkning.
+- Om en uppgift inte kan läsas säkert: utelämna den hellre än att hitta på.
+
+Svara endast med JSON-arrayen enligt schemat ovan."""
+
+
+async def _infer_question_sheet_page(
+    file_bytes: bytes,
+    mime_type: str,
+) -> list[AnswerKeyItem]:
+    try:
+        text = await vision_ocr.read_image(
+            file_bytes,
+            mime_type,
+            prompt=QUESTION_SHEET_PROMPT,
+        )
+        return _parse_items(text) if text else []
+    except Exception as exc:  # noqa: BLE001
+        logger.warning("question_sheet_inference_failed error=%s", exc)
+        return []
+
+
+async def infer_question_sheet(
+    pages: list[tuple[bytes, str]],
+) -> list[AnswerKeyItem]:
+    """Inferera ett gemensamt underlag från skannerns e00-frågeblad.
+
+    Sidorna analyseras parallellt med låg gräns och slås ihop per normaliserat
+    uppgiftsnummer. Resultatet är uttryckligen AI-infererat, inte lärarens facit.
+    """
+    semaphore = asyncio.Semaphore(3)
+
+    async def _one(page: tuple[bytes, str]) -> list[AnswerKeyItem]:
+        async with semaphore:
+            return await _infer_question_sheet_page(*page)
+
+    page_items = await asyncio.gather(*[_one(page) for page in pages])
+    merged: dict[str, AnswerKeyItem] = {}
+    for items in page_items:
+        for item in items:
+            key = _normalize_question_number(item.question_number)
+            item.question_number = key
+            if key and key not in merged:
+                merged[key] = item
+    return list(merged.values())

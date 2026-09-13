@@ -5,6 +5,7 @@ or fabricated data — the pipeline never invents answers, scores, or feedback.
 """
 from __future__ import annotations
 
+import asyncio
 import sys
 from pathlib import Path
 from unittest.mock import AsyncMock, patch
@@ -192,6 +193,59 @@ async def test_feedback_provider_failure_leaves_question_unchanged():
 
     assert question.feedbackProvider == "gemini-vision"
     assert question.feedback == "Gemini redan gav feedback"
+
+
+async def test_confident_vision_feedback_skips_second_model_call():
+    question = QuestionResult(
+        questionNumber="1", found=True, studentWork="4",
+        transcriptionConfidence=0.95,
+        assessment=Assessment(
+            status="correct", points=1.0, maxPoints=1.0, confidence=0.94,
+        ),
+        feedback="Korrekt och tydligt löst.",
+        feedbackProvider="gemini-vision",
+    )
+    with patch("app.services.batch_pipeline.feedback") as mock_feedback, \
+         patch("app.services.batch_pipeline.get_feedback_provider") as get_provider:
+        mock_feedback.provider_name.return_value = "anthropic"
+        await apply_feedback_provider([question])
+
+    get_provider.assert_not_called()
+    assert question.feedback == "Korrekt och tydligt löst."
+    assert question.feedbackProvider == "gemini-vision"
+
+
+async def test_uncertain_feedback_runs_with_bounded_parallelism():
+    active = 0
+    peak = 0
+
+    class Adapter:
+        async def generate_feedback(self, **_kwargs):
+            nonlocal active, peak
+            active += 1
+            peak = max(peak, active)
+            await asyncio.sleep(0.01)
+            active -= 1
+            return "Förbättrad feedback", "test"
+
+    questions = [
+        QuestionResult(
+            questionNumber=str(i), found=True, studentWork="svar",
+            transcriptionConfidence=0.4,
+            assessment=Assessment(
+                status="needs_review", points=0.0, maxPoints=1.0, confidence=0.4,
+            ),
+            feedback="Osäker.",
+        )
+        for i in range(6)
+    ]
+    with patch("app.services.batch_pipeline.feedback") as mock_feedback, \
+         patch("app.services.batch_pipeline.get_feedback_provider", return_value=Adapter()):
+        mock_feedback.provider_name.return_value = "test"
+        await apply_feedback_provider(questions)
+
+    assert peak == 3
+    assert all(q.feedback == "Förbättrad feedback" for q in questions)
 
 
 async def test_feedback_provider_unavailable():

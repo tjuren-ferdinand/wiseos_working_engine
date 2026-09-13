@@ -977,5 +977,7 @@ def test_persist_batch_keeps_scans_identity_answer_key_and_is_idempotent():
     assert stored.steps[0]["studentWork"] == "4"
     assert stored.total_score == 2
     assert stored.max_score == 2
-    assert db.query(models.AnswerKeyRecord).one().items[0]["final_answer"] == "4"
+    answer_key = db.query(models.AnswerKeyRecord).one()
+    assert answer_key.items[0]["final_answer"] == "4"
+    assert answer_key.source == "uploaded"
     assert test.status == "review"

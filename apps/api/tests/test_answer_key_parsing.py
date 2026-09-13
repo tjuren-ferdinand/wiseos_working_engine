@@ -9,6 +9,7 @@ import sys
 from pathlib import Path
 
 import pytest
+from unittest.mock import AsyncMock, patch
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
@@ -18,6 +19,7 @@ from app.services.answer_key import (
     _extract_json_array,
     _normalize_question_number,
     _parse_items,
+    infer_question_sheet,
 )
 
 
@@ -158,3 +160,34 @@ def test_parse_items_defaults():
     assert items[0].max_points == 1.0
     assert items[0].acceptable_answers == []
     assert items[0].derivation_steps == []
+
+
+async def test_infer_question_sheet_merges_pages_and_ignores_duplicate_numbers():
+    page_1 = json.dumps([
+        {"question_number": "1", "question_text": "Fråga ett", "final_answer": "A"},
+        {"question_number": "2", "question_text": "Fråga två", "final_answer": "B"},
+    ])
+    page_2 = json.dumps([
+        {"question_number": "2", "question_text": "Dubblett", "final_answer": "fel"},
+        {"question_number": "3", "question_text": "Fråga tre", "final_answer": "C"},
+    ])
+    with patch(
+        "app.services.answer_key.vision_ocr.read_image",
+        new_callable=AsyncMock,
+        side_effect=[page_1, page_2],
+    ) as read:
+        items = await infer_question_sheet([(b"one", "image/jpeg"), (b"two", "image/jpeg")])
+
+    assert [item.question_number for item in items] == ["1", "2", "3"]
+    assert items[1].question_text == "Fråga två"
+    assert "bildvisargränssnitt" in read.await_args_list[0].kwargs["prompt"]
+    assert "AI-INFERERAT" in read.await_args_list[0].kwargs["prompt"]
+
+
+async def test_infer_question_sheet_returns_empty_when_unreadable():
+    with patch(
+        "app.services.answer_key.vision_ocr.read_image",
+        new_callable=AsyncMock,
+        return_value=None,
+    ):
+        assert await infer_question_sheet([(b"bad", "image/jpeg")]) == []

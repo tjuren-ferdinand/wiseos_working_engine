@@ -116,18 +116,36 @@ export default function DocumentScanner({
       const vw = video.videoWidth;
       const vh = video.videoHeight;
       if (!vw || !vh) return;
-      const scale = Math.min(1, MAX_EDGE_PX / Math.max(vw, vh));
+      // Mappa den synliga guideramen (76 % × 62 %, centrerad) genom
+      // object-cover-transformen tillbaka till kamerans källkoordinater.
+      // Då exporteras pappret i ramen — inte bildvisar-UI/grannbilder utanför.
+      const cw = video.clientWidth || window.innerWidth;
+      const ch = video.clientHeight || window.innerHeight;
+      const coverScale = Math.max(cw / vw, ch / vh);
+      const displayedW = vw * coverScale;
+      const displayedH = vh * coverScale;
+      const offsetX = (displayedW - cw) / 2;
+      const offsetY = (displayedH - ch) / 2;
+      const guideX = cw * 0.12;
+      const guideY = ch * 0.19;
+      const guideW = cw * 0.76;
+      const guideH = ch * 0.62;
+      const sx = Math.max(0, (guideX + offsetX) / coverScale);
+      const sy = Math.max(0, (guideY + offsetY) / coverScale);
+      const sw = Math.min(vw - sx, guideW / coverScale);
+      const sh = Math.min(vh - sy, guideH / coverScale);
+      const scale = Math.min(1, MAX_EDGE_PX / Math.max(sw, sh));
       // Återanvänd samma canvas — en ny ~8 MB-allokering per tagning är
       // onödig minnespress på iOS där fliken kan laddas om under tryck.
       if (!captureCanvasRef.current) {
         captureCanvasRef.current = document.createElement("canvas");
       }
       const canvas = captureCanvasRef.current;
-      canvas.width = Math.round(vw * scale);
-      canvas.height = Math.round(vh * scale);
+      canvas.width = Math.max(1, Math.round(sw * scale));
+      canvas.height = Math.max(1, Math.round(sh * scale));
       const ctx = canvas.getContext("2d");
       if (!ctx) return;
-      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(video, sx, sy, sw, sh, 0, 0, canvas.width, canvas.height);
       const blob = await new Promise<Blob | null>((resolve) =>
         canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
       );

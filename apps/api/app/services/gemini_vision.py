@@ -67,6 +67,11 @@ MAX_PAGES_PER_CALL = 20
 
 MAX_OUTPUT_TOKENS = 8192
 
+# Gemensam providerbudget för parallella frågechunkar över alla dokument.
+# Dokumentnivån kör upp till tre elever samtidigt; fyra totala Gemini-anrop
+# ger kortare långa prov utan en fri gather som orsakar 429/retries.
+_CHUNK_SEMAPHORE = asyncio.Semaphore(4)
+
 # Under detta värde litar vi inte på transkriptionen och lämnar till lärare.
 TRANSCRIPTION_REVIEW_THRESHOLD = 0.55
 
@@ -961,38 +966,48 @@ async def analyze_document(
     best_by_number: dict[str, QuestionResult] = {}
     all_unlisted: list[QuestionResult] = []
 
-    for page_chunk in page_chunks:
-        for chunk in chunks:
-            try:
+    async def _run_chunk(
+        page_chunk: list[tuple[bytes, str]],
+        chunk: list[AnswerKeyItem],
+    ) -> tuple[list[QuestionResult], list[QuestionResult], int, str | None]:
+        try:
+            async with _CHUNK_SEMAPHORE:
                 chunk_results, chunk_unlisted, attempts = await _analyze_chunk(
                     page_chunk, chunk, grading_notes, request_id
                 )
-                attempts_total += attempts
-                # Deduplicera: behåll found=True och högst transcriptionConfidence.
-                for q in chunk_results:
-                    existing = best_by_number.get(q.questionNumber)
-                    if existing is None:
-                        best_by_number[q.questionNumber] = q
-                    elif _better_result(q, existing):
-                        best_by_number[q.questionNumber] = q
-                all_unlisted.extend(chunk_unlisted)
-            except GradingError as e:
-                logger.error(
-                    "grade_chunk_failed request_id=%s kind=%s error=%s",
-                    request_id, e.kind, e,
-                )
-                errors.append(f"{e.kind}: {e}")
-                # Bara markera som failed om vi inte redan har ett bättre resultat.
-                for item in chunk:
-                    if item.question_number not in best_by_number:
-                        best_by_number[item.question_number] = _failed_question(item, f"{e.kind}: {e}")
-                attempts_total += MAX_ATTEMPTS
-            except Exception as e:  # oväntat – ska ändå aldrig krascha batchen
-                logger.exception("grade_chunk_crashed request_id=%s", request_id)
-                errors.append(f"unexpected: {e}")
-                for item in chunk:
-                    if item.question_number not in best_by_number:
-                        best_by_number[item.question_number] = _failed_question(item, f"unexpected: {e}")
+            return chunk_results, chunk_unlisted, attempts, None
+        except GradingError as e:
+            logger.error(
+                "grade_chunk_failed request_id=%s kind=%s error=%s",
+                request_id, e.kind, e,
+            )
+            return (
+                [_failed_question(item, f"{e.kind}: {e}") for item in chunk],
+                [], MAX_ATTEMPTS, f"{e.kind}: {e}",
+            )
+        except Exception as e:  # oväntat – ska ändå aldrig krascha batchen
+            logger.exception("grade_chunk_crashed request_id=%s", request_id)
+            return (
+                [_failed_question(item, f"unexpected: {e}") for item in chunk],
+                [], MAX_ATTEMPTS, f"unexpected: {e}",
+            )
+
+    chunk_outputs = await asyncio.gather(*[
+        _run_chunk(page_chunk, chunk)
+        for page_chunk in page_chunks
+        for chunk in chunks
+    ])
+    for chunk_results, chunk_unlisted, attempts, error in chunk_outputs:
+        attempts_total += attempts
+        if error:
+            errors.append(error)
+        # Deduplicera efter att alla tasks slutförts: inga samtidiga mutationer
+        # och samma stabila ordning som page_chunks × question_chunks.
+        for q in chunk_results:
+            existing = best_by_number.get(q.questionNumber)
+            if existing is None or _better_result(q, existing):
+                best_by_number[q.questionNumber] = q
+        all_unlisted.extend(chunk_unlisted)
 
     graded = list(best_by_number.values())
     unlisted = all_unlisted

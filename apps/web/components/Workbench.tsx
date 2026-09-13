@@ -88,11 +88,12 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
         ]} className="flex-wrap" />
         <PageHeader
           title={result.studentName}
-          action={<ScoreBadge total={total} max={max} />}
+          action={<ScoreBadge total={total} max={max} notAssessed={result.document?.documentType === "not_student_submission"} />}
           className="flex-wrap"
         />
       </Surface>
 
+      <AssessmentBasisBanner meta={result.document} facitMode={prov.facitMode} />
       <DocumentTypeBanner meta={result.document} />
 
       <div className="grid lg:grid-cols-[1.1fr_1fr] gap-6">
@@ -118,14 +119,48 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
   );
 }
 
+function AssessmentBasisBanner({ meta, facitMode }: { meta: StudentResult["document"]; facitMode: Prov["facitMode"] }) {
+  const source = meta?.answerKeySource ?? (facitMode === "uploaded" ? "uploaded" : facitMode === "ai_generated" ? "generated" : "none");
+  if (!source || source === "none") return null;
+  const inferred = source === "inferred_question_sheet";
+  const label = source === "uploaded"
+    ? "Bedömningsunderlag: Eget facit"
+    : source === "generated"
+      ? "Bedömningsunderlag: AI-genererat facit"
+      : "AI-infererat underlag — inte lärarens facit";
+  return (
+    <div className={`rounded-xl px-5 py-4 flex items-start gap-3.5 ${
+      inferred
+        ? "border border-state-warning/25 bg-state-warning/[0.07]"
+        : "border border-ink-hairline bg-paper-secondary"
+    }`}>
+      <span className={`mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full ${
+        inferred ? "bg-state-warning/15 text-state-warning" : "bg-ink/5 text-ink-secondary"
+      }`}>
+        <LineIcon name={source === "uploaded" ? "check" : "sparkles"} className="h-4 w-4" />
+      </span>
+      <div className="min-w-0">
+        <div className="text-[14px] font-medium text-ink">{label}</div>
+        {inferred && (
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-secondary">
+            WiseOS har tolkat och löst frågebladet automatiskt. Kontrollera underlaget och osäkra bedömningar innan publicering.
+          </p>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Lugn men tydlig markering när sidklassificeringen bedömer att dokumentet
  *  inte är en elevinlämning (blankett/facit) eller inte kunde bekräftas.
  *  Renderas aldrig för normala inlämningar. */
 function DocumentTypeBanner({ meta }: { meta: StudentResult["document"] }) {
   const kind = meta?.documentType;
-  if (kind !== "not_student_submission" && kind !== "unverified") return null;
+  const hasAnalysisError = !!meta?.error;
+  if (kind !== "not_student_submission" && kind !== "unverified" && !hasAnalysisError) return null;
 
   const isFlagged = kind === "not_student_submission";
+  const isUnverified = kind === "unverified";
   return (
     <div className="rounded-xl border border-state-warning/25 bg-state-warning/[0.07] px-5 py-4 flex items-start gap-3.5">
       <span className="mt-0.5 grid h-8 w-8 shrink-0 place-items-center rounded-full bg-state-warning/15 text-state-warning">
@@ -134,21 +169,33 @@ function DocumentTypeBanner({ meta }: { meta: StudentResult["document"] }) {
       <div className="min-w-0">
         <div className="text-[14px] font-medium text-ink">
           {isFlagged
-            ? "Detta verkar inte vara en elevinlämning"
-            : "Dokumentet kunde inte bekräftas som elevinlämning"}
+            ? "Detta är ett frågeunderlag — inte en elevinlämning"
+            : isUnverified
+              ? "Dokumentet kunde inte bekräftas som elevinlämning"
+              : "Rättningen behöver granskas"}
         </div>
         <p className="mt-1 text-[13px] leading-relaxed text-ink-secondary">
           {isFlagged
-            ? `${meta?.classificationReason || "Inget elevarbete hittades på sidorna."} Ingen uppgift har bedömts — kontrollera att rätt fil laddades upp.`
-            : "Rättningen kördes, men sidorna kunde inte klassificeras. Granska originalen till vänster innan du godkänner."}
+            ? `${meta?.classificationReason || "Inget elevarbete hittades på sidorna."} Ingen uppgift har bedömts.`
+            : isUnverified
+              ? "Rättningen kördes, men sidorna kunde inte klassificeras. Granska originalen till vänster innan du godkänner."
+              : meta?.error || "Inga uppgifter kunde kopplas till elevdokumentet."}
         </p>
       </div>
     </div>
   );
 }
 
-function ScoreBadge({ total, max }: { total: number; max: number }) {
+function ScoreBadge({ total, max, notAssessed = false }: { total: number; max: number; notAssessed?: boolean }) {
   const pct = max ? total / max : 0;
+  if (notAssessed) {
+    return (
+      <div className="rounded-2xl border border-ink-hairline shadow-card px-5 py-3 bg-paper-elevated text-ink">
+        <div className="text-[10px] uppercase tracking-[0.08em] font-semibold text-ink-secondary">Status</div>
+        <div className="mt-0.5 font-sans text-base font-medium text-state-warning">Ej bedömd</div>
+      </div>
+    );
+  }
   const scoreColor = pct >= 0.85 ? "text-state-success"
     : pct >= 0.5 ? "text-state-warning"
     : "text-state-danger";

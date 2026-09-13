@@ -6,6 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useStore, deriveStep, actions } from "@/lib/store";
 import ProcessingScene from "@/components/ProcessingScene";
 import Workbench from "@/components/Workbench";
+import LineIcon from "@/components/LineIcon";
 import Breadcrumb from "@/components/ui/Breadcrumb";
 import EmptyState from "@/components/ui/EmptyState";
 import PageHeader from "@/components/ui/PageHeader";
@@ -72,6 +73,16 @@ export default function GradePage() {
   }
 
   // Folder grid
+  const answerKeySource =
+    allResults.find((r) => r.document?.answerKeySource)?.document?.answerKeySource ??
+    (prov.facitMode === "uploaded" ? "uploaded" : prov.facitMode === "ai_generated" ? "generated" : "none");
+  const answerKeyLabel = answerKeySource === "inferred_question_sheet"
+    ? "AI-infererat från frågeblad"
+    : answerKeySource === "uploaded"
+      ? "Eget facit"
+      : answerKeySource === "generated"
+        ? "AI-genererat facit"
+        : "Inget facit";
   return (
     <div className="space-y-8 print:hidden">
       <div className="space-y-4">
@@ -81,8 +92,27 @@ export default function GradePage() {
         ]} />
         <PageHeader
           title={prov.title}
-          subtitle={`Klassmapp · ${allResults.length} elever rättade`}
+          subtitle={`Klassmapp · ${allResults.filter((r) => r.document?.documentType !== "not_student_submission").length} elever rättade`}
         />
+        <div className="flex">
+          <span className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[11px] font-medium ring-1 ${
+            answerKeySource === "inferred_question_sheet" || answerKeySource === "generated"
+              ? "bg-state-warning/10 text-state-warning ring-state-warning/20"
+              : "bg-ink/5 text-ink-secondary ring-ink/10"
+          }`}>
+            <LineIcon name={answerKeySource === "uploaded" ? "check" : "sparkles"} className="h-3 w-3" />
+            Bedömningsunderlag: {answerKeyLabel}
+          </span>
+        </div>
+        {answerKeySource === "inferred_question_sheet" && (
+          <div className="flex items-start gap-3 rounded-xl border border-state-warning/25 bg-state-warning/[0.07] px-4 py-3 text-sm">
+            <LineIcon name="sparkles" className="mt-0.5 h-4 w-4 shrink-0 text-state-warning" />
+            <div>
+              <div className="font-medium text-ink">AI-infererat underlag — inte lärarens facit</div>
+              <div className="mt-0.5 text-xs text-ink-secondary">WiseOS har tolkat och löst frågebladet automatiskt. Granska underlaget och osäkra resultat extra noggrant.</div>
+            </div>
+          </div>
+        )}
       </div>
 
       {allResults.length === 0 ? (
@@ -96,7 +126,14 @@ export default function GradePage() {
             );
             const max = r.steps.reduce((s, st) => s + st.maxPoints, 0);
             const pct = max ? total / max : 0;
-            const needsAttention = r.steps.some((st) => st.status !== "correct");
+            const isReference = r.document?.documentType === "not_student_submission";
+            const noQuestions = !isReference && r.steps.length === 0 && r.document?.questionsFound === 0;
+            const needsAttention =
+              isReference ||
+              noQuestions ||
+              !!r.document?.error ||
+              (r.document?.needsReviewCount ?? 0) > 0 ||
+              r.steps.some((st) => st.status !== "correct");
             const reviewCount = r.steps.filter((st) => st.status === "needs_review").length;
             const isAmbiguous = r.identificationMethod === "name_field_ambiguous";
             return (
@@ -127,26 +164,30 @@ export default function GradePage() {
                       <div className="text-sm font-medium truncate text-ink group-hover:text-ink-secondary">
                         {r.studentName}
                       </div>
-                      <div className="text-xs text-ink-secondary">{r.steps.length} steg</div>
+                      <div className="text-xs text-ink-secondary">
+                        {isReference ? "Ej bedömd" : noQuestions ? "Inga uppgifter hittades" : `${r.steps.length} steg`}
+                      </div>
                     </div>
                   </div>
                   <div className="mt-4">
                     <div className="flex items-baseline justify-between mb-1.5">
-                      <span className="text-xs text-ink-secondary">Poäng</span>
+                      <span className="text-xs text-ink-secondary">{isReference ? "Status" : "Poäng"}</span>
                       <span className="font-sans text-sm font-medium tabular-nums text-ink">
-                        {total}<span className="text-ink-muted">/{max}</span>
+                        {isReference ? "Ej bedömd" : noQuestions ? "Granska" : <>{total}<span className="text-ink-muted">/{max}</span></>}
                       </span>
                     </div>
-                    <div className="h-1.5 rounded-full overflow-hidden bg-paper-secondary">
-                      <div
-                        className={`h-full transition-all ${
-                          pct >= 0.85 ? "bg-state-success"
-                          : pct >= 0.5 ? "bg-state-warning"
-                          : "bg-state-danger"
-                        }`}
-                        style={{ width: `${pct * 100}%` }}
-                      />
-                    </div>
+                    {!isReference && !noQuestions && (
+                      <div className="h-1.5 rounded-full overflow-hidden bg-paper-secondary">
+                        <div
+                          className={`h-full transition-all ${
+                            pct >= 0.85 ? "bg-state-success"
+                            : pct >= 0.5 ? "bg-state-warning"
+                            : "bg-state-danger"
+                          }`}
+                          style={{ width: `${pct * 100}%` }}
+                        />
+                      </div>
+                    )}
                   </div>
                 </Surface>
 
@@ -155,8 +196,11 @@ export default function GradePage() {
                   <div className="absolute left-0 right-0 top-full z-20 mt-2 hidden rounded-xl border border-ink-hairline bg-paper-raised p-4 shadow-float sm:block">
                     <div className="text-sm font-medium text-ink">{r.studentName}</div>
                     <div className="mt-1 text-xs text-ink-secondary">
-                      {total}/{max} poäng
-                      {pct >= 0.85 ? " · Godkänd" : pct >= 0.5 ? " · Gränsfall" : " · Underkänd"}
+                      {isReference
+                        ? "Ej bedömd · Frågeunderlag"
+                        : noQuestions
+                          ? "Inga uppgifter hittades · Granska"
+                          : <>{total}/{max} poäng{pct >= 0.85 ? " · Godkänd" : pct >= 0.5 ? " · Gränsfall" : " · Underkänd"}</>}
                     </div>
                     <div className="mt-2 space-y-1 text-xs">
                       {reviewCount > 0 && (

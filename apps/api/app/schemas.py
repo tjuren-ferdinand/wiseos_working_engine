@@ -208,6 +208,9 @@ class DocumentMeta(BaseModel):
     # "unverified" (klassificering saknade signal — rättades men obekräftat).
     documentType: str = "student_submission"
     classificationReason: str = ""
+    # "uploaded" | "generated" | "inferred_question_sheet" | "none".
+    # Visas för läraren så AI-infererat underlag aldrig förväxlas med facit.
+    answerKeySource: str = "none"
 
 
 class StudentDocumentResult(BaseModel):
