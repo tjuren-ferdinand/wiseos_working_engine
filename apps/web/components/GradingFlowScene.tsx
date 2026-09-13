@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef, useState, type RefObject } from "react";
+import { useEffect, useRef, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 
 // ============================================================================
@@ -127,37 +127,28 @@ function DotGrid() {
 function StudentCard({
   student,
   index,
-  constraintsRef,
 }: {
   student: FlowStudent;
   index: number;
-  constraintsRef: RefObject<HTMLDivElement>;
 }) {
   const done = student.status === "done";
   const working = student.status === "working";
   const merged = student.status === "merged";
   const failed = student.status === "failed";
 
-  // Liten deterministisk spridning så korten känns placerade på en canvas,
-  // inte i en stel grid — alternerar lutning och vertikalförskjutning.
-  const tilt = ((index % 5) - 2) * 0.6; // -1.2° … +1.2°
-  const lift = (index % 3) * 6; // 0 / 6 / 12 px
+  // Rent grid — ingen tilt eller vertikal-offset. Korten ska ligga i raka
+  // rader/kolumner för maximal skannbarhet efter rättning.
 
   return (
     <motion.div
       layout="position"
       initial={{ opacity: 0, scale: 0.9, y: 18 }}
-      animate={{ opacity: 1, scale: 1, y: lift, rotate: tilt }}
+      animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
       transition={{ type: "spring", damping: 22, stiffness: 320 }}
-      className="relative w-[200px] sm:w-[240px]"
+      className="relative w-full"
     >
       <motion.div
-        drag
-        dragConstraints={constraintsRef}
-        dragElastic={0.06}
-        dragMomentum={false}
-        whileDrag={{ scale: 1.035, zIndex: 40, boxShadow: "0 20px 55px rgb(var(--foreground) / 0.16)" }}
-        className="cursor-grab rounded-2xl border px-4 py-3.5 active:cursor-grabbing"
+        className="rounded-2xl border px-4 py-3.5"
         style={{
           borderColor: done
             ? "rgb(var(--state-success) / 0.35)"
@@ -556,8 +547,6 @@ export default function GradingFlowScene({
   onReview?: () => void;
 }) {
   const [activeTool, setActiveTool] = useState<RailTool>("canvas");
-  const [layoutVersion, setLayoutVersion] = useState(0);
-  const canvasRef = useRef<HTMLDivElement>(null);
   const doneCount = students.filter((s) => s.status === "done").length;
   const isComplete = phase === "complete";
   const isError = phase === "error";
@@ -615,20 +604,6 @@ export default function GradingFlowScene({
             </h2>
           </div>
           <div className="flex shrink-0 items-center gap-2 sm:gap-3">
-            {students.length > 0 && (
-              <button
-                type="button"
-                onClick={() => setLayoutVersion((version) => version + 1)}
-                className="hidden rounded-lg border px-3 py-1.5 text-[12px] transition-colors sm:block"
-                style={{
-                  borderColor: "rgb(var(--hairline) / 0.10)",
-                  color: "rgb(var(--muted))",
-                  background: "rgb(var(--surface-elevated) / 0.72)",
-                }}
-              >
-                Ordna kort
-              </button>
-            )}
             <StatusPill phase={phase} doneCount={doneCount} totalCount={totalCount} />
             {onClose && (
               <button
@@ -648,18 +623,17 @@ export default function GradingFlowScene({
           </div>
         </motion.header>
 
-        {/* Canvas med svävande elevkort */}
+        {/* Canvas med elevkort i rent grid */}
         <motion.div
-          ref={canvasRef}
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ delay: 0.55, duration: 0.5 }}
           className="relative flex-1 overflow-y-auto"
         >
-          <div className="mx-auto flex max-w-4xl flex-wrap content-start items-start justify-center gap-3 px-4 py-6 sm:gap-4 sm:px-8 sm:py-12">
+          <div className="mx-auto grid max-w-4xl grid-cols-1 gap-3 px-4 py-6 sm:grid-cols-2 sm:gap-4 sm:px-8 sm:py-12 lg:grid-cols-3 xl:grid-cols-4">
             <AnimatePresence>
               {students.map((s, i) => (
-                <StudentCard key={`${s.id}-${layoutVersion}`} student={s} index={i} constraintsRef={canvasRef} />
+                <StudentCard key={s.id} student={s} index={i} />
               ))}
             </AnimatePresence>
           </div>

@@ -224,6 +224,20 @@ def update_access_request(
     record.status = body.status
     record.reviewed_at = __import__("datetime").datetime.utcnow()
     record.reviewed_by = user.id
+
+    # Auto-add till allowlisten när en förfrågan godkänns (Spår 3.2).
+    if body.status == "approved":
+        existing = (
+            db.query(models.AllowedTeacher)
+            .filter(models.AllowedTeacher.email == record.email)
+            .first()
+        )
+        if not existing:
+            db.add(models.AllowedTeacher(
+                email=record.email,
+                created_by=user.id,
+            ))
+
     db.commit()
     db.refresh(record)
 

@@ -47,6 +47,24 @@ export async function GET(request: Request) {
     }
 
     console.log("[auth/callback] exchangeCodeForSession OK, user:", data.user?.email);
+
+    // Allowlist-gate (Spår 3.2): kontrollera om användaren är godkänd.
+    // Om inte → logga ut + redirect till /login med felmeddelande.
+    if (data.session?.access_token) {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+      try {
+        const checkRes = await fetch(`${apiUrl}/api/v1/auth/supabase/me`, {
+          headers: { Authorization: `Bearer ${data.session.access_token}` },
+        });
+        if (checkRes.status === 403) {
+          await supabase.auth.signOut();
+          return NextResponse.redirect(`${origin}/login?error=not_allowed`);
+        }
+      } catch {
+        // Om API:t inte nås: släpp igenom (backend-gaten fångar upp vid API-anrop).
+      }
+    }
+
     return NextResponse.redirect(`${origin}${next}`);
   }
 

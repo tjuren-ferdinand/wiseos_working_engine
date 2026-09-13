@@ -84,7 +84,10 @@ export async function updateSession(request: NextRequest) {
   // fungerar som appens publika landningssida (hero + inloggning/signup).
   // /demo är publikt — visar produkten med exempeldata för besökare.
   const isPublicPath =
-    pathname.startsWith("/login") || pathname.startsWith("/demo");
+    pathname.startsWith("/login") ||
+    pathname.startsWith("/demo") ||
+    pathname.startsWith("/faq") ||
+    pathname.startsWith("/legal");
   if (!user && !isPublicPath) {
     // request.url är intern bakom proxyn (localhost:8080) — bygg den publika
     // adressen från forwarded-host så redirecten aldrig pekar på containern.

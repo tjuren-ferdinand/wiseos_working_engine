@@ -244,7 +244,8 @@ export type BackendGradingResult = {
   feedback: string | null;
   scannedAt: string;
   gradedAt: string | null;
-  scanPages: string[];
+  /** Listvyn returnerar inte scanPages — hämtas via GET /results/{id}. */
+  scanPages?: string[];
   document: DocumentMeta | null;
 };
 
@@ -341,6 +342,9 @@ export const api = {
     jsonFetch<BackendGradingResult[]>(`/api/v1/results${testId ? `?testId=${encodeURIComponent(testId)}` : ""}`, undefined, "results").then(
       (arr) => (testId ? arr.filter((r) => r.provId === testId) : arr),
     ),
+  /** Hämtar ett enskilt resultat INKLUSIVE scanPages (listvyn returnerar inte scanPages). */
+  getResult: (resultId: string) =>
+    jsonFetch<BackendGradingResult>(`/api/v1/results/${resultId}`, undefined, "results"),
   createResult: (data: {
     testId: string;
     studentName: string;

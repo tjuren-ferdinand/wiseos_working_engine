@@ -60,7 +60,15 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
     <>
       <div className="space-y-6 print:hidden">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <button onClick={onBack} className="btn-tertiary">← Tillbaka till klassmapp</button>
+          <div className="flex items-center gap-3">
+            <button onClick={onBack} className="btn-tertiary">← Översikt</button>
+            <button
+              onClick={() => router.push(`/classes/${klass.id}`)}
+              className="btn-tertiary"
+            >
+              Till klassmapp
+            </button>
+          </div>
           <div className="flex items-center gap-3">
             <button
               onClick={handlePrint}

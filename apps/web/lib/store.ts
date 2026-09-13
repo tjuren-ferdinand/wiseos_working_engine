@@ -107,7 +107,7 @@ export interface StudentResult {
   provId: string;
   studentId: string;
   studentName: string;
-  identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id';
+  identificationMethod: 'name_field' | 'qr_code' | 'barcode' | 'student_id' | 'name_field_ambiguous' | 'unresolved';
   identificationConfidence: number;
   steps: Step[];
   totalScore: number;
@@ -411,7 +411,35 @@ export const actions = {
         })
         .catch((error) => useStore.setState({ error: (error as Error).message }));
     } catch (error) {
-      useStore.setState({ loading: false, error: (error as Error).message, hydrated: true });
+      const err = error as Error;
+      // Allowlist-gate: om backend returnerar 403 är användaren inte godkänd.
+      // Logga ut och visa meddelande via URL-param.
+      if (err.message.includes("403")) {
+        try {
+          const { createClient } = await import("@/lib/supabase/client");
+          await createClient().auth.signOut();
+        } catch { /* signOut misslyckas om sessionen redan är borta */ }
+        window.location.href = "/login?error=not_allowed";
+        return;
+      }
+      useStore.setState({ loading: false, error: err.message, hydrated: true });
+    }
+  },
+
+  /** Hämtar ett enskilt resultat med scanPages från detail-endpointen.
+   *  Listvyn returnerar inte scanPages — denna funktion fyller på dem vid behov
+   *  (t.ex. när Workbench eller print-vyn öppnas). */
+  fetchResultDetail: async (resultId: string): Promise<void> => {
+    try {
+      const backendResult = await api.getResult(resultId);
+      const detailed = mapBackendResult(backendResult);
+      useStore.setState((state) => ({
+        results: state.results.map((r) =>
+          r.id === resultId ? { ...r, scanPages: detailed.scanPages } : r
+        ),
+      }));
+    } catch (error) {
+      useStore.setState({ error: (error as Error).message });
     }
   },
 

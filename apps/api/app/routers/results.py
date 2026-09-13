@@ -27,7 +27,7 @@ def _get_owned_test(db: Session, test_id: str, teacher_id: str) -> models.Test:
     return test
 
 
-@router.get("", response_model=list[schemas.GradingResultOut])
+@router.get("", response_model=list[schemas.GradingResultListItem])
 def list_results(
     test_id: str | None = Query(None, alias="testId"),
     skip: int | None = Query(None, ge=0),

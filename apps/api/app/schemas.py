@@ -420,6 +420,31 @@ class GradingResultUpdate(BaseModel):
     feedback: str | None = None
 
 
+class GradingResultListItem(BaseModel):
+    """Lightweight list-item — inga scanPages (hämtas via GET /{result_id}).
+
+    Base64-data-URL:er för sidbilder är tunga (MB per rad) och behövs inte i
+    listvyn. Detalj-endpointen returnerar GradingResultOut med scanPages.
+    """
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    provId: str = Field(validation_alias="test_id", serialization_alias="provId")
+    studentId: str | None = Field(default=None, validation_alias="student_id", serialization_alias="studentId")
+    studentName: str = Field(validation_alias="student_name", serialization_alias="studentName")
+    identificationMethod: str = Field(validation_alias="identification_method", serialization_alias="identificationMethod")
+    identificationConfidence: float = Field(validation_alias="identification_confidence", serialization_alias="identificationConfidence")
+    document: dict[str, Any] | None = None
+    steps: list[dict[str, Any]] = []
+    totalScore: float = Field(validation_alias="total_score", serialization_alias="totalScore")
+    maxScore: float = Field(validation_alias="max_score", serialization_alias="maxScore")
+    percentage: float
+    grade: str | None = None
+    feedback: str | None = None
+    scannedAt: datetime = Field(validation_alias="scanned_at", serialization_alias="scannedAt")
+    gradedAt: datetime | None = Field(default=None, validation_alias="graded_at", serialization_alias="gradedAt")
+
+
 class GradingResultOut(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -472,3 +497,26 @@ class ClaudeAnalyzeResponse(BaseModel):
     isCorrect: bool
     confidence: float
     provider: str
+
+
+# ---------------------------------------------------------------------------
+# Allowlist — lärare som får använda appen (Spår 3.2)
+# ---------------------------------------------------------------------------
+
+
+class AllowlistAdd(BaseModel):
+    email: str
+
+
+class AllowedTeacherOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: str
+    email: str
+    supabaseUserId: str | None = Field(
+        default=None, validation_alias="supabase_user_id", serialization_alias="supabaseUserId"
+    )
+    createdAt: datetime = Field(validation_alias="created_at", serialization_alias="createdAt")
+    createdBy: str | None = Field(
+        default=None, validation_alias="created_by", serialization_alias="createdBy"
+    )

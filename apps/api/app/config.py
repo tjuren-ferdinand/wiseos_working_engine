@@ -77,6 +77,11 @@ class Settings(BaseSettings):
     # åtkomstkontroller (domän-allowlist, pending-approval).
     ADMIN_EMAILS: str = ""
 
+    # Allowlist-seeding: komma-separerade emails som automatiskt läggs till i
+    # allowed_teachers vid startup. Används för att säkra att befintliga
+    # lärare inte låses ut vid första deploy av allowlist-gaten.
+    INITIAL_ALLOWED_TEACHERS: str = ""
+
     # Ops
     ENVIRONMENT: str = "dev"  # dev | staging | prod
     SENTRY_DSN: str = ""

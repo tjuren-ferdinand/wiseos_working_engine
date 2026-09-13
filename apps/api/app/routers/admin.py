@@ -11,6 +11,7 @@ from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 
+from .. import models, schemas
 from ..config import settings
 from ..db import get_db
 from ..services.retention import run_retention_sweep
@@ -69,3 +70,51 @@ def run_retention(
             "retentionHardDeleteDays": settings.RETENTION_HARD_DELETE_DAYS,
         },
     }
+
+
+# ---------------------------------------------------------------------------
+# Allowlist — lärare som får använda appen (Spår 3.2)
+# ---------------------------------------------------------------------------
+
+
+@router.get("/allowlist", response_model=list[schemas.AllowedTeacherOut])
+def list_allowlist(
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(require_admin),
+):
+    """Lista alla godkända lärare — admin only."""
+    return db.query(models.AllowedTeacher).order_by(models.AllowedTeacher.created_at.desc()).all()
+
+
+@router.post("/allowlist", response_model=schemas.AllowedTeacherOut, status_code=201)
+def add_to_allowlist(
+    payload: schemas.AllowlistAdd,
+    db: Session = Depends(get_db),
+    user: SupabaseUser = Depends(require_admin),
+):
+    """Lägg till en lärare i allowlisten — admin only."""
+    email = payload.email.strip().lower()
+    existing = db.query(models.AllowedTeacher).filter(models.AllowedTeacher.email == email).first()
+    if existing:
+        raise HTTPException(409, f"{email} är redan godkänd")
+    record = models.AllowedTeacher(email=email, created_by=user.id)
+    db.add(record)
+    db.commit()
+    db.refresh(record)
+    return record
+
+
+@router.delete("/allowlist/{email}", status_code=204)
+def remove_from_allowlist(
+    email: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(require_admin),
+):
+    """Ta bort en lärare från allowlisten — admin only."""
+    record = db.query(models.AllowedTeacher).filter(
+        models.AllowedTeacher.email == email.strip().lower()
+    ).first()
+    if not record:
+        raise HTTPException(404, f"{email} finns inte i allowlisten")
+    db.delete(record)
+    db.commit()
