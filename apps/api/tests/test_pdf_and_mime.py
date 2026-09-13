@@ -72,7 +72,7 @@ def test_expand_pdf_uploads_single_page():
     uploads = [UploadedFile(filename="test.pdf", content=pdf, content_type="application/pdf")]
     expanded = expand_pdf_uploads(uploads)
     assert len(expanded) == 1
-    assert expanded[0].content_type == "image/png"
+    assert expanded[0].content_type == "image/jpeg"
     assert expanded[0].page_number == 1
     assert expanded[0].source_id == "test.pdf"
 
@@ -82,7 +82,7 @@ def test_expand_pdf_uploads_multi_page():
     uploads = [UploadedFile(filename="test.pdf", content=pdf, content_type="application/pdf")]
     expanded = expand_pdf_uploads(uploads)
     assert len(expanded) == 3
-    assert all(u.content_type == "image/png" for u in expanded)
+    assert all(u.content_type == "image/jpeg" for u in expanded)
     assert [u.page_number for u in expanded] == [1, 2, 3]
     assert all(u.source_id == "test.pdf" for u in expanded)
 

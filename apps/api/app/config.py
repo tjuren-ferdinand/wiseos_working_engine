@@ -72,6 +72,10 @@ class Settings(BaseSettings):
     # är admin → alla autentiserade anrop till /api/v1/admin får 403.
     ADMIN_USER_IDS: str = ""
 
+    # Admin-gate via email: komma-separerade emails som räknas som admin
+    # oavsett Supabase user ID. Matchning sker lowercase/strippad.
+    ADMIN_EMAILS: str = ""
+
     # Allowlist-seeding: komma-separerade emails som automatiskt läggs till i
     # allowed_teachers vid startup. Används för att säkra att befintliga
     # lärare inte låses ut vid första deploy av allowlist-gaten.
@@ -84,6 +88,10 @@ class Settings(BaseSettings):
     @property
     def admin_user_ids(self) -> set[str]:
         return {uid.strip() for uid in self.ADMIN_USER_IDS.split(",") if uid.strip()}
+
+    @property
+    def admin_emails(self) -> set[str]:
+        return {e.strip().lower() for e in self.ADMIN_EMAILS.split(",") if e.strip()}
 
     @property
     def effective_grading_provider(self) -> str:
