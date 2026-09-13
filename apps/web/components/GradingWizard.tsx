@@ -5,6 +5,7 @@ import { api, type AnswerKeyItem } from "@/lib/api";
 import { actions, type Klass } from "@/lib/store";
 import LineIcon from "./LineIcon";
 import BatchGradingPipeline from "./BatchGradingPipeline";
+import DocumentScanner from "./DocumentScanner";
 
 type Step = 1 | 2 | 3;
 
@@ -42,6 +43,17 @@ export default function GradingWizard({
   const inputRef = useRef<HTMLInputElement>(null);
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const answerKeyInputRef = useRef<HTMLInputElement>(null);
+  const [scannerOpen, setScannerOpen] = useState(false);
+
+  // Inbyggd skanner via getUserMedia — native capture-input finns kvar
+  // som fallback när webbläsaren/kontexten saknar mediaDevices.
+  const openCamera = () => {
+    if (typeof navigator !== "undefined" && !!navigator.mediaDevices) {
+      setScannerOpen(true);
+    } else {
+      cameraInputRef.current?.click();
+    }
+  };
 
   const MAX_FILE_BYTES = 100 * 1024 * 1024;
   const MAX_TOTAL_BYTES = 200 * 1024 * 1024;
@@ -125,6 +137,7 @@ export default function GradingWizard({
     setShowAdvanced(false);
     setShowBatchPipeline(false);
     setCreatedProvId(null);
+    setScannerOpen(false);
   };
 
   const formatAnswerKey = (items: AnswerKeyItem[]) =>
@@ -334,7 +347,7 @@ export default function GradingWizard({
               <div className="space-y-2 sm:hidden">
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={openCamera}
                   className="btn-primary w-full gap-2.5 py-3.5 text-[15px]"
                 >
                   <LineIcon name="camera" className="h-5 w-5" />
@@ -388,7 +401,7 @@ export default function GradingWizard({
               <div className="hidden flex-wrap items-center gap-2 sm:flex">
                 <button
                   type="button"
-                  onClick={() => cameraInputRef.current?.click()}
+                  onClick={openCamera}
                   className="btn-tertiary gap-2 px-4 py-2.5 text-[13px]"
                 >
                   <LineIcon name="camera" className="h-4 w-4" />
@@ -750,6 +763,17 @@ export default function GradingWizard({
           </button>
         </footer>
       </div>
+
+      {/* Inbyggd dokumentskanner — fullskärms-overlay ovanpå wizarden.
+          Returnerar vanliga File-objekt som matas via samma addFiles(). */}
+      <DocumentScanner
+        open={scannerOpen}
+        onClose={() => setScannerOpen(false)}
+        onDone={(scanned) => {
+          if (scanned.length) addFiles(scanned);
+          setScannerOpen(false);
+        }}
+      />
     </div>
   );
 }
