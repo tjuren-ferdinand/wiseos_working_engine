@@ -17,8 +17,11 @@ sys.path.insert(0, str(ROOT))
 from app.schemas import AnswerKeyItem
 from app.services.answer_key import (
     _extract_json_array,
+    QuestionSheetInferenceError,
+    _balanced_json,
     _normalize_question_number,
     _parse_items,
+    _question_manifest,
     infer_question_sheet,
 )
 
@@ -162,32 +165,100 @@ def test_parse_items_defaults():
     assert items[0].derivation_steps == []
 
 
+def _manifest(*numbers: str) -> str:
+    return json.dumps({
+        "primaryDocumentFound": True,
+        "primaryDocumentConfidence": 0.95,
+        "primaryDocumentRegion": {"x": 0.1, "y": 0.1, "width": 0.7, "height": 0.8},
+        "multipleDocumentsAmbiguous": False,
+        "ambiguityReason": "",
+        "questions": [
+            {
+                "question_number": number,
+                "question_text": f"Detta är den fullständiga frågan nummer {number}",
+                "max_points": 1,
+                "confidence": 0.95,
+                "question_region": {"x": 0.2, "y": 0.2, "width": 0.4, "height": 0.1},
+            }
+            for number in numbers
+        ],
+    })
+
+
 async def test_infer_question_sheet_merges_pages_and_ignores_duplicate_numbers():
-    page_1 = json.dumps([
-        {"question_number": "1", "question_text": "Fråga ett", "final_answer": "A"},
-        {"question_number": "2", "question_text": "Fråga två", "final_answer": "B"},
-    ])
-    page_2 = json.dumps([
-        {"question_number": "2", "question_text": "Dubblett", "final_answer": "fel"},
-        {"question_number": "3", "question_text": "Fråga tre", "final_answer": "C"},
-    ])
+    solved = [
+        AnswerKeyItem(question_number=n, question_text=f"Fråga {n}", final_answer=f"Svar {n}")
+        for n in ("1", "2", "3")
+    ]
     with patch(
-        "app.services.answer_key.vision_ocr.read_image",
+        "app.services.answer_key.vision_ocr.read_image_structured",
         new_callable=AsyncMock,
-        side_effect=[page_1, page_2],
-    ) as read:
+        side_effect=[_manifest("1", "2"), _manifest("2", "3")],
+    ) as read, patch(
+        "app.services.answer_key._solve_manifest",
+        new_callable=AsyncMock,
+        return_value=solved,
+    ) as solve:
         items = await infer_question_sheet([(b"one", "image/jpeg"), (b"two", "image/jpeg")])
 
     assert [item.question_number for item in items] == ["1", "2", "3"]
-    assert items[1].question_text == "Fråga två"
-    assert "bildvisargränssnitt" in read.await_args_list[0].kwargs["prompt"]
-    assert "AI-INFERERAT" in read.await_args_list[0].kwargs["prompt"]
+    assert [item["question_number"] for item in solve.await_args.args[0]] == ["1", "2", "3"]
+    assert "Bilden FÅR vara en skärmdump" in read.await_args_list[0].args[2]
 
 
-async def test_infer_question_sheet_returns_empty_when_unreadable():
+async def test_production_missing_comma_json_retries_then_succeeds():
+    malformed = _manifest("1").replace('"max_points": 1,', '"max_points": 1')
     with patch(
-        "app.services.answer_key.vision_ocr.read_image",
+        "app.services.answer_key.vision_ocr.read_image_structured",
         new_callable=AsyncMock,
-        return_value=None,
+        side_effect=[malformed, malformed, _manifest("1")],
+    ) as read, patch(
+        "app.services.answer_key._solve_manifest",
+        new_callable=AsyncMock,
+        return_value=[AnswerKeyItem(question_number="1", question_text="Fråga", final_answer="Svar")],
     ):
-        assert await infer_question_sheet([(b"bad", "image/jpeg")]) == []
+        items = await infer_question_sheet([(b"image", "image/jpeg")])
+
+    assert read.await_count == 3
+    assert items[0].question_number == "1"
+
+
+def test_production_extra_data_uses_first_complete_object():
+    raw = _manifest("1") + "\n" + json.dumps({"irrelevant": True})
+    parsed = _balanced_json(raw)
+    assert isinstance(parsed, dict)
+    assert parsed["questions"][0]["question_number"] == "1"
+
+
+def test_question_outside_primary_paper_is_discarded():
+    data = json.loads(_manifest("1", "2"))
+    data["questions"][1]["question_region"] = {
+        "x": 0.88, "y": 0.2, "width": 0.1, "height": 0.1,
+    }
+    manifest = _question_manifest(json.dumps(data))
+    assert [item["question_number"] for item in manifest] == ["1"]
+
+
+def test_browser_ui_around_clear_paper_is_accepted():
+    manifest = _question_manifest(_manifest("1", "2", "3", "4", "5"))
+    assert len(manifest) == 5
+
+
+def test_two_equal_documents_fail_with_specific_kind():
+    data = json.loads(_manifest("1"))
+    data["multipleDocumentsAmbiguous"] = True
+    data["ambiguityReason"] = "Två lika stora dokument"
+    with pytest.raises(QuestionSheetInferenceError) as exc:
+        _question_manifest(json.dumps(data))
+    assert exc.value.kind == "multiple_documents"
+
+
+async def test_infer_question_sheet_reports_provider_error_when_unreadable():
+    with patch(
+        "app.services.answer_key.vision_ocr.read_image_structured",
+        new_callable=AsyncMock,
+        side_effect=RuntimeError("provider unavailable"),
+    ):
+        with pytest.raises(QuestionSheetInferenceError) as exc:
+            await infer_question_sheet([(b"bad", "image/jpeg")])
+    assert exc.value.kind == "provider_error"

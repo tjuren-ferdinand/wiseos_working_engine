@@ -27,7 +27,7 @@ from .. import models, schemas
 from ..db import get_db
 from ..services.rate_limits import limit_batch_grade
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
-from ..services.answer_key import infer_question_sheet
+from ..services.answer_key import QuestionSheetInferenceError, infer_question_sheet
 from ..services.batch_pipeline import (
     UploadedFile,
     scanner_group,
@@ -267,7 +267,23 @@ async def batch_grade(
     ]
     if not answer_key and reference_pages:
         inference_started = time.perf_counter()
-        answer_key = await infer_question_sheet(reference_pages)
+        try:
+            answer_key = await infer_question_sheet(reference_pages)
+        except QuestionSheetInferenceError as exc:
+            messages = {
+                "invalid_json": "AI-svaret kunde inte tolkas. Försök igen.",
+                "provider_error": "AI-tjänsten kunde inte analysera frågebladet. Försök igen.",
+                "no_primary_document": "Kunde inte avgränsa frågebladet från resten av bilden. Centrera huvudpappret i ramen.",
+                "multiple_documents": "Flera dokument syns lika tydligt. Centrera frågebladet och låt grannbilden ligga utanför ramen.",
+                "no_questions": "Pappersytan hittades, men inga läsbara frågor kunde identifieras.",
+            }
+            logger.warning(
+                "question_sheet_inference_stopped prov_id=%s kind=%s latency_ms=%d",
+                prov_id,
+                exc.kind,
+                int((time.perf_counter() - inference_started) * 1000),
+            )
+            raise HTTPException(422, messages.get(exc.kind, "Frågebladet kunde inte analyseras.")) from exc
         logger.info(
             "question_sheet_inferred prov_id=%s pages=%d questions=%d latency_ms=%d",
             prov_id,
@@ -275,12 +291,6 @@ async def batch_grade(
             len(answer_key),
             int((time.perf_counter() - inference_started) * 1000),
         )
-        if not answer_key:
-            raise HTTPException(
-                422,
-                "Kunde inte läsa frågorna från frågebladet. Ta en renare bild "
-                "utan bildvisargränssnitt eller ladda upp ett eget facit.",
-            )
         answer_key_source = "inferred_question_sheet"
 
     # 4. Kör pipelinen. Logga metadata, inte elevdata.

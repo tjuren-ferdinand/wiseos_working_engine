@@ -142,6 +142,35 @@ async def _gemini(
         return _clean_text(text)
 
 
+async def read_image_structured(
+    image_bytes: bytes,
+    mime_type: str,
+    prompt: str,
+    response_schema: dict,
+) -> str:
+    """Läs en bild med provider-native JSON/schema när Gemini finns.
+
+    Till skillnad från read_image() är detta kontraktet för maskinläsbar output.
+    Fallback-providers får samma prompt men deras text måste valideras av
+    anroparen; inga parsefel maskeras som bildkvalitetsfel här.
+    """
+    normalized_mime = _normalize_mime(mime_type)
+    if normalized_mime not in IMAGE_MIME_TYPES and normalized_mime != "application/pdf":
+        raise ValueError(f"Filtypen {mime_type} stöds inte")
+    if settings.GEMINI_API_KEY:
+        return await _gemini(
+            image_bytes,
+            mime_type,
+            prompt,
+            json_mode=True,
+            response_schema=response_schema,
+        )
+    fallback = await read_image(image_bytes, mime_type, prompt)
+    if not fallback:
+        raise RuntimeError("Vision-providern returnerade ett tomt svar")
+    return fallback
+
+
 async def read_image(image_bytes: bytes, mime_type: str, prompt: str = PROMPT) -> str | None:
     normalized_mime = _normalize_mime(mime_type)
     if normalized_mime not in IMAGE_MIME_TYPES and normalized_mime != "application/pdf":

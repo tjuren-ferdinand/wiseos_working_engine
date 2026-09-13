@@ -426,7 +426,7 @@ export default function DocumentScanner({
         : status === "holding"
           ? "Dokument hittat — håll stilla"
           : phase === "facit"
-            ? "Skanna facit/frågeblad — valfritt"
+            ? "Centrera frågebladet — UI runtom går bra"
             : "Sikta mot en provsida";
 
   const errorText: Record<string, { title: string; body: string }> = {
