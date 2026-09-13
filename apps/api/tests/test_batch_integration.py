@@ -26,6 +26,7 @@ from app.services.batch_identification import IdentifiedName
 from app.services.batch_pipeline import (
     UploadedFile,
     grade_batch,
+    identify_and_group_pages,
 )
 
 PNG_1PX = bytes.fromhex(
@@ -349,3 +350,56 @@ async def test_unreadable_first_page_never_merges_different_student():
     assert results[1].studentName == "Boris Berg"
     assert results[1].identificationMethod == "name_field"
     assert len(results[1].scanPages) == 2
+
+
+async def test_scanner_group_boundary_blocks_positional_merge():
+    """'Nästa elev'-gränser i skannade filnamn är hårda segmentgränser.
+
+    Scenario: elev 1 (e01) får två sidor, elev 2 (e02) en sida vars namn
+    inte kan läsas. Utan markören skulle e02-sidan absorberas som
+    positionell fortsättning i Annas förankrade segment — med markören
+    måste den ligga kvar som eget unresolved-dokument.
+    """
+    anna = IdentifiedName(studentName="Anna Ahl", confidence=0.95, method="name_field")
+    unnamed = IdentifiedName(studentName=None, confidence=0.0, method="name_field_empty")
+
+    files = [
+        UploadedFile(filename="scan-abc-e01-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+        UploadedFile(filename="scan-abc-e01-02.jpg", content=PNG_1PX, content_type="image/jpeg"),
+        UploadedFile(filename="scan-abc-e02-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+    ]
+    with patch(
+        "app.services.batch_pipeline.extract_student_name",
+        new_callable=AsyncMock,
+        side_effect=[anna, unnamed, unnamed],
+    ):
+        docs = await identify_and_group_pages(files)
+
+    assert len(docs) == 2
+    assert docs[0].student_name == "Anna Ahl"
+    assert docs[0].identification_method == "name_field"
+    assert len(docs[0].pages) == 2
+    assert docs[1].identification_method == "unresolved"
+    assert len(docs[1].pages) == 1
+
+
+async def test_scanner_group_boundary_same_name_flagged_ambiguous():
+    """Samma säkert lästa namn i två olika elevgrupper slås inte ihop —
+    båda flaggas name_field_ambiguous så läraren granskar (feltryck på
+    'Nästa elev' eller två elever med samma namn)."""
+    anna = IdentifiedName(studentName="Anna Ahl", confidence=0.95, method="name_field")
+
+    files = [
+        UploadedFile(filename="scan-abc-e01-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+        UploadedFile(filename="scan-abc-e02-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+    ]
+    with patch(
+        "app.services.batch_pipeline.extract_student_name",
+        new_callable=AsyncMock,
+        side_effect=[anna, anna],
+    ):
+        docs = await identify_and_group_pages(files)
+
+    assert len(docs) == 2
+    assert all(d.student_name == "Anna Ahl" for d in docs)
+    assert all(d.identification_method == "name_field_ambiguous" for d in docs)

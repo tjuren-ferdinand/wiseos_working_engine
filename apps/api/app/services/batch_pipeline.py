@@ -293,6 +293,25 @@ def _same_student(a: str, b: str) -> bool:
     return " ".join(a.casefold().split()) == " ".join(b.casefold().split())
 
 
+# Explicit elevgräns från dokumentskannern ("Nästa elev"-knappen).
+# Filnamnsmönstret scan-<session>-e<grupp>-<sida>.jpg bär ett gruppnindex
+# som fungerar som en HÅRD segmentgräns i merge-steget: sidor i olika
+# grupper slås aldrig ihop — vare sig via namnförankring, positionell
+# fortsättning eller cross-source merge. Filer utan markören (None)
+# beter sig exakt som tidigare, så Del G-invarianterna är oförändrade
+# för alla andra uppladdningsvägar.
+_SCAN_GROUP = re.compile(r"-e(\d+)-\d+$", re.IGNORECASE)
+
+
+def _scan_group(filename: str | None) -> int | None:
+    """Parsar skannerns elevgrupp ur filnamnet, annars None."""
+    if not filename:
+        return None
+    stem = re.sub(r"\.[^.]+$", "", filename)
+    match = _SCAN_GROUP.search(stem)
+    return int(match.group(1)) if match else None
+
+
 async def identify_and_group_pages(
     files: list[UploadedFile],
     identification_method: str = "name_field",
@@ -476,11 +495,28 @@ async def identify_and_group_pages(
     current_source: str | None = None
     open_segment: StudentDocument | None = None
     open_title = ""
+    open_group: int | None = None
 
     for document in documents:
-        source = document.pages[0].source_id
+        # Skannerns explicita elevgräns ("Nästa elev"): gruppen fungerar
+        # som en implicit källa — sidor inom samma grupp följer vanliga
+        # fortsättningsregler (namnlösa sidor hakar på namnförankrade
+        # segment), medan en gruppändring ALLTID bryter segmentet.
+        # Lärarens markering går före både namnförankring och positionell
+        # fortsättning. Filer utan markör (doc_group=None) beter sig
+        # exakt som tidigare — Del G-invarianterna är oförändrade.
+        doc_group = _scan_group(document.pages[0].filename)
+        source = (
+            document.pages[0].source_id
+            or (f"scan-group:{doc_group}" if doc_group is not None else None)
+        )
         source_changed = source is None or source != current_source
         current_source = source
+        group_changed = (
+            doc_group is not None
+            and open_group is not None
+            and doc_group != open_group
+        )
 
         item = _page_extraction(document)
         is_answer_key = item is not None and item.pageType == "answer_key"
@@ -517,6 +553,7 @@ async def identify_and_group_pages(
             and not doc_has_key
             and not open_is_key
             and not (doc_title and open_title and doc_title != open_title)
+            and not group_changed
         ):
             open_segment.pages.extend(document.pages)
             open_segment.identification_confidence = min(
@@ -527,11 +564,13 @@ async def identify_and_group_pages(
                 open_title = doc_title
             continue
 
-        # Källbyte: återställ positionell kontext (men cross-source merge
-        # ovan hinner köras före återställningen).
-        if source_changed:
+        # Käll- eller gruppbyte: återställ positionell kontext (men
+        # cross-source merge ovan hinner köras före återställningen —
+        # gruppskiftet är dock redan spärrat i dess villkor).
+        if source_changed or group_changed:
             open_segment = None
             open_title = ""
+            open_group = None
 
         if anchored:
             if open_segment is not None and _same_student(
@@ -546,6 +585,7 @@ async def identify_and_group_pages(
                 merged.append(document)
                 open_segment = document
                 open_title = doc_title
+                open_group = doc_group
         elif (
             open_segment is not None
             and not is_answer_key
@@ -570,6 +610,7 @@ async def identify_and_group_pages(
             merged.append(document)
             open_segment = document
             open_title = doc_title
+            open_group = doc_group
 
     # Flagga tvetydiga samma-namn-dokument (olika documentTitle) för manuell
     # granskning. Två elever som heter "Anna Andersson" men skriver olika
@@ -584,14 +625,23 @@ async def identify_and_group_pages(
         if len(group) <= 1:
             continue
         titles: set[str] = set()
+        scan_groups: set[int] = set()
         for d in group:
             ex = _page_extraction(d)
             t = (ex.documentTitle or "").strip().casefold() if ex else ""
             titles.add(t)
-        if len(titles) > 1:
+            g = _scan_group(d.pages[0].filename)
+            if g is not None:
+                scan_groups.add(g)
+        if len(titles) > 1 or len(scan_groups) > 1:
             for d in group:
                 d.identification_method = "name_field_ambiguous"
                 d.classification_reason = (
+                    "Samma namn markerades som olika elever via "
+                    "Nästa elev-knappen — granska om detta är samma "
+                    "elev (feltryck) eller två olika elever."
+                    if len(scan_groups) > 1
+                    else
                     "Flera elever med samma namn hittades med olika "
                     "provtitlar — granska manuellt om detta är samma elev "
                     "eller olika elever."

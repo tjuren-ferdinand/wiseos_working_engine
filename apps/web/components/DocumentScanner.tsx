@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import LineIcon from "./LineIcon";
 
 /**
@@ -26,6 +26,9 @@ const BRIGHT_MIN = 0.12;       // minst 12 % ljusa pixlar (pappertendens)
 const REARM_MOTION = 16;       // scenförändring som återaktiverar auto-skott
 const COOLDOWN_MS = 1100;      // paus efter varje tagning
 const MAX_EDGE_PX = 1920;      // långsidan beskärs till max denna storlek
+const THUMB_PX = 240;          // thumbnails lagras nedskalade — full-res <img>
+                               // i DOM:en håller ~11 MB avkodad bitmapp per
+                               // sida och kan döda fliken under iOS.
 const JPEG_QUALITY = 0.88;
 
 // Guide-boxens andel av analysytan (matchar den visuella ramen på skärmen)
@@ -33,8 +36,9 @@ const GUIDE = { x0: 0.12, x1: 0.88, y0: 0.16, y1: 0.84 };
 
 interface CapturedPage {
   blob: Blob;
-  url: string;
+  url: string;   // nedskalad thumbnail — aldrig full-res i DOM:en
   name: string;
+  group: number; // elevgrupp — sätts av "Nästa elev"-knappen
 }
 
 type ScanStatus = "searching" | "holding" | "captured";
@@ -51,6 +55,8 @@ export default function DocumentScanner({
   const videoRef = useRef<HTMLVideoElement>(null);
   const streamRef = useRef<MediaStream | null>(null);
   const analysisRef = useRef<HTMLCanvasElement | null>(null);
+  const captureCanvasRef = useRef<HTMLCanvasElement | null>(null);
+  const thumbCanvasRef = useRef<HTMLCanvasElement | null>(null);
   const prevLumaRef = useRef<Float32Array | null>(null);
   const timerRef = useRef<number | null>(null);
   const stableCountRef = useRef(0);
@@ -59,18 +65,37 @@ export default function DocumentScanner({
   const counterRef = useRef(0);
   const busyRef = useRef(false);
   const statusHoldUntilRef = useRef(0);
+  const groupRef = useRef(1);
+  const startCameraRef = useRef<(() => Promise<void>) | null>(null);
+  const listenersRef = useRef<{
+    track?: MediaStreamTrack;
+    onEnded?: () => void;
+    onPause?: () => void;
+    onVis?: () => void;
+  }>({});
 
   const [error, setError] = useState<string | null>(null);
   const [pages, setPages] = useState<CapturedPage[]>([]);
   const [status, setStatus] = useState<ScanStatus>("searching");
   const [flash, setFlash] = useState(false);
   const [confirmDiscard, setConfirmDiscard] = useState(false);
+  const [groupCount, setGroupCount] = useState(1);
+  const [elevNotice, setElevNotice] = useState<number | null>(null);
 
   const stopStream = useCallback(() => {
     if (timerRef.current !== null) {
       window.clearInterval(timerRef.current);
       timerRef.current = null;
     }
+    const L = listenersRef.current;
+    L.track?.removeEventListener("ended", L.onEnded!);
+    if (L.onPause && videoRef.current) {
+      videoRef.current.removeEventListener("pause", L.onPause);
+    }
+    if (L.onVis) {
+      document.removeEventListener("visibilitychange", L.onVis);
+    }
+    listenersRef.current = {};
     streamRef.current?.getTracks().forEach((t) => t.stop());
     streamRef.current = null;
     prevLumaRef.current = null;
@@ -88,7 +113,12 @@ export default function DocumentScanner({
       const vh = video.videoHeight;
       if (!vw || !vh) return;
       const scale = Math.min(1, MAX_EDGE_PX / Math.max(vw, vh));
-      const canvas = document.createElement("canvas");
+      // Återanvänd samma canvas — en ny ~8 MB-allokering per tagning är
+      // onödig minnespress på iOS där fliken kan laddas om under tryck.
+      if (!captureCanvasRef.current) {
+        captureCanvasRef.current = document.createElement("canvas");
+      }
+      const canvas = captureCanvasRef.current;
       canvas.width = Math.round(vw * scale);
       canvas.height = Math.round(vh * scale);
       const ctx = canvas.getContext("2d");
@@ -98,14 +128,33 @@ export default function DocumentScanner({
         canvas.toBlob(resolve, "image/jpeg", JPEG_QUALITY),
       );
       if (!blob) return;
+      // Nedskalad thumbnail till remsan. Visas aldrig full-res-blobben —
+      // avkodade bitmappar staplas annars och kan trigga sidomladdning.
+      if (!thumbCanvasRef.current) {
+        thumbCanvasRef.current = document.createElement("canvas");
+      }
+      const thumb = thumbCanvasRef.current;
+      const tScale = Math.min(1, THUMB_PX / Math.max(canvas.width, canvas.height));
+      thumb.width = Math.max(1, Math.round(canvas.width * tScale));
+      thumb.height = Math.max(1, Math.round(canvas.height * tScale));
+      const tCtx = thumb.getContext("2d");
+      if (!tCtx) return;
+      tCtx.drawImage(canvas, 0, 0, thumb.width, thumb.height);
+      const thumbBlob = await new Promise<Blob | null>((resolve) =>
+        thumb.toBlob(resolve, "image/jpeg", 0.7),
+      );
+      if (!thumbBlob) return;
       counterRef.current += 1;
-      // Tidsstämpel i namnet: garanterar unika filnamn även över flera
-      // skanningsessioner (BatchGradingPipeline mappar resultat på f.name).
+      // Filnamn: scan-<session>-e<elevgrupp>-<sida>.jpg. Tidsstämpeln ger
+      // unika namn över sessioner (pipeline mappar resultat på f.name) och
+      // eNN-markören är en explicit elevgräns som batch-pipelinen läser
+      // som hård segmentgräns — sidor i olika grupper slås aldrig ihop.
       const n = String(counterRef.current).padStart(2, "0");
-      const name = `scan-${Date.now().toString(36)}-${n}.jpg`;
+      const g = String(groupRef.current).padStart(2, "0");
+      const name = `scan-${Date.now().toString(36)}-e${g}-${n}.jpg`;
       setPages((prev) => [
         ...prev,
-        { blob, url: URL.createObjectURL(blob), name },
+        { blob, url: URL.createObjectURL(thumbBlob), name, group: groupRef.current },
       ]);
       setStatus("captured");
       statusHoldUntilRef.current = Date.now() + 900;
@@ -214,6 +263,13 @@ export default function DocumentScanner({
       return;
     }
     try {
+      // Rensa tidigare ström/intervall — relevant vid omstart efter
+      // att iOS avslutat kameratracken mitt i en session.
+      if (timerRef.current !== null) {
+        window.clearInterval(timerRef.current);
+        timerRef.current = null;
+      }
+      streamRef.current?.getTracks().forEach((t) => t.stop());
       let stream: MediaStream;
       try {
         stream = await navigator.mediaDevices.getUserMedia({
@@ -234,6 +290,20 @@ export default function DocumentScanner({
         video.srcObject = stream;
         await video.play().catch(() => undefined);
       }
+      // iOS-återhämtning: OS kan avsluta kameratracken eller pausa videon
+      // vid avbrott/minnespress — återställ istället för en död/svart vy.
+      const track = stream.getVideoTracks()[0];
+      const onEnded = () => { void startCameraRef.current?.(); };
+      const onPause = () => { void video?.play().catch(() => undefined); };
+      const onVis = () => {
+        if (document.visibilityState === "visible") {
+          void video?.play().catch(() => undefined);
+        }
+      };
+      track?.addEventListener("ended", onEnded);
+      video?.addEventListener("pause", onPause);
+      document.addEventListener("visibilitychange", onVis);
+      listenersRef.current = { track, onEnded, onPause, onVis };
       timerRef.current = window.setInterval(analyseTick, TICK_MS);
     } catch (e) {
       const name = (e as DOMException)?.name;
@@ -252,16 +322,20 @@ export default function DocumentScanner({
   // Öppna/stäng-livscykel — nollställ allt sessionstillstånd vid öppning
   // så att gamla thumbnails/räknare inte hänger kvar.
   useEffect(() => {
+    startCameraRef.current = startCamera;
     if (open) {
       setPages((prev) => {
         prev.forEach((p) => URL.revokeObjectURL(p.url));
         return [];
       });
       counterRef.current = 0;
+      groupRef.current = 1;
       statusHoldUntilRef.current = 0;
       setConfirmDiscard(false);
       setStatus("searching");
       setFlash(false);
+      setGroupCount(1);
+      setElevNotice(null);
       void startCamera();
       return stopStream;
     }
@@ -288,6 +362,13 @@ export default function DocumentScanner({
     });
   };
 
+  const nextStudent = () => {
+    groupRef.current += 1;
+    setGroupCount(groupRef.current);
+    setElevNotice(groupRef.current);
+    window.setTimeout(() => setElevNotice(null), 1600);
+  };
+
   const handleDone = () => {
     const files = pages.map(
       (p) => new File([p.blob], p.name, { type: "image/jpeg" }),
@@ -304,11 +385,13 @@ export default function DocumentScanner({
   };
 
   const statusText =
-    status === "captured"
-      ? `Sida ${pages.length} sparad`
-      : status === "holding"
-        ? "Dokument hittat — håll stilla"
-        : "Sikta mot en provsida";
+    elevNotice !== null
+      ? `Elev ${elevNotice} — fortsätt skanna`
+      : status === "captured"
+        ? `Sida ${pages.length} sparad`
+        : status === "holding"
+          ? "Dokument hittat — håll stilla"
+          : "Sikta mot en provsida";
 
   const errorText: Record<string, { title: string; body: string }> = {
     denied: {
@@ -341,6 +424,7 @@ export default function DocumentScanner({
         autoPlay
         playsInline
         muted
+        disablePictureInPicture
         className="absolute inset-0 h-full w-full object-cover"
       />
 
@@ -387,7 +471,7 @@ export default function DocumentScanner({
       <div className="relative flex items-center justify-between px-4 pt-[max(1rem,env(safe-area-inset-top))]">
         <span
           className={`rounded-full px-3.5 py-1.5 text-[13px] font-medium backdrop-blur transition-colors ${
-            status === "captured"
+            status === "captured" || elevNotice !== null
               ? "bg-emerald-500/90"
               : status === "holding"
                 ? "bg-emerald-500/80"
@@ -449,50 +533,81 @@ export default function DocumentScanner({
           </div>
         )}
 
-        {/* Thumbnail-strip */}
+        {/* Thumbnail-strip — vertikal avskiljare + E-märke vid elevgräns */}
         {pages.length > 0 && (
           <div className="mb-4 flex gap-2 overflow-x-auto pb-1">
-            {pages.map((p, i) => (
-              <div key={p.url} className="relative shrink-0">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  src={p.url}
-                  alt={`Skannad sida ${i + 1}`}
-                  className="h-16 w-12 rounded-lg border border-white/25 object-cover"
-                />
-                <button
-                  type="button"
-                  onClick={() => removePage(i)}
-                  aria-label={`Ta bort sida ${i + 1}`}
-                  className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/80 text-white ring-1 ring-white/30"
-                >
-                  <LineIcon name="x" className="h-3 w-3" />
-                </button>
-              </div>
-            ))}
+            {pages.map((p, i) => {
+              const groupStart = i === 0 || p.group !== pages[i - 1].group;
+              return (
+                <Fragment key={p.url}>
+                  {i > 0 && groupStart && (
+                    <div className="w-px shrink-0 self-stretch bg-white/30" />
+                  )}
+                  <div className="relative shrink-0">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img
+                      src={p.url}
+                      alt={`Skannad sida ${i + 1}`}
+                      className="h-16 w-12 rounded-lg border border-white/25 object-cover"
+                    />
+                    {groupStart && (
+                      <span className="absolute left-0 top-0 rounded-br-md rounded-tl-lg bg-black/70 px-1 py-px text-[9px] font-semibold text-white/90">
+                        E{p.group}
+                      </span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removePage(i)}
+                      aria-label={`Ta bort sida ${i + 1}`}
+                      className="absolute -right-1.5 -top-1.5 grid h-5 w-5 place-items-center rounded-full bg-black/80 text-white ring-1 ring-white/30"
+                    >
+                      <LineIcon name="x" className="h-3 w-3" />
+                    </button>
+                  </div>
+                </Fragment>
+              );
+            })}
           </div>
         )}
 
-        <div className="flex items-center justify-between gap-4">
-          <div className="w-16 text-sm font-medium text-white/80">
-            {pages.length > 0 ? `${pages.length} sidor` : ""}
+        <div className="flex items-center justify-between gap-3">
+          <div className="w-14 text-sm font-medium text-white/80">
+            <div>Elev {groupCount}</div>
+            {pages.length > 0 && (
+              <div className="text-xs text-white/50">{pages.length} sidor</div>
+            )}
           </div>
 
-          {/* Manuell slutare — alltid tillgänglig som backup */}
-          <button
-            type="button"
-            onClick={() => void captureFrame()}
-            disabled={!!error}
-            aria-label="Ta bild"
-            className="grid h-[68px] w-[68px] place-items-center rounded-full border-4 border-white bg-white/20 transition-transform active:scale-90 disabled:opacity-40"
-          >
-            <span className="h-12 w-12 rounded-full bg-white" />
-          </button>
+          <div className="flex items-center gap-5">
+            {/* Nästa elev — explicit elevgräns (eNN i filnamnet) som
+                pipelinen läser som hård segmentgräns vid gruppering. */}
+            <button
+              type="button"
+              onClick={nextStudent}
+              disabled={!!error}
+              aria-label="Nästa elev"
+              title="Nästa elev"
+              className="grid h-11 w-11 place-items-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur transition-transform active:scale-90 disabled:opacity-40"
+            >
+              <LineIcon name="users" className="h-5 w-5" />
+            </button>
+
+            {/* Manuell slutare — alltid tillgänglig som backup */}
+            <button
+              type="button"
+              onClick={() => void captureFrame()}
+              disabled={!!error}
+              aria-label="Ta bild"
+              className="grid h-[68px] w-[68px] place-items-center rounded-full border-4 border-white bg-white/20 transition-transform active:scale-90 disabled:opacity-40"
+            >
+              <span className="h-12 w-12 rounded-full bg-white" />
+            </button>
+          </div>
 
           <button
             type="button"
             onClick={handleDone}
-            className="w-16 rounded-xl bg-white px-0 py-2.5 text-center text-sm font-semibold text-black disabled:opacity-40"
+            className="w-14 rounded-xl bg-white px-0 py-2.5 text-center text-sm font-semibold text-black disabled:opacity-40"
           >
             Klar
           </button>
