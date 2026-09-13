@@ -403,3 +403,33 @@ async def test_scanner_group_boundary_same_name_flagged_ambiguous():
     assert len(docs) == 2
     assert all(d.student_name == "Anna Ahl" for d in docs)
     assert all(d.identification_method == "name_field_ambiguous" for d in docs)
+
+
+async def test_scanner_facit_group_named_facit_and_not_submission():
+    """Sidor från skannerns facit-fas (e00) namnsätts 'Facit/frågeblad'
+    istället för 'Okänd elev', och klassificeras not_student_submission
+    via befintlig pageType-logik — merge/klassificering är orörd."""
+    facit = IdentifiedName(
+        studentName=None, confidence=0.9, method="name_field",
+        pageType="answer_key",
+    )
+    anna = IdentifiedName(
+        studentName="Anna Ahl", confidence=0.95, method="name_field",
+        pageType="student_work", hasHandwriting=True,
+    )
+    files = [
+        UploadedFile(filename="scan-abc-e00-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+        UploadedFile(filename="scan-abc-e01-01.jpg", content=PNG_1PX, content_type="image/jpeg"),
+    ]
+    with patch(
+        "app.services.batch_pipeline.extract_student_name",
+        new_callable=AsyncMock,
+        side_effect=[facit, anna],
+    ):
+        docs = await identify_and_group_pages(files)
+
+    assert len(docs) == 2
+    assert docs[0].student_name == "Facit/frågeblad"
+    assert docs[0].document_type == "not_student_submission"
+    assert docs[1].student_name == "Anna Ahl"
+    assert docs[1].document_type == "student_submission"

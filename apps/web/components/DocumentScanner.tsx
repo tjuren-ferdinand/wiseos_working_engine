@@ -81,6 +81,10 @@ export default function DocumentScanner({
   const [confirmDiscard, setConfirmDiscard] = useState(false);
   const [groupCount, setGroupCount] = useState(1);
   const [elevNotice, setElevNotice] = useState<number | null>(null);
+  const [videoReady, setVideoReady] = useState(false);
+  // Fas "facit": läraren skannar provets frågeblad/facit först (grupp 0,
+  // filnamnsmarkör e00) — hårt åtskilt från elevgrupperna i pipelinen.
+  const [phase, setPhase] = useState<"facit" | "elever">("facit");
 
   const stopStream = useCallback(() => {
     if (timerRef.current !== null) {
@@ -329,13 +333,15 @@ export default function DocumentScanner({
         return [];
       });
       counterRef.current = 0;
-      groupRef.current = 1;
+      groupRef.current = 0;
       statusHoldUntilRef.current = 0;
       setConfirmDiscard(false);
       setStatus("searching");
       setFlash(false);
       setGroupCount(1);
       setElevNotice(null);
+      setPhase("facit");
+      setVideoReady(false);
       void startCamera();
       return stopStream;
     }
@@ -369,6 +375,14 @@ export default function DocumentScanner({
     window.setTimeout(() => setElevNotice(null), 1600);
   };
 
+  const startStudents = () => {
+    setPhase("elever");
+    groupRef.current = 1;
+    setGroupCount(1);
+    setElevNotice(1);
+    window.setTimeout(() => setElevNotice(null), 1600);
+  };
+
   const handleDone = () => {
     const files = pages.map(
       (p) => new File([p.blob], p.name, { type: "image/jpeg" }),
@@ -388,10 +402,14 @@ export default function DocumentScanner({
     elevNotice !== null
       ? `Elev ${elevNotice} — fortsätt skanna`
       : status === "captured"
-        ? `Sida ${pages.length} sparad`
+        ? phase === "facit"
+          ? "Facit sparat"
+          : `Sida ${pages.length} sparad`
         : status === "holding"
           ? "Dokument hittat — håll stilla"
-          : "Sikta mot en provsida";
+          : phase === "facit"
+            ? "Skanna facit/frågeblad — valfritt"
+            : "Sikta mot en provsida";
 
   const errorText: Record<string, { title: string; body: string }> = {
     denied: {
@@ -425,6 +443,7 @@ export default function DocumentScanner({
         playsInline
         muted
         disablePictureInPicture
+        onCanPlay={() => setVideoReady(true)}
         className="absolute inset-0 h-full w-full object-cover"
       />
 
@@ -552,7 +571,7 @@ export default function DocumentScanner({
                     />
                     {groupStart && (
                       <span className="absolute left-0 top-0 rounded-br-md rounded-tl-lg bg-black/70 px-1 py-px text-[9px] font-semibold text-white/90">
-                        E{p.group}
+                        {p.group === 0 ? "Facit" : `E${p.group}`}
                       </span>
                     )}
                     <button
@@ -572,31 +591,46 @@ export default function DocumentScanner({
 
         <div className="flex items-center justify-between gap-3">
           <div className="w-14 text-sm font-medium text-white/80">
-            <div>Elev {groupCount}</div>
+            <div>{phase === "facit" ? "Facit" : `Elev ${groupCount}`}</div>
             {pages.length > 0 && (
               <div className="text-xs text-white/50">{pages.length} sidor</div>
             )}
           </div>
 
           <div className="flex items-center gap-5">
-            {/* Nästa elev — explicit elevgräns (eNN i filnamnet) som
-                pipelinen läser som hård segmentgräns vid gruppering. */}
-            <button
-              type="button"
-              onClick={nextStudent}
-              disabled={!!error}
-              aria-label="Nästa elev"
-              title="Nästa elev"
-              className="grid h-11 w-11 place-items-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur transition-transform active:scale-90 disabled:opacity-40"
-            >
-              <LineIcon name="users" className="h-5 w-5" />
-            </button>
+            {phase === "facit" ? (
+              /* Fasbyte: frågeblad/facit klart → börja skanna elever.
+                 Sidor hittills är grupp 0 (e00) — hårt åtskilda i pipelinen. */
+              <button
+                type="button"
+                onClick={startStudents}
+                disabled={!!error}
+                aria-label="Börja skanna elever"
+                className="grid h-11 place-items-center rounded-full bg-white/15 px-4 ring-1 ring-white/25 backdrop-blur text-[13px] font-semibold transition-transform active:scale-95 disabled:opacity-40"
+              >
+                Elever →
+              </button>
+            ) : (
+              /* Nästa elev — explicit elevgräns (eNN i filnamnet) som
+                 pipelinen läser som hård segmentgräns vid gruppering. */
+              <button
+                type="button"
+                onClick={nextStudent}
+                disabled={!!error}
+                aria-label="Nästa elev"
+                title="Nästa elev"
+                className="grid h-11 w-11 place-items-center rounded-full bg-white/15 ring-1 ring-white/25 backdrop-blur transition-transform active:scale-90 disabled:opacity-40"
+              >
+                <LineIcon name="users" className="h-5 w-5" />
+              </button>
+            )}
 
-            {/* Manuell slutare — alltid tillgänglig som backup */}
+            {/* Manuell slutare — disabled tills videon faktiskt spelar
+                (annars blir första trycket en tyst no-op). */}
             <button
               type="button"
               onClick={() => void captureFrame()}
-              disabled={!!error}
+              disabled={!!error || !videoReady}
               aria-label="Ta bild"
               className="grid h-[68px] w-[68px] place-items-center rounded-full border-4 border-white bg-white/20 transition-transform active:scale-90 disabled:opacity-40"
             >

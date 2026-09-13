@@ -312,6 +312,18 @@ def _scan_group(filename: str | None) -> int | None:
     return int(match.group(1)) if match else None
 
 
+def _unresolved_label(filename: str | None) -> str:
+    """Namn för dokument vars elev inte kunde läsas.
+
+    Sidor från skannerns facit-fas (grupp 0, e00 i filnamnet) är inte
+    elevinlämningar — döp dem "Facit/frågeblad" så raden blir tydlig i
+    resultatgriden istället för att se ut som en misslyckad elevidentitet.
+    """
+    if _scan_group(filename) == 0:
+        return "Facit/frågeblad"
+    return f"Okänd elev - {filename}"
+
+
 async def identify_and_group_pages(
     files: list[UploadedFile],
     identification_method: str = "name_field",
@@ -387,7 +399,7 @@ async def identify_and_group_pages(
                 else:
                     documents.append(
                         StudentDocument(
-                            student_name=f"Okänd elev - {page.filename}",
+                            student_name=_unresolved_label(page.filename),
                             pages=[page],
                             identification_method="unresolved",
                             identification_confidence=0.0,
@@ -398,7 +410,7 @@ async def identify_and_group_pages(
             stem = re.sub(r"\.[^.]+$", "", candidate.pages[0].filename or "")
             base, _ = _split_page_suffix(stem)
             if _generic_filename(base):
-                candidate.student_name = f"Okänd elev - {candidate.pages[0].filename}"
+                candidate.student_name = _unresolved_label(candidate.pages[0].filename)
                 candidate.identification_method = "unresolved"
                 candidate.identification_confidence = 0.0
             else:
@@ -453,7 +465,7 @@ async def identify_and_group_pages(
             document.identification_method = "name_field"
             document.identification_confidence = anchor[0].confidence
         elif document.identification_method == "name_field":
-            document.student_name = f"Okänd elev - {document.pages[0].filename}"
+            document.student_name = _unresolved_label(document.pages[0].filename)
             document.identification_method = "unresolved"
             document.identification_confidence = 0.0
 
