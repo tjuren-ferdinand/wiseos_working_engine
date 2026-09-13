@@ -435,7 +435,13 @@ export default function DocumentScanner({
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex flex-col bg-black text-white">
+    // VIKTIGT: stopPropagation — scannern renderas inuti GradingWizards
+    // backdrop som stänger wizarden vid klick ("klicka utanför"). Utan
+    // detta stängdes hela wizarden vid varje tryck på slutaren.
+    <div
+      className="fixed inset-0 z-[60] flex flex-col bg-black text-white"
+      onClick={(e) => e.stopPropagation()}
+    >
       {/* Live-vy */}
       <video
         ref={videoRef}

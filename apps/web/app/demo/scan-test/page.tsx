@@ -60,7 +60,23 @@ export default function ScanTestPage() {
       >
         Öppna skanner
       </button>
-      <DocumentScanner open={open} onClose={handleClose} onDone={handleDone} />
+      {/* Replikerar GradingWizards struktur: backdrop-div med onClick=
+          handleClose runt scannern — exakt den buggfälla som stängde
+          wizarden vid varje tryck i skannern. */}
+      {open && (
+        <div
+          className="fixed inset-0 z-50"
+          onClick={() => {
+            if (window.__scanTest) window.__scanTest.closes += 1;
+            console.log("[scantest] backdrop-click (skulle stänga wizarden)");
+          }}
+        >
+          <DocumentScanner open={open} onClose={handleClose} onDone={handleDone} />
+        </div>
+      )}
+      {!open && (
+        <DocumentScanner open={open} onClose={handleClose} onDone={handleDone} />
+      )}
     </div>
   );
 }
