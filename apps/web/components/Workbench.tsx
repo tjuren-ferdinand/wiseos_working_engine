@@ -382,7 +382,7 @@ function StepCard({
           Elev:
         </span>{" "}
         {step.studentWork ? (
-          <MathText content={step.studentWork} />
+          <span className="block overflow-x-auto"><MathText content={step.studentWork} mode="transcription" /></span>
         ) : (
           <span
             className="text-ink-muted italic"

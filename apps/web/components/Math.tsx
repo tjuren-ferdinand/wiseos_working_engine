@@ -26,8 +26,20 @@ import katex from "katex";
  *
  * Felaktig LaTeX eller markdown visas som rå text (ingen krasch).
  */
-export default function Math({ content }: { content: string }) {
-  const blocks = useMemo(() => parseContent(content), [content]);
+export type MathMode = "default" | "transcription";
+
+export default function Math({
+  content,
+  mode = "default",
+}: {
+  content: string;
+  mode?: MathMode;
+}) {
+  const normalized = useMemo(
+    () => mode === "transcription" ? normalizeTranscribedMath(content) : content,
+    [content, mode],
+  );
+  const blocks = useMemo(() => parseContent(normalized), [normalized]);
   return (
     <>
       {blocks.map((block, i) => (
@@ -118,14 +130,48 @@ function expandMath(text: string, mathParts: MathPart[], keyBase: number): React
 // Parsing — steg 1: extrahera LaTeX, steg 2: struktur, steg 3: markdown-inline
 // ---------------------------------------------------------------------------
 
+const RAW_TEX = /\\(?:frac|sqrt|sum|prod|int|pm|cdot|times|div|quad|implies|neq|leq|geq|infty|begin|left|right|text|Delta|lambda)\b/;
+const DELIMITED_TEX = /\\\[[\s\S]*?\\\]|\\\([\s\S]*?\\\)|\$\$[\s\S]*?\$\$|\$[^$\n]+\$/;
+
+function looksLikeMath(line: string): boolean {
+  if (RAW_TEX.test(line)) return true;
+  const compact = line.replace(/\s+/g, "");
+  if (!/[A-Za-z0-9]/.test(compact)) return false;
+  if (/[=_^]/.test(compact) && /[0-9]/.test(compact)) return true;
+  const operators = compact.match(/[=+\-*/^_]/g)?.length ?? 0;
+  return operators >= 2 && /[0-9]/.test(compact);
+}
+
+export function normalizeTranscribedMath(input: string): string {
+  return input
+    .split("\n")
+    .map((line) => {
+      const trimmed = line.trim();
+      if (!trimmed || DELIMITED_TEX.test(trimmed) || !looksLikeMath(trimmed)) return line;
+      const framed = trimmed.match(/^\[?([A-Za-zÅÄÖåäö][A-Za-zÅÄÖåäö ]{2,24}):\s*(.+?)\]?$/);
+      if (framed && looksLikeMath(framed[2])) {
+        const leading = line.slice(0, line.indexOf(trimmed));
+        return `${leading}${framed[1]}: \\[${framed[2]}\\]`;
+      }
+      const numbered = trimmed.match(/^(\d+\s*[a-z]\))\s+(.+)$/i);
+      if (numbered && looksLikeMath(numbered[2])) {
+        const leading = line.slice(0, line.indexOf(trimmed));
+        return `${leading}${numbered[1]} \\[${numbered[2]}\\]`;
+      }
+      const leading = line.slice(0, line.indexOf(trimmed));
+      return `${leading}\\[${trimmed}\\]`;
+    })
+    .join("\n");
+}
+
 function parseContent(input: string): Block[] {
   // Steg 1: Extrahera LaTeX-segment → placeholders.
   const mathParts: MathPart[] = [];
   const withPlaceholders = input.replace(
-    /\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)/g,
-    (_match, displayTex, inlineTex) => {
-      const tex = (displayTex ?? inlineTex).trim();
-      mathParts.push({ tex, display: displayTex !== undefined });
+    /\\\[([\s\S]*?)\\\]|\\\(([\s\S]*?)\\\)|\$\$([\s\S]*?)\$\$|\$([^$\n]+?)\$/g,
+    (_match, displayTex, inlineTex, dollarDisplayTex, dollarInlineTex) => {
+      const tex = (displayTex ?? inlineTex ?? dollarDisplayTex ?? dollarInlineTex).trim();
+      mathParts.push({ tex, display: displayTex !== undefined || dollarDisplayTex !== undefined });
       return `@@MATH_${mathParts.length - 1}@@`;
     },
   );
@@ -217,14 +263,38 @@ function parseMarkdownInline(text: string): Inline[] {
   return inlines;
 }
 
+function normalizeUnicodeMath(tex: string): string {
+  return tex
+    .replace(/½/g, "\\frac{1}{2}")
+    .replace(/²/g, "^2")
+    .replace(/³/g, "^3")
+    .replace(/⇒/g, "\\implies ")
+    .replace(/≈/g, "\\approx ")
+    .replace(/≠/g, "\\neq ")
+    .replace(/≤/g, "\\leq ")
+    .replace(/≥/g, "\\geq ")
+    .replace(/Δ/g, "\\Delta ")
+    .replace(/[·⋅]/g, "\\cdot ")
+    .replace(/×/g, "\\times ")
+    .replace(/÷/g, "\\div ")
+    .replace(/−/g, "-")
+    .replace(/√\(([^()]*)\)/g, "\\sqrt{$1}")
+    .replace(/√\s*([\dA-Za-z.,]+)/g, "\\sqrt{$1}");
+}
+
 function renderKatex(tex: string, displayMode: boolean): string {
   try {
-    return katex.renderToString(tex, {
+    return katex.renderToString(normalizeUnicodeMath(tex), {
       displayMode,
-      throwOnError: false,
+      throwOnError: true,
       output: "html",
     });
   } catch {
-    return tex;
+    return tex
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;")
+      .replace(/'/g, "&#039;");
   }
 }

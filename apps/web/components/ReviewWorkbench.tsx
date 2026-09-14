@@ -308,12 +308,12 @@ function ResultCard({
                       )}
                       {step?.studentWork !== undefined && (
                         <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                          <span className="font-medium text-ink">Elevens svar:</span> <MathText content={step.studentWork || "(inte extraherat)"} />
+                          <span className="font-medium text-ink">Elevens svar:</span> <MathText content={step.studentWork || "(inte extraherat)"} mode="transcription" />
                         </p>
                       )}
                       {step?.correctAnswer && (
                         <p className="mt-1 text-[12.5px] text-ink-secondary leading-relaxed">
-                          <span className="font-medium text-ink">Facit:</span> <MathText content={step.correctAnswer} />
+                          <span className="font-medium text-ink">Facit:</span> <MathText content={step.correctAnswer} mode="transcription" />
                         </p>
                       )}
                       {step?.feedback && (

@@ -152,7 +152,7 @@ export default function PrintPage() {
               <div className={s.field}>
                 <div className={s.fieldLabel}>Elevens svar</div>
                 <div className={`${s.fieldValue} ${s.fieldMono}`}>
-                  <MathText content={step.studentWork} />
+                  <MathText content={step.studentWork} mode="transcription" />
                 </div>
               </div>
             )}
@@ -161,7 +161,7 @@ export default function PrintPage() {
               <div className={s.field}>
                 <div className={s.fieldLabel}>Facit</div>
                 <div className={s.fieldValue}>
-                  <MathText content={step.correctAnswer} />
+                  <MathText content={step.correctAnswer} mode="transcription" />
                 </div>
               </div>
             )}
