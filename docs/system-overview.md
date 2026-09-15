@@ -211,10 +211,11 @@ POST /api/v1/batch/grade (multipart: prov_id, files[], answer_key_json, params)
 
 ### AI-provider för rättning
 
-- **Primär:** Google Gemini (`gemini-3.5-flash`) via REST API — `apps/api/app/services/gemini_vision.py`
-- **API-nyckel:** `GEMINI_API_KEY` i root `.env`
-- **OCR-fallback-kedja** (i `vision_ocr.py`, för facit-OCR, ej elevrättning): Gemini → OpenRouter → Groq
-- **Feedback/analys** (i `feedback.py`): Groq (primary, `AI_PROVIDER=groq`) → Gemini → Anthropic
+- **Primär:** Google Gemini (`gemini-3.6-flash`) via REST API — `apps/api/app/services/gemini_vision.py`
+- **Fallback-kedja:** Claude → OpenAI via `FallbackVisionProvider` (testmotiverad ordning, se `scripts/compare_engines.py`)
+- **API-nyckel:** `GEMINI_API_KEY` + `OPENAI_API_KEY` i root `.env`
+- **OCR-fallback-kedja** (i `vision_ocr.py`, för facit-OCR, ej elevrättning): Gemini → OpenRouter → OpenAI
+- **Feedback/analys** (i `feedback.py`): Anthropic → OpenAI → Gemini
 - **Wolfram** (i `wolfram.py`): Wolfram Alpha API via `WOLFRAM_APP_ID` — matematisk verifiering
 - **Anthropic/Claude:** Konfigurerat i `.env` men `ANTHROPIC_API_KEY` är tom. Inte aktiv.
 
@@ -223,7 +224,7 @@ POST /api/v1/batch/grade (multipart: prov_id, files[], answer_key_json, params)
 | Nyckel | Satt? | Används för |
 |---|---|---|
 | `GEMINI_API_KEY` | ✅ Ja | Rättning (gemini_vision), OCR-fallback, feedback |
-| `GROQ_API_KEY` | ✅ Ja | Feedback-generering, OCR-fallback |
+| `OPENAI_API_KEY` | ✅ Ja | Feedback-generering, facitgenerering, OCR- och rättningsfallback |
 | `WOLFRAM_APP_ID` | ✅ Ja | Matematisk verifiering |
 | `ANTHROPIC_API_KEY` | ❌ Tom | Reserverad för Claude |
 | `MATHPIX_APP_ID/KEY` | ❌ Tom | Reserverad för Mathpix OCR |
@@ -286,15 +287,15 @@ POST /api/v1/batch/grade (multipart: prov_id, files[], answer_key_json, params)
 | SQLite-databas | Lokal fil | Lokal |
 | Supabase Auth | `octjkgjfdxgozqnzaxlo.supabase.co` | **⚠ OKÄNT** vilken region (AWS us-east-1 är default) |
 | Google Gemini API | Google Cloud | **⚠ OKÄNT** dataplats |
-| Groq API | Groq Cloud | **⚠ OKÄNT** dataplats |
+| OpenAI API | OpenAI | **⚠ OKÄNT** dataplats |
 | Wolfram Alpha API | USA | USA |
 
 ### ⚠ GDPR-flaggor (hög prioritet)
 
-1. **Elevdata (inkl. minderårigas handskrift) skickas till tre externa AI-tjänster** utan verifierat DPA (Data Processing Agreement) med Google/Groq/Wolfram. *(Fritext skrubbas nu, se Vecka 1 — men bilder/handskrift går okrypterat/oskrubbat till Gemini, kräver DPA.)*
+1. **Elevdata (inkl. minderårigas handskrift) skickas till tre externa AI-tjänster** utan verifierat DPA (Data Processing Agreement) med Google/OpenAI/Wolfram. *(Fritext skrubbas nu, se Vecka 1 — men bilder/handskrift går okrypterat/oskrubbat till Gemini, kräver DPA.)*
 2. ~~Ingen radering/anonymiseringsfunktion~~ **Åtgärdat i Vecka 1–2:** `scrub_pii()` (namn/personnummer/e-post/telefon i fritext) + retention-policy (30d pseudonymisering, 90d hard delete) + explicita DELETE-endpoints. Landningssidans exakta formulering ("rensas automatiskt efter rättning") bör dock stämmas av mot den faktiska 90-dagarspolicyn.
 3. **Ingen dokumenterad dataskyddspolicy, ingen DPIA** (Data Protection Impact Assessment).
-4. **Serverplats okänd** för Supabase/Google/Groq — potentiellt utanför EU/EES.
+4. **Serverplats okänd** för Supabase/Google/OpenAI — potentiellt utanför EU/EES.
 5. ~~Ingen Admin/roller = ingen teknisk åtskillnad mellan lärare~~ **Åtgärdat i Vecka 1:** `teacher_id`-ägandeskap på `Klass`/`Test`/`GradingResult`, verifierat i varje endpoint (404 vid annan lärares data).
 
 **Rekommendation:** Systemet ska **inte** användas med riktiga elevers personuppgifter förrän kvarstående punkter (DPA, DPIA, serverplats) är åtgärdade.
@@ -363,9 +364,9 @@ draft → grading → review → published
 |---|---|
 | `DATABASE_URL` | `sqlite:///./wiseos.db` |
 | `GEMINI_API_KEY` | Rättning + OCR |
-| `GROQ_API_KEY` | Feedback + OCR-fallback |
+| `OPENAI_API_KEY` | Feedback + facitgenerering + OCR/rättningsfallback |
 | `WOLFRAM_APP_ID` | Matematisk verifiering |
-| `AI_PROVIDER` | `groq` (styr feedback-provider) |
+| `REDIS_URL` | Delad rate limit-räknare (tom = processlokal) |
 | `SUPABASE_URL` / `SUPABASE_ANON_KEY` | Backend-verifiering av tokens |
 | `JWT_SECRET_KEY` | Legacy auth (ej använd av frontend) |
 | `CORS_ORIGINS` | `http://localhost:3000` |

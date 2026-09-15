@@ -1,7 +1,9 @@
-"""Delad Groq-klient för textgenerering.
+"""Delad OpenAI-klient för text- och visionsgenerering.
 
-Groq används tillfälligt istället för Claude. När budget finns byts providern
-via AI_PROVIDER i .env. Bild-OCR hanteras av services/vision_ocr.py.
+Ersätter Groq fullständigt. Modellerna delas per roll:
+OPENAI_FEEDBACK_MODEL för textvolym (feedback, facitgenerering) och
+OPENAI_MODEL för vision/bedömning. Reservmodeller via
+OPENAI_FALLBACK_MODELS används när primärmodellen är rate limitad.
 """
 from __future__ import annotations
 
@@ -12,21 +14,21 @@ import httpx
 
 from ..config import settings
 
-CHAT_URL = "https://api.groq.com/openai/v1/chat/completions"
+CHAT_URL = "https://api.openai.com/v1/chat/completions"
 
-# Gratisnivån på Groq har låga rate limits – strypning + retry hindrar att
-# rättningen tyst faller tillbaka på mock-feedback vid 429.
-_LIMITER = asyncio.Semaphore(2)
+# Strypning + retry hindrar att rättningen tyst faller tillbaka på
+# mock-feedback vid 429.
+_LIMITER = asyncio.Semaphore(4)
 _MAX_ATTEMPTS = 5
 _MAX_BACKOFF_SECONDS = 30.0
 
 
-def groq_enabled() -> bool:
-    return bool(settings.GROQ_API_KEY)
+def openai_enabled() -> bool:
+    return bool(settings.OPENAI_API_KEY)
 
 
 def _parse_duration(value: str | None) -> float:
-    """Tolkar Groqs varaktigheter, t.ex. '435ms', '1m26.4s' eller '12'."""
+    """Tolkar OpenAI:s varaktigheter, t.ex. '435ms', '1m26.4s' eller '12'."""
     if not value:
         return 0.0
     raw = value.strip().lower()
@@ -48,6 +50,8 @@ def _parse_duration(value: str | None) -> float:
 def _retry_delay(headers, attempt: int) -> float:
     delay = _parse_duration(headers.get("retry-after"))
     if delay <= 0:
+        delay = _parse_duration(headers.get("retry-after-ms")) / 1000.0
+    if delay <= 0:
         delay = max(
             _parse_duration(headers.get("x-ratelimit-reset-tokens")),
             _parse_duration(headers.get("x-ratelimit-reset-requests")),
@@ -57,23 +61,27 @@ def _retry_delay(headers, attempt: int) -> float:
     return min(delay + 0.5, _MAX_BACKOFF_SECONDS)
 
 
-def _model_chain() -> list[str]:
-    """Primärmodell först, därefter reservmodeller med egna dygnskvoter."""
-    models = [settings.GROQ_MODEL]
-    for name in settings.GROQ_FALLBACK_MODELS.split(","):
+def _text_model_chain() -> list[str]:
+    """Primär textmodell först, därefter reservmodeller med egna kvoter."""
+    models = [settings.OPENAI_FEEDBACK_MODEL]
+    for name in settings.OPENAI_FALLBACK_MODELS.split(","):
         name = name.strip()
         if name and name not in models:
             models.append(name)
     return models
 
 
+def vision_model() -> str:
+    return settings.OPENAI_MODEL
+
+
 async def _post_once(payload: dict) -> tuple[str | None, float]:
     """Returnerar (svar, väntetid). Svar är None när modellen är rate limitad."""
     async with _LIMITER:
-        async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
+        async with httpx.AsyncClient(timeout=settings.OPENAI_TIMEOUT_SECONDS) as client:
             response = await client.post(
                 CHAT_URL,
-                headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
+                headers={"Authorization": f"Bearer {settings.OPENAI_API_KEY}"},
                 json=payload,
             )
         if response.status_code == 429:
@@ -82,8 +90,8 @@ async def _post_once(payload: dict) -> tuple[str | None, float]:
         return (response.json()["choices"][0]["message"]["content"] or "").strip(), 0.0
 
 
-async def _post(payload: dict) -> str:
-    models = _model_chain()
+async def chat_completion(payload: dict, models: list[str]) -> str:
+    """Kör chat completions mot första tillgängliga modellen i kedjan."""
     wait_seconds = 0.0
 
     for attempt in range(_MAX_ATTEMPTS):
@@ -94,11 +102,11 @@ async def _post(payload: dict) -> str:
 
         if attempt == _MAX_ATTEMPTS - 1:
             raise RuntimeError(
-                "Groq: alla modeller är rate limitade (kontrollera dygnskvoten i Groq-konsolen)"
+                "OpenAI: alla modeller är rate limitade (kontrollera kvoten i OpenAI-konsolen)"
             )
         await asyncio.sleep(wait_seconds or 2.0)
 
-    raise RuntimeError("Groq: inget svar")
+    raise RuntimeError("OpenAI: inget svar")
 
 
 async def complete_text(
@@ -110,8 +118,9 @@ async def complete_text(
     json_mode: bool = False,
 ) -> str:
     payload: dict = {
-        "temperature": temperature,
-        "max_tokens": max_tokens,
+        # gpt-5.x accepterar bara default-temperaturen (1) — parametern utelämnas.
+        # gpt-5.x kräver max_completion_tokens — max_tokens är borttaget.
+        "max_completion_tokens": max_tokens,
         "messages": [
             {"role": "system", "content": system_prompt},
             {"role": "user", "content": user_message},
@@ -119,5 +128,4 @@ async def complete_text(
     }
     if json_mode:
         payload["response_format"] = {"type": "json_object"}
-    return await _post(payload)
-
+    return await chat_completion(payload, _text_model_chain())

@@ -486,8 +486,8 @@ class WolframVerifyRequest(BaseModel):
 
 class ClaudeAnalyzeRequest(BaseModel):
     """Ett provider-agnostiskt analysanrop. Fältet heter 'claude' i URL:en för
-    att matcha den slutgiltiga arkitekturen — idag körs det via Gemini/Groq
-    beroende på AI_PROVIDER, imorgon via Anthropic utan kodändring i frontend."""
+    att matcha den slutgiltiga arkitekturen — idag körs det via den konfigurerade
+    feedback-providern, imorgon via Anthropic utan kodändring i frontend."""
 
     problem: str
     studentAnswer: str

@@ -1,21 +1,50 @@
-"""Claude Vision adapter — wraps the Anthropic SDK calls in answer_key.py."""
+"""Claude Vision adapter — wraps answer-key extraction AND grading via
+services/claude_vision.py.
+
+analyze_document uses no generic ``with_retry``: the service's own combined
+HTTP + content retry loop already retries model-output errors — same design
+as GeminiVisionAdapter and OpenAIVisionAdapter.
+"""
 from __future__ import annotations
 
 import base64
 
 from ...config import settings
-from ...schemas import AnswerKeyItem
+from ...schemas import AnswerKeyItem, DocumentMeta, QuestionResult
+from .. import claude_vision
 from ..answer_key import SYSTEM_PROMPT, _parse_items
 from .resilience import CircuitBreaker, with_retry
 
 
 class ClaudeVisionAdapter:
-    """Extracts answer keys from images/PDFs via the Anthropic API."""
+    """Extracts answer keys AND grades documents via the Anthropic API."""
 
     name = "claude-vision"
 
     def __init__(self, circuit: CircuitBreaker) -> None:
         self._circuit = circuit
+
+    async def analyze_document(
+        self,
+        *,
+        pages: list[tuple[bytes, str]],
+        answer_key: list[AnswerKeyItem],
+        grading_notes: str,
+        student_label: str,
+    ) -> tuple[list[QuestionResult], DocumentMeta]:
+        self._circuit.check()
+        try:
+            result = await claude_vision.analyze_document(
+                pages=pages,
+                answer_key=answer_key,
+                grading_notes=grading_notes,
+                student_label=student_label,
+            )
+            self._circuit.record_success()
+            return result
+        except Exception:
+            self._circuit.record_failure()
+            raise
 
     async def extract_answer_key(
         self,

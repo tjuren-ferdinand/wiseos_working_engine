@@ -1,8 +1,8 @@
 """Gemini textgenerering – tillfällig provider tills Claude aktiveras.
 
-Speglar groq_client.complete_text() signaturmässigt så att feedback.py och
+Speglar openai_client.complete_text() signaturmässigt så att feedback.py och
 routers/claude.py kan byta provider utan att ändra anropskod. När
-ANTHROPIC_API_KEY sätts och AI_PROVIDER=anthropic tar Claude över samma roll.
+ANTHROPIC_API_KEY sätts tar Claude över samma roll.
 """
 from __future__ import annotations
 

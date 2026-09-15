@@ -33,15 +33,35 @@ def _circuit(name: str) -> CircuitBreaker:
 
 def get_vision_provider() -> VisionProvider:
     from .gemini_vision import GeminiVisionAdapter
+    from .openai_vision import OpenAIVisionAdapter
 
     configured = settings.effective_grading_provider.strip().lower()
-    if configured == "gemini" or (configured == "auto" and settings.GEMINI_API_KEY):
+    if configured == "openai" or (configured == "auto" and not settings.GEMINI_API_KEY and settings.OPENAI_API_KEY):
+        return OpenAIVisionAdapter(_circuit("openai-vision"))
+    if configured == "anthropic" or (configured == "auto" and not settings.GEMINI_API_KEY and not settings.OPENAI_API_KEY and settings.ANTHROPIC_API_KEY):
+        from .claude_vision import ClaudeVisionAdapter
+        return ClaudeVisionAdapter(_circuit("claude-vision"))
+    if configured == "gemini":
         return GeminiVisionAdapter(_circuit("gemini-vision"))
-    # Future: claude-vision adapter when GRADING_PROVIDER=anthropic is wired
-    # to a grading-capable Claude adapter. For now, auto resolves to gemini.
-    if configured != "auto" and configured != "gemini":
+    if configured != "auto":
         raise RuntimeError(f"GRADING_PROVIDER={configured!r} is not yet supported for vision grading")
     if settings.GEMINI_API_KEY:
+        # Auto: Gemini primär, därefter testmotiverad fallback-ordning —
+        # Claude (18/18 i golden-sviten) före OpenAI (overifierad tills
+        # giltig nyckel finns). Se scripts/compare_engines.py.
+        fallbacks = []
+        if settings.ANTHROPIC_API_KEY:
+            from .claude_vision import ClaudeVisionAdapter
+            fallbacks.append(ClaudeVisionAdapter(_circuit("claude-vision")))
+        if settings.OPENAI_API_KEY:
+            fallbacks.append(OpenAIVisionAdapter(_circuit("openai-vision")))
+        if fallbacks:
+            from .fallback_vision import FallbackVisionProvider
+            return FallbackVisionProvider(
+                GeminiVisionAdapter(_circuit("gemini-vision")),
+                fallbacks,
+                _circuit("vision-fallback"),
+            )
         return GeminiVisionAdapter(_circuit("gemini-vision"))
     raise RuntimeError("Ingen vision-provider konfigurerad (sätt GEMINI_API_KEY eller GRADING_PROVIDER)")
 
@@ -56,16 +76,16 @@ def get_feedback_provider() -> FeedbackProvider:
     if configured == "auto":
         if settings.ANTHROPIC_API_KEY:
             configured = "anthropic"
-        elif settings.GROQ_API_KEY:
-            configured = "groq"
+        elif settings.OPENAI_API_KEY:
+            configured = "openai"
         elif settings.GEMINI_API_KEY:
             configured = "gemini"
         else:
             configured = "unavailable"
 
-    if configured == "groq":
-        from .groq_feedback import GroqFeedbackAdapter
-        return GroqFeedbackAdapter(_circuit("groq"))
+    if configured == "openai":
+        from .openai_feedback import OpenAIFeedbackAdapter
+        return OpenAIFeedbackAdapter(_circuit("openai"))
     if configured == "gemini":
         from .gemini_feedback import GeminiFeedbackAdapter
         return GeminiFeedbackAdapter(_circuit("gemini"))
@@ -105,17 +125,17 @@ def get_ocr_provider() -> OCRProvider:
             configured = "gemini"
         elif settings.OPENROUTER_API_KEY:
             configured = "openrouter"
-        elif settings.GROQ_API_KEY:
-            configured = "groq"
+        elif settings.OPENAI_API_KEY:
+            configured = "openai"
         else:
             configured = "unavailable"
 
     if configured == "mathpix":
         from .mathpix_ocr import MathpixOCRAdapter
         return MathpixOCRAdapter(_circuit("mathpix"))
-    if configured == "groq":
-        from .groq_vision import GroqVisionAdapter
-        return GroqVisionAdapter(_circuit("groq-vision"))
+    if configured == "openai":
+        from .openai_vision_ocr import OpenAIVisionOCRAdapter
+        return OpenAIVisionOCRAdapter(_circuit("openai-vision"))
     if configured == "openrouter":
         from .openrouter_vision import OpenRouterVisionAdapter
         return OpenRouterVisionAdapter(_circuit("openrouter-vision"))

@@ -1,0 +1,1020 @@
+[
+  {
+    "engine": "gemini",
+    "case": "physics_handwritten_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 39919,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "physics_handwritten_real",
+    "provenance": "real",
+    "passed": false,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": false,
+      "question_mapping": true,
+      "scoring": false,
+      "annotation": true
+    },
+    "failures": [
+      "Q1: found=False men förväntade True",
+      "Q1: studentWork saknar 'tröghetslagen' (fick '')",
+      "Q1: status='needs_review' utanför tillåtna ('correct',)",
+      "Q1: poäng 0.0 < förväntat minst 2.0",
+      "Q2: found=False men förväntade True",
+      "Q2: studentWork saknar 'trycket' (fick '')",
+      "Q2: status='needs_review' utanför tillåtna ('correct',)",
+      "Q2: poäng 0.0 < förväntat minst 2.0",
+      "Q3: found=False men förväntade True",
+      "Q3: studentWork saknar 'hastighet' (fick '')",
+      "Q3: status='needs_review' utanför tillåtna ('correct',)",
+      "Q3: poäng 0.0 < förväntat minst 2.0"
+    ],
+    "latency_ms": 35741,
+    "attempts": 1,
+    "needs_review": 3,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "physics_handwritten_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 41051,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "math_derivative_correct_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 11548,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "math_derivative_correct_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 9225,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "math_derivative_correct_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10619,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "math_derivative_arithmetic_error_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 14837,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "math_derivative_arithmetic_error_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 9647,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "math_derivative_arithmetic_error_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 14848,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "math_derivative_terse_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7826,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "math_derivative_terse_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7463,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "math_derivative_terse_real",
+    "provenance": "real",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10243,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "physics_multipage_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 21238,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "physics_multipage_derived",
+    "provenance": "derived",
+    "passed": false,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": false,
+      "question_mapping": true,
+      "scoring": false,
+      "annotation": true
+    },
+    "failures": [
+      "Q1: found=False men förväntade True",
+      "Q1: studentWork saknar 'tröghetslagen' (fick '')",
+      "Q1: status='needs_review' utanför tillåtna ('correct',)",
+      "Q1: poäng 0.0 < förväntat minst 2.0",
+      "Q2: found=False men förväntade True",
+      "Q2: studentWork saknar 'trycket' (fick '')",
+      "Q2: status='needs_review' utanför tillåtna ('correct',)",
+      "Q2: poäng 0.0 < förväntat minst 2.0",
+      "Q3: found=False men förväntade True",
+      "Q3: studentWork saknar 'hastighet' (fick '')",
+      "Q3: status='needs_review' utanför tillåtna ('correct',)",
+      "Q3: poäng 0.0 < förväntat minst 2.0"
+    ],
+    "latency_ms": 24436,
+    "attempts": 1,
+    "needs_review": 3,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "physics_multipage_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 35178,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "math_rotated_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 11388,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "math_rotated_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10467,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "math_rotated_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 12096,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "math_low_quality_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 9197,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "math_low_quality_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10533,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "math_low_quality_derived",
+    "provenance": "derived",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10145,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "blank_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 6273,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "blank_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 4557,
+    "attempts": 1,
+    "needs_review": 1,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "blank_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 9092,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "crossed_out_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 18905,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "crossed_out_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7861,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "crossed_out_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 14644,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "teacher_marks_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7089,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "teacher_marks_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 6911,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "teacher_marks_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10178,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "missing_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 12057,
+    "attempts": 1,
+    "needs_review": 1,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "missing_question_synthetic",
+    "provenance": "synthetic",
+    "passed": false,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": false,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [
+      "Q1: found=False men förväntade True"
+    ],
+    "latency_ms": 7357,
+    "attempts": 1,
+    "needs_review": 2,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "missing_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 14925,
+    "attempts": 1,
+    "needs_review": 1,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "unlisted_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 8389,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "unlisted_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7783,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "unlisted_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 12084,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "math_notation_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 16643,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "math_notation_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7288,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "math_notation_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10079,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "wrong_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 9846,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "wrong_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 8647,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "wrong_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": false,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": false,
+      "annotation": true
+    },
+    "failures": [
+      "Q1: poäng 2.0 > tillåtet max 1.0"
+    ],
+    "latency_ms": 13636,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "answer_between_lines_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 5936,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "answer_between_lines_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 5881,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "answer_between_lines_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 11602,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "multi_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 15221,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "multi_question_synthetic",
+    "provenance": "synthetic",
+    "passed": false,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": false,
+      "question_mapping": true,
+      "scoring": false,
+      "annotation": true
+    },
+    "failures": [
+      "Q1: found=False men förväntade True",
+      "Q1: studentWork saknar '12' (fick '')",
+      "Q1: status='needs_review' utanför tillåtna ('correct',)",
+      "Q2: found=False men förväntade True",
+      "Q2: studentWork saknar '27' (fick '')",
+      "Q2: status='needs_review' utanför tillåtna ('correct',)",
+      "Q3: found=False men förväntade True",
+      "Q3: studentWork saknar '12' (fick '')",
+      "Q3: status='needs_review' utanför tillåtna ('correct',)",
+      "Q4: found=False men förväntade True",
+      "Q4: studentWork saknar '7' (fick '')",
+      "Q4: status='needs_review' utanför tillåtna ('incorrect', 'partial')",
+      "Q5: found=False men förväntade True",
+      "Q5: studentWork saknar '32' (fick '')",
+      "Q5: status='needs_review' utanför tillåtna ('correct',)"
+    ],
+    "latency_ms": 12376,
+    "attempts": 1,
+    "needs_review": 5,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "multi_question_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 17192,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "messy_handwriting_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10036,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "messy_handwriting_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 7783,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "messy_handwriting_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 11091,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "gemini",
+    "case": "diagram_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 10589,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "openai",
+    "case": "diagram_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 8752,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  },
+  {
+    "engine": "claude",
+    "case": "diagram_answer_synthetic",
+    "provenance": "synthetic",
+    "passed": true,
+    "dimensions": {
+      "question_detection": true,
+      "work_extraction": true,
+      "question_mapping": true,
+      "scoring": true,
+      "annotation": true
+    },
+    "failures": [],
+    "latency_ms": 14526,
+    "attempts": 1,
+    "needs_review": 0,
+    "meta_error": null
+  }
+]

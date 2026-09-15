@@ -1,9 +1,8 @@
 """Provider-agnostisk analysendpoint.
 
 Namnet /api/v1/claude/analyze speglar slutarkitekturen: när ANTHROPIC_API_KEY
-sätts och AI_PROVIDER=anthropic byter denna endpoint automatiskt till Claude
-utan att frontend eller kontraktet ändras. Idag körs den via Gemini (eller
-Groq) beroende på AI_PROVIDER i .env.
+sätts byter denna endpoint automatiskt till Claude utan att frontend eller
+kontraktet ändras. Idag körs den via den konfigurerade feedback-providern.
 """
 from __future__ import annotations
 

@@ -4,7 +4,7 @@ OBS: elevrättning använder INTE den här modulen. Den går bildförst via
 services/gemini_vision.py, där samma multimodala anrop både transkriberar och
 bedömer. Här finns bara enkel texturläsning för facit och OCR-endpointen.
 
-Providers provas i ordning tills en svarar: Gemini, OpenRouter, Groq.
+Providers provas i ordning tills en svarar: Gemini, OpenRouter, OpenAI.
 """
 from __future__ import annotations
 
@@ -25,6 +25,7 @@ PROMPT = (
 IMAGE_MIME_TYPES = {"image/png", "image/jpeg", "image/jpg", "image/webp", "image/gif"}
 
 _GEMINI_TIMEOUT_SECONDS = 120.0
+_DEFAULT_TIMEOUT_SECONDS = 30.0
 
 
 def _normalize_mime(mime_type: str) -> str:
@@ -37,7 +38,7 @@ def is_image(mime_type: str) -> bool:
 
 
 def available() -> bool:
-    return bool(settings.GROQ_API_KEY or settings.GEMINI_API_KEY or settings.OPENROUTER_API_KEY)
+    return bool(settings.OPENAI_API_KEY or settings.GEMINI_API_KEY or settings.OPENROUTER_API_KEY)
 
 
 def provider_name() -> str:
@@ -47,32 +48,43 @@ def provider_name() -> str:
         return "gemini"
     if settings.OPENROUTER_API_KEY:
         return "openrouter"
-    if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL:
-        return "groq"
+    if settings.OPENAI_API_KEY and settings.OPENAI_VISION_MODEL:
+        return "openai"
     return "unavailable"
 
 
 async def _openai_style(
-    url: str, api_key: str, model: str, data_url: str, prompt: str
+    url: str,
+    api_key: str,
+    model: str,
+    data_url: str,
+    prompt: str,
+    *,
+    token_param: str = "max_tokens",
+    timeout_seconds: float | None = None,
+    include_temperature: bool = True,
 ) -> str:
-    async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
+    timeout = timeout_seconds or _DEFAULT_TIMEOUT_SECONDS
+    body: dict = {
+        "model": model,
+        token_param: 1200,
+        "messages": [
+            {
+                "role": "user",
+                "content": [
+                    {"type": "text", "text": prompt},
+                    {"type": "image_url", "image_url": {"url": data_url}},
+                ],
+            }
+        ],
+    }
+    if include_temperature:
+        body["temperature"] = 0.0
+    async with httpx.AsyncClient(timeout=timeout) as client:
         response = await client.post(
             url,
             headers={"Authorization": f"Bearer {api_key}"},
-            json={
-                "model": model,
-                "temperature": 0.0,
-                "max_tokens": 1200,
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": [
-                            {"type": "text", "text": prompt},
-                            {"type": "image_url", "image_url": {"url": data_url}},
-                        ],
-                    }
-                ],
-            },
+            json=body,
         )
         response.raise_for_status()
         return (response.json()["choices"][0]["message"]["content"] or "").strip()
@@ -191,11 +203,21 @@ async def read_image(image_bytes: bytes, mime_type: str, prompt: str = PROMPT) -
         except Exception as e:
             errors.append(f"OpenRouter Error: {str(e)}")
 
-    if settings.GROQ_API_KEY and settings.GROQ_VISION_MODEL and normalized_mime != "application/pdf":
+    if settings.OPENAI_API_KEY and settings.OPENAI_VISION_MODEL and normalized_mime != "application/pdf":
         try:
-            return await _openai_style("https://api.groq.com/openai/v1/chat/completions", settings.GROQ_API_KEY, settings.GROQ_VISION_MODEL, data_url, prompt)
+            return await _openai_style(
+                "https://api.openai.com/v1/chat/completions",
+                settings.OPENAI_API_KEY,
+                settings.OPENAI_VISION_MODEL,
+                data_url,
+                prompt,
+                token_param="max_completion_tokens",
+                timeout_seconds=settings.OPENAI_TIMEOUT_SECONDS,
+                # gpt-5.x accepterar bara default-temperaturen (1).
+                include_temperature=False,
+            )
         except Exception as e:
-            errors.append(f"Groq Error: {str(e)}")
+            errors.append(f"OpenAI Error: {str(e)}")
 
     if errors:
         raise RuntimeError(" | ".join(errors))

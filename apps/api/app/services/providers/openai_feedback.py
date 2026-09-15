@@ -1,14 +1,14 @@
-"""Groq feedback adapter — wraps services/groq_client.py complete_text."""
+"""OpenAI feedback adapter — wraps services/openai_client.py complete_text."""
 from __future__ import annotations
 
 from ...schemas import WolframResult
-from .. import groq_client
+from .. import openai_client
 from ..feedback import SYSTEM_PROMPT, _feedback_message, _safe_output
 from .resilience import CircuitBreaker, with_retry
 
 
-class GroqFeedbackAdapter:
-    name = "groq"
+class OpenAIFeedbackAdapter:
+    name = "openai"
 
     def __init__(self, circuit: CircuitBreaker) -> None:
         self._circuit = circuit
@@ -25,7 +25,7 @@ class GroqFeedbackAdapter:
         try:
             user_msg = _feedback_message(problem, student_answer, correct_answer, wolfram)
             text = await with_retry(
-                lambda: groq_client.complete_text(
+                lambda: openai_client.complete_text(
                     SYSTEM_PROMPT, user_msg, max_tokens=400
                 ),
                 circuit=self._circuit,

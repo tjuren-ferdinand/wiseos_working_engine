@@ -9,7 +9,7 @@ import re
 
 from ..config import settings
 from ..schemas import AnswerKeyItem
-from . import gemini_client, groq_client, vision_ocr
+from . import gemini_client, openai_client, vision_ocr
 
 logger = logging.getLogger("wiseos.grading")
 
@@ -59,7 +59,7 @@ def _extract_json_array(text: str) -> list[dict]:
             raise ValueError("Modellen returnerade ingen JSON-array")
         data = json.loads(raw[start : end + 1])
 
-    # JSON-läget på Groq kräver ett objekt, så facit levereras som {"items": [...]}.
+    # JSON-läget på OpenAI kräver ett objekt, så facit levereras som {"items": [...]}.
     if isinstance(data, dict):
         for key in ("items", "answer_key", "questions", "facit"):
             if isinstance(data.get(key), list):
@@ -117,7 +117,7 @@ async def _extract_with_vision(file_bytes: bytes, mime_type: str) -> list[Answer
 
 async def generate_answer_key(description: str, question_count: int = 4) -> list[AnswerKeyItem]:
     """Skapar ett facit från en textbeskrivning när läraren inte laddat upp något."""
-    if not groq_client.groq_enabled():
+    if not openai_client.openai_enabled():
         return _mock_answer_key(question_count)
 
     prompt = (
@@ -125,7 +125,7 @@ async def generate_answer_key(description: str, question_count: int = 4) -> list
         f"Provbeskrivning: {description.strip() or 'Fysik 1, blandade uppgifter.'}"
     )
     try:
-        text = await groq_client.complete_text(
+        text = await openai_client.complete_text(
             GENERATE_PROMPT,
             prompt,
             max_tokens=1400,
@@ -389,20 +389,20 @@ async def _solve_manifest(manifest: list[dict]) -> list[AnswerKeyItem]:
         "max_points. Svara endast med JSON-objektet enligt schemat.\n\n"
         + json.dumps({"questions": manifest}, ensure_ascii=False)
     )
-    if not gemini_client.gemini_enabled() and not groq_client.groq_enabled():
+    if not gemini_client.gemini_enabled() and not openai_client.openai_enabled():
         raise QuestionSheetInferenceError("Ingen textmodell är konfigurerad", kind="provider_error")
     solved: list[AnswerKeyItem] = []
     last_error: Exception | None = None
     providers = []
-    if groq_client.groq_enabled():
-        providers.append("groq")
+    if openai_client.openai_enabled():
+        providers.append("openai")
     if gemini_client.gemini_enabled():
         providers.append("gemini")
     for provider in providers:
         for attempt in range(1, 3):
             try:
-                if provider == "groq":
-                    raw = await groq_client.complete_text(
+                if provider == "openai":
+                    raw = await openai_client.complete_text(
                         GENERATE_PROMPT,
                         user_message,
                         max_tokens=4000,

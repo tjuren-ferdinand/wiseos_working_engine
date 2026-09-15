@@ -1,6 +1,6 @@
 # Lokal, gratis OCR med Tesseract.
 #
-# Används som reserv när MATHPIX och de gratis vision-API:erna (Gemini/Groq/OpenRouter)
+# Används som reserv när MATHPIX och vision-API:erna (Gemini/OpenAI/OpenRouter)
 # inte är konfigurerade. Swappbar mot Mathpix genom att sätta MATHPIX_APP_ID/KEY i .env.
 #
 # Kräver att Tesseract är installerat:

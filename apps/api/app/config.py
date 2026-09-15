@@ -23,20 +23,18 @@ class Settings(BaseSettings):
 
     WOLFRAM_APP_ID: str = ""
     WOLFRAM_API_URL: str = ""  # Egen Wolfram Cloud-funktion (https://www.wolframcloud.com/obj/.../verifyMath)
-    # Deprecated: use GRADING_PROVIDER instead.
-    AI_PROVIDER: str = "groq"
     # Provider selection — explicit names, "auto" resolves by available API keys.
-    OCR_PROVIDER: str = "auto"        # auto | mathpix | gemini | groq | openrouter
-    GRADING_PROVIDER: str = "auto"    # auto | gemini | groq | anthropic
-    FEEDBACK_PROVIDER: str = "auto"   # auto | groq | gemini | anthropic
+    OCR_PROVIDER: str = "auto"        # auto | mathpix | gemini | openrouter | openai
+    GRADING_PROVIDER: str = "auto"    # auto | gemini | openai | anthropic
+    FEEDBACK_PROVIDER: str = "auto"   # auto | anthropic | openai | gemini
     MATH_PROVIDER: str = "auto"       # auto | wolfram | local
-    GROQ_API_KEY: str = ""
-    GROQ_MODEL: str = "llama-3.3-70b-versatile"
-    # Reservmodeller med egna dygnskvoter – används när primärmodellen är rate limitad.
-    GROQ_FALLBACK_MODELS: str = "llama-3.1-8b-instant,openai/gpt-oss-20b,openai/gpt-oss-120b"
-    # Multimodal Groq-modell som tillfälligt ersätter Mathpix för handskrifts-OCR.
-    GROQ_VISION_MODEL: str = "meta-llama/llama-4-scout-17b-16e-instruct"
-    GROQ_TIMEOUT_SECONDS: float = 30.0
+    # OpenAI: terra för vision/bedömning, luna för textvolym.
+    OPENAI_API_KEY: str = ""
+    OPENAI_MODEL: str = "gpt-5.6-terra"           # bedömning (vision)
+    OPENAI_FEEDBACK_MODEL: str = "gpt-5.6-luna"   # elevfeedback + facitgenerering
+    OPENAI_VISION_MODEL: str = "gpt-5.6-terra"    # OCR-fallback
+    OPENAI_FALLBACK_MODELS: str = "gpt-5.6-luna"
+    OPENAI_TIMEOUT_SECONDS: float = 60.0
     # Gratis vision-providers som tillfälligt ersätter Mathpix för handskrifts-OCR.
     GEMINI_API_KEY: str = ""
     GEMINI_MODEL: str = "gemini-3.6-flash"
@@ -91,6 +89,9 @@ class Settings(BaseSettings):
     # Ops
     ENVIRONMENT: str = "dev"  # dev | staging | prod
     SENTRY_DSN: str = ""
+    # Delad rate limit-räknare över replicas. Tomt = processlokal in-memory
+    # (räknaren återställs vid omstart och delas inte mellan workers).
+    REDIS_URL: str = ""
 
     @property
     def admin_user_ids(self) -> set[str]:
@@ -102,12 +103,8 @@ class Settings(BaseSettings):
 
     @property
     def effective_grading_provider(self) -> str:
-        """Resolve the grading provider, honoring deprecated AI_PROVIDER."""
-        if self.GRADING_PROVIDER != "auto":
-            return self.GRADING_PROVIDER
-        if self.AI_PROVIDER != "groq":  # non-default AI_PROVIDER overrides
-            return self.AI_PROVIDER
-        return "auto"
+        """Resolve the grading provider."""
+        return self.GRADING_PROVIDER
 
     @property
     def cors_list(self) -> list[str]:

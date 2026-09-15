@@ -1080,7 +1080,7 @@ def integration_status() -> dict[str, bool | str]:
     return {
         "wolfram": bool(settings.WOLFRAM_APP_ID or settings.WOLFRAM_API_URL),
         "gemini": bool(settings.GEMINI_API_KEY),
-        "groq": bool(settings.GROQ_API_KEY),
+        "openai": bool(settings.OPENAI_API_KEY),
         "anthropic": bool(settings.ANTHROPIC_API_KEY),
         "mathpix": bool(settings.MATHPIX_APP_ID and settings.MATHPIX_APP_KEY),
         "ocrProvider": _provider_name(get_ocr_provider),

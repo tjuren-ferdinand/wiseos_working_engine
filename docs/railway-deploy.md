@@ -16,13 +16,14 @@ Service roots: `api` → `apps/api`, `web` → `apps/web`.
 | `JWT_EXPIRATION_MINUTES` | `60` | |
 | `GEMINI_API_KEY` | from `.env` | **KNOWN RISK**: free-tier AI Studio key — Google may train on submitted data. Upgrade to paid before real student data. |
 | `GEMINI_MODEL` | `gemini-3.6-flash` | |
-| `GROQ_API_KEY` | from `.env` | |
-| `GROQ_MODEL` | `openai/gpt-oss-20b` | |
-| `GROQ_VISION_MODEL` | `meta-llama/llama-4-scout-17b-16e-instruct` | |
-| `GROQ_FALLBACK_MODELS` | `llama-3.1-8b-instant,openai/gpt-oss-20b,openai/gpt-oss-120b` | |
+| `OPENAI_API_KEY` | from `.env` | Replaces Groq entirely — feedback, facit generation and vision fallback |
+| `OPENAI_MODEL` | `gpt-5.6-terra` | Vision/grading |
+| `OPENAI_FEEDBACK_MODEL` | `gpt-5.6-luna` | Feedback + facit generation |
+| `OPENAI_VISION_MODEL` | `gpt-5.6-terra` | OCR fallback |
+| `OPENAI_FALLBACK_MODELS` | `gpt-5.6-luna` | Same-provider fallbacks for text calls |
 | `OCR_PROVIDER` | `auto` | Resolves to Gemini (key present) |
-| `GRADING_PROVIDER` | `auto` | Resolves to Gemini. **Never `anthropic`** — no adapter wired, crashes at `registry.py:42` |
-| `FEEDBACK_PROVIDER` | `auto` | Resolves to Groq (ANTHROPIC_API_KEY empty) |
+| `GRADING_PROVIDER` | `auto` | Resolves to Gemini→Claude→OpenAI fallback chain when keys set. **Never `groq`** — no adapter exists |
+| `FEEDBACK_PROVIDER` | `auto` | Resolves to OpenAI (ANTHROPIC_API_KEY empty) |
 | `MATH_PROVIDER` | `auto` | Resolves to Wolfram |
 | `WOLFRAM_APP_ID` | from `.env` | |
 | `ANTHROPIC_API_KEY` | (empty) | Leave empty until a real key exists |
@@ -33,7 +34,30 @@ Service roots: `api` → `apps/api`, `web` → `apps/web`.
 | `REVIEW_CONFIDENCE_THRESHOLD` | `0.95` | |
 | `RETENTION_ANONYMIZE_DAYS` | `30` | |
 | `RETENTION_HARD_DELETE_DAYS` | `90` | |
+| `REDIS_URL` | `${{Redis.REDIS_URL}}` | Shared rate-limit counter across replicas. Add a Redis service to the project and reference its variable — see below. Empty = process-local fallback |
 | `SENTRY_DSN` | (optional) | Empty = disabled |
+
+## Redis (delad rate limit-räknare)
+
+Batch- och facit-endpoints delar en sliding-window-räknare. Utan Redis är den
+processlokal — varje replica räknar för sig och omstart nollställer.
+
+1. Railway project → **New** → **Database** → **Add Redis**.
+2. `api` service → **Variables** → **New Variable** → `REDIS_URL` = `${{Redis.REDIS_URL}}` (variable reference to the Redis service).
+3. Redeploy `api`. The limiter falls back to process-local memory automatically if Redis is unreachable — the endpoint never goes down for a Redis blip.
+
+## Schemalagd retention-sweep (Railway Cron)
+
+GDPR-policyn (pseudonymisera >30 dagar, radera >90 dagar) körs via
+`apps/api/scripts/run_retention.py` — samma script som admin-endpointen
+anropar. Schemalägg den som ett separat cron-jobb, inte i webbprocessen:
+
+1. Railway project → **New** → **Cron Job** (eller Service → Settings → Cron Schedule, beroende på dashboard-version).
+2. Source: samma repo, root directory `apps/api`.
+3. Command: `python scripts/run_retention.py`.
+4. Schedule: `0 3 * * *` (dagligen 03:00 UTC — låg belastning).
+5. Variables på cron-tjänsten: minst `DATABASE_URL` (`sqlite:////data/wiseos.db` + samma `/data`-volym som `api`), `RETENTION_ANONYMIZE_DAYS`, `RETENTION_HARD_DELETE_DAYS`, `ENVIRONMENT`, `SENTRY_DSN`. Provider-nycklar behövs inte.
+6. Kör manuellt en gång efter deploy ("Run now") och kontrollera loggen för `RETENTION-RAPPORT`.
 
 ## Frontend service (`web`)
 

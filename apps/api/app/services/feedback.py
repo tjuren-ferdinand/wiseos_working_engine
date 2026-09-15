@@ -4,8 +4,6 @@ from __future__ import annotations
 import logging
 import re
 
-import httpx
-
 from ..config import settings
 from ..schemas import WolframResult
 from . import gemini_client
@@ -41,26 +39,6 @@ def _feedback_message(problem: str, student: str, correct: str, wolfram: Wolfram
     )
 
 
-async def _generate_with_groq(user_msg: str) -> str:
-    async with httpx.AsyncClient(timeout=settings.GROQ_TIMEOUT_SECONDS) as client:
-        response = await client.post(
-            "https://api.groq.com/openai/v1/chat/completions",
-            headers={"Authorization": f"Bearer {settings.GROQ_API_KEY}"},
-            json={
-                "model": settings.GROQ_MODEL,
-                "temperature": 0.2,
-                "max_tokens": 400,
-                "messages": [
-                    {"role": "system", "content": SYSTEM_PROMPT},
-                    {"role": "user", "content": user_msg},
-                ],
-            },
-        )
-        response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
-        return _safe_output(content)
-
-
 async def _generate_with_anthropic(user_msg: str) -> str:
     from anthropic import AsyncAnthropic
 
@@ -80,8 +58,8 @@ def provider_name() -> str:
         return configured
     if settings.ANTHROPIC_API_KEY:
         return "anthropic"
-    if settings.GROQ_API_KEY:
-        return "groq"
+    if settings.OPENAI_API_KEY:
+        return "openai"
     if settings.GEMINI_API_KEY:
         return "gemini"
     return "unavailable"

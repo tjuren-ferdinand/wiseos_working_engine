@@ -11,7 +11,8 @@ This document describes how to rotate API keys and secrets used by wiseOS.
 | `SUPABASE_ANON_KEY` | Supabase client init | Update `.env`, restart API. |
 | `SUPABASE_SERVICE_ROLE_KEY` | Supabase admin operations | Update `.env`, restart API. |
 | `GEMINI_API_KEY` | Gemini Vision (grading engine) | Update `.env`, restart API. |
-| `GROQ_API_KEY` | Groq (fallback vision/feedback) | Update `.env`, restart API. |
+| `OPENAI_API_KEY` | OpenAI (feedback, facit generation, grading fallback) | Update `.env`, restart API. |
+| `REDIS_URL` | Shared rate-limit counter | Update Railway variable reference, redeploy API. |
 | `ANTHROPIC_API_KEY` | Claude (feedback, answer-key extraction) | Update `.env`, restart API. |
 | `OPENROUTER_API_KEY` | OpenRouter (fallback vision) | Update `.env`, restart API. |
 | `MATHPIX_APP_ID` | Mathpix OCR | Update `.env`, restart API. |
