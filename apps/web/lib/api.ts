@@ -229,6 +229,13 @@ export type BackendGradingStep = {
   sourceRegions?: SourceRegion[];
   mathVerification?: MathVerification | null;
   feedbackProvider?: string | null;
+  /** Lärarens granskning — separerad från AI:s verdict. */
+  reviewed?: boolean;
+  reviewedAt?: string | null;
+  teacherNote?: string | null;
+  /** AI:s originalbedömning — snapshot vid första läraröverstyrning. */
+  aiEarnedPoints?: number | null;
+  aiStatus?: string | null;
 };
 
 export type BackendGradingResult = {
@@ -249,6 +256,8 @@ export type BackendGradingResult = {
   /** Listvyn returnerar inte scanPages — hämtas via GET /results/{id}. */
   scanPages?: string[];
   document: DocumentMeta | null;
+  /** Elevspecifika AI-premisser vid om-rättning. */
+  customInstructions?: string | null;
 };
 
 export type ClaudeAnalyzeResult = {
@@ -369,8 +378,15 @@ export const api = {
       percentage?: number;
       grade?: string;
       feedback?: string;
+      customInstructions?: string;
     },
   ) => jsonFetch<BackendGradingResult>(`/api/v1/results/${resultId}`, { method: "PATCH", body: JSON.stringify(data) }),
+  /** Kör om rättningen för ett sparat resultat (scanPages + sparat facit). */
+  regradeResult: (resultId: string, data: { customInstructions?: string }) =>
+    jsonFetch<BackendGradingResult>(`/api/v1/results/${resultId}/regrade`, { method: "POST", body: JSON.stringify(data) }),
+  /** Kör om rättningen för alla elever i ett prov. */
+  regradeTest: (testId: string) =>
+    jsonFetch<{ regraded: number; skipped: number }>(`/api/v1/classes/tests/${testId}/regrade`, { method: "POST" }),
   // --- AI (provider-ärlig, se ClaudeAnalyzeResult.provider) ---
   claudeAnalyze: (data: { problem: string; studentAnswer: string; correctAnswer: string; context?: string }) =>
     jsonFetch<ClaudeAnalyzeResult>("/api/v1/claude/analyze", { method: "POST", body: JSON.stringify(data) }),
@@ -454,4 +470,14 @@ export const api = {
       signal?.removeEventListener("abort", onAbort);
     }
   },
+
+  /** Live-status för en pågående batch — används för realtidsgriden. */
+  getBatchStatus: (testId: string) =>
+    jsonFetch<{
+      running: boolean;
+      total: number;
+      done: number;
+      active: string[];
+      error: string | null;
+    }>(`/api/v1/batch/status/${encodeURIComponent(testId)}`),
 };

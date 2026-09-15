@@ -9,6 +9,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from .. import models, schemas
 from ..db import get_db
+from ..services.rate_limits import limit_batch_grade
+from ..services.regrade import RegradeUnavailable, regrade_result_row
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 
 router = APIRouter(prefix="/api/v1/results", tags=["results"])
@@ -99,6 +101,8 @@ def update_result(
         raise HTTPException(404, "Result not found")
     if payload.steps is not None:
         result.steps = [s.model_dump() for s in payload.steps]
+    if payload.customInstructions is not None:
+        result.custom_instructions = payload.customInstructions
     if payload.totalScore is not None:
         result.total_score = payload.totalScore
     if payload.maxScore is not None:
@@ -109,6 +113,49 @@ def update_result(
         result.grade = payload.grade
     if payload.feedback is not None:
         result.feedback = payload.feedback
+    db.commit()
+    db.refresh(result)
+    return result
+
+
+@router.post(
+    "/{result_id}/regrade",
+    response_model=schemas.GradingResultOut,
+    dependencies=[Depends(limit_batch_grade)],
+)
+async def regrade_result(
+    result_id: str,
+    payload: schemas.RegradeRequest,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    """Kör om rättningen för ett sparat resultat mot sparat facit.
+
+    Elevspecifika AI-premisser kan sparas/skickas med via customInstructions.
+    """
+    result = (
+        db.query(models.GradingResult)
+        .options(
+            selectinload(models.GradingResult.test).selectinload(models.Test.klass),
+            selectinload(models.GradingResult.test).selectinload(models.Test.answer_key),
+        )
+        .join(models.Test)
+        .join(models.Klass)
+        .filter(models.GradingResult.id == result_id, models.Klass.teacher_id == _user.id)
+        .first()
+    )
+    if not result:
+        raise HTTPException(404, "Result not found")
+
+    if payload.customInstructions is not None:
+        cleaned = payload.customInstructions.strip()[:2000]
+        result.custom_instructions = cleaned or None
+
+    try:
+        await regrade_result_row(result)
+    except RegradeUnavailable as e:
+        raise HTTPException(422, str(e)) from e
+
     db.commit()
     db.refresh(result)
     return result

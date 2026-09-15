@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session, selectinload
 
 from .. import models, schemas
 from ..db import get_db
+from ..services.rate_limits import limit_batch_grade
+from ..services.regrade import regrade_test_rows
 from ..services.supabase_auth import SupabaseUser, get_current_supabase_user
 
 router = APIRouter(prefix="/api/v1/classes", tags=["classes"])
@@ -218,6 +220,38 @@ def update_test(
     db.commit()
     db.refresh(test)
     return test
+
+
+@router.post(
+    "/tests/{test_id}/regrade",
+    response_model=schemas.RegradeTestResponse,
+    tags=["tests"],
+    dependencies=[Depends(limit_batch_grade)],
+)
+async def regrade_test(
+    test_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    """Kör om rättningen för alla sparade elevresultat i provet.
+
+    Återanvänder lagrade scanPages och sparat facit — ingen ny uppladdning.
+    Manuella överstyrningar nollställs (nya steg ersätter gamla).
+    """
+    test = _get_owned_test(db, test_id, _user.id)
+    rows = (
+        db.query(models.GradingResult)
+        .options(
+            selectinload(models.GradingResult.test).selectinload(models.Test.klass),
+            selectinload(models.GradingResult.test).selectinload(models.Test.answer_key),
+        )
+        .filter(models.GradingResult.test_id == test.id)
+        .all()
+    )
+    regraded, skipped = await regrade_test_rows(rows)
+    test.status = "review"
+    db.commit()
+    return schemas.RegradeTestResponse(regraded=regraded, skipped=skipped)
 
 
 # ---------------------------------------------------------------------------

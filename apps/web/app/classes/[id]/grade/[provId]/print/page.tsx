@@ -169,7 +169,9 @@ export default function PrintPage() {
             {/* AI-analys — omstrukturerad för läsbarhet */}
             {(step.feedback || ann?.summary || ann?.issues?.length || ann?.evidence?.length || ann?.suggestions?.length) && (
               <div className={s.analysis}>
-                <div className={s.analysisLabel}>AI-analys</div>
+                <div className={s.analysisLabel}>
+                  {step.reviewed ? "Bedömning (granskad av lärare)" : "AI-analys"}
+                </div>
 
                 {ann?.summary && (
                   <div>
@@ -215,6 +217,13 @@ export default function PrintPage() {
                     ))}
                   </div>
                 )}
+              </div>
+            )}
+
+            {step.teacherNote && (
+              <div className={s.analysis}>
+                <div className={s.analysisLabel}>Lärarens kommentar</div>
+                <MathText content={step.teacherNote} />
               </div>
             )}
           </div>

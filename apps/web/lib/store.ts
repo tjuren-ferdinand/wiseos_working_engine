@@ -100,6 +100,14 @@ export interface Step {
   outsideAnswerKey?: boolean;
   mathVerification?: MathVerification;
   feedbackProvider?: string;
+  /** Läraren har granskat och står bakom bedömningen. Separerad från status. */
+  reviewed?: boolean;
+  reviewedAt?: string;
+  /** Lärarens egen kommentar — visas i kortet och i print. */
+  teacherNote?: string;
+  /** AI:s originalbedömning — snapshot vid första överstyrning (Återställ). */
+  aiEarnedPoints?: number;
+  aiStatus?: Step["status"];
 }
 
 export interface StudentResult {
@@ -123,6 +131,8 @@ export interface StudentResult {
   sourceFiles?: string[];
   /** Diagnostik från rättningsmotorn (modell, latens, fel). */
   document?: DocumentMeta;
+  /** Elevspecifika AI-premisser som används vid om-rättning. */
+  customInstructions?: string;
 }
 
 // ============================================================================
@@ -183,23 +193,6 @@ const KURSER: Kurs[] = [
   { id: "webbutv1", name: "Webbutveckling 1", code: "GRNWEB01", subject: "Programmering", level: "Gymnasiet", description: "Webbteknik, HTML, CSS och grundläggande JavaScript.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
   { id: "webbutv2", name: "Webbutveckling 2", code: "GRNWEB02", subject: "Programmering", level: "Gymnasiet", description: "Fördjupning inom webbutveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
   { id: "datorteknik1", name: "Datorteknik 1", code: "DAODAT01", subject: "Teknik", level: "Gymnasiet", description: "Datorns uppbyggnad, nätverk och operativsystem.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  // Språk
-  { id: "engelska5", name: "Engelska 5", code: "ENGENG05", subject: "Engelska", level: "Gymnasiet", description: "Gymnasiets första engelskakurs.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "engelska6", name: "Engelska 6", code: "ENGENG06", subject: "Engelska", level: "Gymnasiet", description: "Fortsättningskurs i engelska.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "engelska7", name: "Engelska 7", code: "ENGENG07", subject: "Engelska", level: "Gymnasiet", description: "Fördjupningskurs i engelska.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "svenska1", name: "Svenska 1", code: "SVESVE01", subject: "Svenska", level: "Gymnasiet", description: "Läs- och skrivutveckling samt retorik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "svenska2", name: "Svenska 2", code: "SVESVE02", subject: "Svenska", level: "Gymnasiet", description: "Litteratur, språkhistoria och skrivande.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "svenska3", name: "Svenska 3", code: "SVESVE03", subject: "Svenska", level: "Gymnasiet", description: "Litteraturfördjupning och akademiskt skrivande.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  // Samhällsämnen
-  { id: "samhall1a", name: "Samhällskunskap 1a", code: "SAMSAM01a", subject: "Samhällskunskap", level: "Gymnasiet", description: "Demokrati, politik och ekonomi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "samhall1b", name: "Samhällskunskap 1b", code: "SAMSAM01b", subject: "Samhällskunskap", level: "Gymnasiet", description: "Fortsättningskurs i samhällskunskap.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "samhall2", name: "Samhällskunskap 2", code: "SAMSAM02", subject: "Samhällskunskap", level: "Gymnasiet", description: "Fördjupning i samhällsvetenskap.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "historia1a", name: "Historia 1a", code: "HISHIS01a", subject: "Historia", level: "Gymnasiet", description: "Världshistoria och historiebruk.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "historia1b", name: "Historia 1b", code: "HISHIS01b", subject: "Historia", level: "Gymnasiet", description: "Fortsättningskurs i historia.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "religion1", name: "Religionskunskap 1", code: "RELREL01", subject: "Religion", level: "Gymnasiet", description: "Världsreligioner och livsåskådningar.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "geografi1", name: "Geografi 1", code: "GEOGEO01", subject: "Geografi", level: "Gymnasiet", description: "Natur- och kulturgeografi.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "psykologi1", name: "Psykologi 1", code: "PSYPSY01", subject: "Psykologi", level: "Gymnasiet", description: "Psykologins grunder och människans utveckling.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
-  { id: "filosofi1", name: "Filosofi 1", code: "FILFIL01", subject: "Filosofi", level: "Gymnasiet", description: "Filosofisk argumentation och etik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
   // Högstadiet
   { id: "matte-ak7", name: "Matematik (åk 7–9)", code: "MAT", subject: "Matematik", level: "Högstadiet", description: "Högstadiematematik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
   { id: "fysik-ak7", name: "Fysik (åk 7–9)", code: "FYS", subject: "Fysik", level: "Högstadiet", description: "Högstadietfysik.", gradeThresholds: DEFAULT_GRADE_THRESHOLDS },
@@ -352,6 +345,11 @@ function mapBackendResult(r: import("@/lib/api").BackendGradingResult): StudentR
       outsideAnswerKey: s.outsideAnswerKey,
       mathVerification: s.mathVerification ?? undefined,
       feedbackProvider: s.feedbackProvider ?? undefined,
+      reviewed: s.reviewed ?? false,
+      reviewedAt: s.reviewedAt ?? undefined,
+      teacherNote: s.teacherNote ?? undefined,
+      aiEarnedPoints: s.aiEarnedPoints ?? undefined,
+      aiStatus: (s.aiStatus as Step["status"]) ?? undefined,
     })),
     totalScore: r.totalScore,
     maxScore: r.maxScore,
@@ -362,6 +360,7 @@ function mapBackendResult(r: import("@/lib/api").BackendGradingResult): StudentR
     gradedAt: r.gradedAt ?? undefined,
     scanPages: r.scanPages ?? [],
     document: r.document ?? undefined,
+    customInstructions: r.customInstructions ?? undefined,
   };
 }
 
@@ -622,6 +621,11 @@ export const actions = {
           outsideAnswerKey: s.outsideAnswerKey,
           mathVerification: s.mathVerification,
           feedbackProvider: s.feedbackProvider,
+          reviewed: s.reviewed,
+          reviewedAt: s.reviewedAt,
+          teacherNote: s.teacherNote,
+          aiEarnedPoints: s.aiEarnedPoints,
+          aiStatus: s.aiStatus,
         })),
         totalScore,
         maxScore,
@@ -643,6 +647,58 @@ export const actions = {
     useStore.setState((state) => ({
       batchProgress: { ...state.batchProgress, [provId]: { phase, progress, total } },
     }));
+  },
+
+  /** Sparar elevspecifika AI-premisser utan att rätta om direkt. */
+  setCustomInstructions: async (resultId: string, text: string): Promise<void> => {
+    useStore.setState((state) => ({
+      results: state.results.map((r) =>
+        r.id === resultId ? { ...r, customInstructions: text || undefined } : r
+      ),
+    }));
+    try {
+      await api.updateResult(resultId, { customInstructions: text });
+    } catch (error) {
+      useStore.setState({ error: `Kunde inte spara premisser: ${(error as Error).message}` });
+    }
+  },
+
+  /** Kör om rättningen för en elev — ersätter resultatet med backendens svar. */
+  regradeResult: async (resultId: string, customInstructions?: string): Promise<void> => {
+    const updated = await api.regradeResult(resultId, {
+      customInstructions: customInstructions ?? useStore.getState().results.find((r) => r.id === resultId)?.customInstructions ?? "",
+    });
+    const mapped = mapBackendResult(updated);
+    useStore.setState((state) => ({
+      results: state.results.map((r) => (r.id === resultId ? { ...mapped, scanPages: mapped.scanPages?.length ? mapped.scanPages : r.scanPages } : r)),
+    }));
+  },
+
+  /** Kör om hela provet — hämtar om resultatlistan efteråt. */
+  regradeProv: async (provId: string): Promise<{ regraded: number; skipped: number }> => {
+    const out = await api.regradeTest(provId);
+    await actions.hydrate();
+    return out;
+  },
+
+  /** Hämtar om provets resultat från backend och mergar in dem — används
+   *  för live-griden medan en batch pågår (eleverna persisteras per styck). */
+  refreshProvResults: async (provId: string): Promise<void> => {
+    try {
+      const backendResults = await api.listGradingResults(provId);
+      const loaded = backendResults.map(mapBackendResult);
+      useStore.setState((state) => {
+        const incoming = new Map(loaded.map((r) => [r.id, r]));
+        return {
+          results: [
+            ...state.results.map((r) => incoming.get(r.id) ?? r).filter((r) => r.provId !== provId || incoming.has(r.id)),
+            ...loaded.filter((r) => !state.results.some((cur) => cur.id === r.id)),
+          ],
+        };
+      });
+    } catch {
+      // Pollfel är icke-fatala — nästa tick försöker igen.
+    }
   },
 };
 
@@ -781,6 +837,9 @@ export function deriveStep(
   step: Step,
   params: GradingParams
 ): Step {
+  // Lärargranskade/överstyrda steg är slutgiltiga — klassreglerna applicerades
+  // på AI-bedömningen och får inte straffa om lärarens manuella poäng.
+  if (step.reviewed || step.aiEarnedPoints !== undefined) return step;
   let adjusted = step.earnedPoints;
 
   // Apply unit error penalty

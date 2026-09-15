@@ -29,6 +29,7 @@ from ..schemas import (
     AnswerKeyItem,
     Assessment,
     DocumentMeta,
+    GradingStepSchema,
     MathVerification,
     QuestionResult,
     StudentDocumentResult,
@@ -747,6 +748,40 @@ def _data_url(upload: UploadedFile) -> str:
     return f"data:{mime};base64,{encoded}"
 
 
+def build_grading_steps(result_id: str, questions: list[QuestionResult]) -> list[dict]:
+    """Kanonisk mappning QuestionResult -> persistenssteg.
+
+    Delas av batch-rättningen och om-rättningen — samma kontrakt i båda.
+    """
+    return [
+        GradingStepSchema(
+            id=f"{result_id}-q{question.questionNumber}",
+            questionId=question.questionNumber,
+            label=(
+                f"Uppgift {question.questionNumber}"
+                if question.inAnswerKey
+                else f"Uppgift {question.questionNumber} (ej i facit)"
+            ),
+            questionText=question.questionText,
+            maxPoints=question.assessment.maxPoints,
+            earnedPoints=question.pointsTeacher if question.pointsTeacher is not None else question.assessment.points,
+            status=question.assessment.status,
+            feedback=question.feedback,
+            studentWork=question.studentWork,
+            correctAnswer=question.correctAnswer,
+            found=question.found,
+            transcriptionConfidence=question.transcriptionConfidence,
+            annotation=question.annotation,
+            error=question.error,
+            outsideAnswerKey=not question.inAnswerKey,
+            sourceRegions=question.sourceRegions,
+            mathVerification=question.mathVerification,
+            feedbackProvider=question.feedbackProvider,
+        ).model_dump(mode="json")
+        for question in questions
+    ]
+
+
 _MATH_NOTATION = re.compile(r"(?:\\frac|\\sqrt|[=+*/^]|\d\s*-\s*\d|\b(?:sin|cos|tan|log)\s*\()", re.IGNORECASE)
 _MATH_TERMS = re.compile(r"\b(?:beräkna|lös|ekvation|uttryck|deriv|integr|algebra|procent|area|volym|hastighet|kraft|energi)\b", re.IGNORECASE)
 
@@ -912,6 +947,8 @@ async def grade_batch(
     files: list[UploadedFile],
     identification_method: str = "name_field",
     answer_key_source: str = "none",
+    progress: dict | None = None,
+    on_result=None,
 ) -> list[StudentDocumentResult]:
     """Rättar en batch elevdokument bildförst.
 
@@ -919,11 +956,20 @@ async def grade_batch(
       1. Alla sidor som hör till eleven skickas i ETT multimodalt Gemini-anrop.
       2. Modellen transkriberar elevens faktiska arbete och bedömer det.
       3. Originalsidorna bevaras som data-URL:er i sidordning.
+
+    `progress` är en valfri muterbar dict som fylls med total/done/active
+    så att anroparen kan exponera live-status. `on_result` anropas per
+    färdigt elevdokument (i eventloopen) så att resultat kan persistas
+    direkt istället för först när hela batchen är klar.
     """
     batch_started = time.perf_counter()
     identification_started = time.perf_counter()
     documents = await identify_and_group_pages(files, identification_method)
     identification_ms = int((time.perf_counter() - identification_started) * 1000)
+    if progress is not None:
+        progress["total"] = len(documents)
+        progress.setdefault("done", 0)
+        progress["active"] = {}
     grading_notes = "\n".join(
         part.strip()
         for part in (class_grading_parameters, test_specific_parameters)
@@ -940,6 +986,8 @@ async def grade_batch(
     async def _process(document: StudentDocument) -> StudentDocumentResult:
         async with semaphore:
             document_started = time.perf_counter()
+            if progress is not None:
+                progress["active"][id(document)] = document.student_name
             pages = [
                 (page.content, page.content_type or "image/png")
                 for page in document.pages
@@ -1031,7 +1079,7 @@ async def grade_batch(
                 len(questions),
                 answer_key_source,
             )
-            return StudentDocumentResult(
+            result = StudentDocumentResult(
                 id=str(uuid.uuid4()),
                 provId=prov_id,
                 studentName=resolved_name,
@@ -1044,6 +1092,18 @@ async def grade_batch(
                 document=meta,
                 questions=questions,
             )
+            if on_result is not None:
+                try:
+                    on_result(result)
+                except Exception:
+                    logger.exception(
+                        "on_result_failed student=%s prov_id=%s",
+                        resolved_name, prov_id,
+                    )
+            if progress is not None:
+                progress["done"] = progress.get("done", 0) + 1
+                progress["active"].pop(id(document), None)
+            return result
 
     results = await asyncio.gather(*[_process(d) for d in documents])
     results = list(results)

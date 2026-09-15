@@ -5,7 +5,8 @@ import { createPortal } from "react-dom";
 import { motion, AnimatePresence } from "framer-motion";
 
 import type { AnswerKeyItem } from "@/lib/api";
-import { actions, runBatchGrade, type GradingParams, type StudentResult } from "@/lib/store";
+import { api } from "@/lib/api";
+import { actions, runBatchGrade, useStore, type GradingParams, type StudentResult } from "@/lib/store";
 import GradingFlowScene, { type FlowParam, type FlowPhase, type FlowStudent } from "./GradingFlowScene";
 
 // ============================================================================
@@ -28,6 +29,8 @@ interface BatchGradingPipelineProps {
   identificationMethod: "name_field" | "qr_code" | "barcode" | "student_id";
   /** Antalet elever i klassen – används bara för att visa "N klara / total" i UI. */
   expectedStudents: number;
+  /** Klick på ett färdigt elevkort — öppna granskningen medan resten rättas. */
+  onOpenResult?: (resultId: string) => void;
 }
 
 // ============================================================================
@@ -47,6 +50,7 @@ export default function BatchGradingPipeline({
   files,
   identificationMethod,
   expectedStudents,
+  onOpenResult,
 }: BatchGradingPipelineProps) {
   const [phase, setPhase] = useState<Phase>("idle");
   const [error, setError] = useState<string | null>(null);
@@ -76,8 +80,9 @@ export default function BatchGradingPipeline({
 
   useEffect(() => {
     if (!open) {
+      // Avbryt INTE fetch:en — backenden fortsätter rätta och persisterar
+      // varje elev direkt. Provsidan poll-ar vidare och visar live-griden.
       startedRef.current = false;
-      abortRef.current?.abort();
       abortRef.current = null;
       timersRef.current.forEach((t) => window.clearTimeout(t));
       timersRef.current = [];
@@ -152,19 +157,62 @@ export default function BatchGradingPipeline({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // --- Realtidspolling: backenden persisterar varje elev direkt när den är
+  // klar. Vi poll-ar status + resultat och låter korten lösas upp i den takt
+  // rättningen faktiskt går — inget simulerat.
   useEffect(() => {
     if (phase !== "processing") return;
-    files.forEach((_, i) => {
-      timersRef.current.push(
-        window.setTimeout(() => {
-          setFlowStudents((prev) =>
-            prev.map((s, j) => (j === i && s.status === "queued" ? { ...s, status: "working" } : s)),
-          );
-        }, 500 + i * 800),
-      );
-    });
+    let cancelled = false;
+
+    const tick = async () => {
+      try {
+        const status = await api.getBatchStatus(provId);
+        await actions.refreshProvResults(provId);
+        if (cancelled) return;
+        const live = useStore
+          .getState()
+          .results.filter((r) => r.provId === provId);
+        const byFile = new Map<string, StudentResult>();
+        for (const r of live) {
+          for (const f of r.sourceFiles ?? []) {
+            if (!byFile.has(f)) byFile.set(f, r);
+          }
+        }
+        setFlowStudents((prev) =>
+          prev.map((s, i) => {
+            const r = byFile.get(files[i]?.name ?? "");
+            if (r) {
+              return {
+                ...s,
+                name: r.studentName || s.name,
+                status: "done" as const,
+                score: r.totalScore,
+                maxScore: r.maxScore,
+                percentage: r.percentage,
+                resultId: r.id,
+              };
+            }
+            // Ej klar ännu: "working" när jobbet kör, "queued" innan
+            // identifieringen givit oss ett totalantal.
+            return {
+              ...s,
+              status: status.running && status.total > 0 ? ("working" as const) : ("queued" as const),
+            };
+          }),
+        );
+      } catch {
+        // Pollfel är icke-fatala — nästa tick försöker igen.
+      }
+    };
+
+    void tick();
+    const interval = window.setInterval(() => void tick(), 2000);
+    return () => {
+      cancelled = true;
+      window.clearInterval(interval);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [phase]);
+  }, [phase, provId]);
 
   // Vid fel: markera alla kort som inte hunnit bli klara som misslyckade
   // istf att de fastnar på "Analyserar…"/"I kö" för evigt.
@@ -204,6 +252,7 @@ export default function BatchGradingPipeline({
                       score: r.totalScore,
                       maxScore: r.maxScore,
                       percentage: r.percentage,
+                      resultId: r.id,
                     }
                   : { ...s, status: "merged" }
                 : s,
@@ -239,6 +288,7 @@ export default function BatchGradingPipeline({
           error={error}
           onClose={onClose}
           onReview={phase === "complete" ? () => onComplete(results) : undefined}
+          onOpenResult={onOpenResult}
         />
       </motion.div>
     </AnimatePresence>

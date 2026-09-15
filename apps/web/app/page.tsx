@@ -18,6 +18,11 @@ export default function DashboardPage() {
 
   const pendingReviews = prov.filter((p) => p.status === "review").length;
 
+  // Lärarens kurser: kurser som har minst en klass, plus egenskapade kurser.
+  const activeKurser = kurser.filter(
+    (kurs) => kurs.isCustom || klasser.some((k) => k.kursId === kurs.id)
+  );
+
   // Get recent activity
   const recentResults = results.slice(-3).reverse();
 
@@ -105,44 +110,47 @@ export default function DashboardPage() {
         {/* Two column layout — quiet lists, generous spacing, hairline separators only */}
         <div className="grid grid-cols-1 gap-12 pb-10 lg:grid-cols-5 lg:gap-14">
 
-          {/* Classes */}
+          {/* Courses */}
           <Reveal className="col-span-1 lg:col-span-3" delay={120}>
             <div className="mb-4 flex items-center justify-between">
               <h2 className={`text-[11px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
-                Klasser
+                Kurser
               </h2>
-              <Link href="/classes/new" className={`btn-tertiary px-2 py-1 text-[13px]`}>
-                + Ny klass
+              <Link href="/courses" className={`btn-tertiary px-2 py-1 text-[13px]`}>
+                + Ny kurs
               </Link>
             </div>
 
-            {klasser.length === 0 ? (
+            {activeKurser.length === 0 ? (
               <DashboardEmptyState />
             ) : (
               <div className={`border-t ${hairline}`}>
-                {klasser.map((k) => {
-                  const klassProv = prov.filter((p) => p.klassId === k.id);
-                  const kurs = kurser.find((c) => c.id === k.kursId);
-                  const pendingInClass = klassProv.filter((p) => p.status !== "published").length;
+                {activeKurser.map((kurs) => {
+                  const kursKlasser = klasser.filter((k) => k.kursId === kurs.id);
+                  const totalStudents = kursKlasser.reduce((sum, k) => sum + k.students.length, 0);
+                  const pendingInKurs = kursKlasser.reduce(
+                    (sum, k) => sum + prov.filter((p) => p.klassId === k.id && p.status !== "published").length,
+                    0
+                  );
 
                   return (
                     <Link
-                      key={k.id}
-                      href={`/classes/${k.id}`}
+                      key={kurs.id}
+                      href={`/courses/${kurs.id}`}
                       className={`group -mx-2 grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-4 border-b px-2 py-4 ${hairline} rounded-xl transition-all duration-300 hover:bg-ink/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15`}
                     >
                       <span className={`w-10 text-[12.5px] font-medium tabular-nums ${inkMuted}`}>
-                        {k.name.slice(0, 2)}
+                        {kurs.name.slice(0, 2)}
                       </span>
                       <div className="min-w-0">
-                        <div className={`text-[14px] font-medium ${ink} truncate`}>{k.name}</div>
+                        <div className={`text-[14px] font-medium ${ink} truncate`}>{kurs.name}</div>
                         <div className={`truncate text-[12px] ${inkMuted}`}>
-                          {(kurs?.name || k.kursId || "Kurs")} · {k.students.length} elever · {klassProv.length} prov
+                          {kurs.subject} · {kursKlasser.length} {kursKlasser.length === 1 ? "klass" : "klasser"} · {totalStudents} elever
                         </div>
                       </div>
-                      {pendingInClass > 0 ? (
+                      {pendingInKurs > 0 ? (
                         <span className={`shrink-0 rounded-full bg-ink/[0.04] px-2.5 py-1 text-[11px] font-medium ${inkSecondary}`}>
-                          {pendingInClass} väntar
+                          {pendingInKurs} väntar
                         </span>
                       ) : (
                         <span className={`shrink-0 text-[11px] font-medium text-state-success`}>Klart</span>
@@ -154,9 +162,56 @@ export default function DashboardPage() {
             )}
           </Reveal>
 
-          {/* Recent activity */}
+          {/* Classes + recent activity */}
           <Reveal className="col-span-1 lg:col-span-2" delay={180}>
-            <h2 className={`mb-4 text-[11px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
+            <div className="mb-4 flex items-center justify-between">
+              <h2 className={`text-[11px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
+                Klasser
+              </h2>
+              <Link href="/classes/new" className={`btn-tertiary px-2 py-1 text-[13px]`}>
+                + Ny klass
+              </Link>
+            </div>
+
+            {klasser.length === 0 ? (
+              <div className={`border-t py-5 text-[13.5px] ${hairline} ${inkSecondary}`}>
+                Inga klasser ännu — skapa en klass i en kurs.
+              </div>
+            ) : (
+              <div className={`border-t ${hairline}`}>
+                {klasser.map((k) => {
+                  const klassProv = prov.filter((p) => p.klassId === k.id);
+                  const pendingInClass = klassProv.filter((p) => p.status !== "published").length;
+
+                  return (
+                    <Link
+                      key={k.id}
+                      href={`/classes/${k.id}`}
+                      className={`group -mx-2 grid min-w-0 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 border-b px-2 py-3.5 ${hairline} rounded-xl transition-all duration-300 hover:bg-ink/[0.035] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ink/15`}
+                    >
+                      <span className={`w-8 text-[12px] font-medium tabular-nums ${inkMuted}`}>
+                        {k.name.slice(0, 2)}
+                      </span>
+                      <div className="min-w-0">
+                        <div className={`text-[13.5px] font-medium ${ink} truncate`}>{k.name}</div>
+                        <div className={`truncate text-[11.5px] ${inkMuted}`}>
+                          {k.students.length} elever · {klassProv.length} prov
+                        </div>
+                      </div>
+                      {pendingInClass > 0 ? (
+                        <span className={`shrink-0 rounded-full bg-ink/[0.04] px-2 py-0.5 text-[11px] font-medium ${inkSecondary}`}>
+                          {pendingInClass} väntar
+                        </span>
+                      ) : (
+                        <span className={`shrink-0 text-[11px] font-medium text-state-success`}>Klart</span>
+                      )}
+                    </Link>
+                  );
+                })}
+              </div>
+            )}
+
+            <h2 className={`mb-4 mt-10 text-[11px] font-medium uppercase tracking-[0.12em] ${inkMuted}`}>
               Senaste aktivitet
             </h2>
 
@@ -194,9 +249,9 @@ export default function DashboardPage() {
             )}
 
             <div className={`mt-6 flex items-center gap-8 text-[12.5px] ${inkMuted}`}>
+              <span><span className={`font-medium text-ink`}>{activeKurser.length}</span> kurser</span>
               <span><span className={`font-medium text-ink`}>{klasser.length}</span> klasser</span>
               <span><span className={`font-medium text-ink`}>{prov.length}</span> prov</span>
-              <Link href="/classes/new" className={`${inkSecondary} transition-colors hover:text-ink`}>+ Ny klass</Link>
             </div>
           </Reveal>
         </div>

@@ -97,6 +97,18 @@ export default function PublishResultsModal({
             Publiceringen gör alla {results.length} resultat synliga för klassen. Du kan
             fortfarande ändra resultat efter publicering.
           </p>
+          {(() => {
+            const reviewable = results.flatMap((r) => r.steps).filter((s) => !s.error && s.found !== false);
+            const unreviewed = reviewable.filter((s) => !s.reviewed).length;
+            const flagged = reviewable.filter((s) => s.status === "needs_review").length;
+            return unreviewed > 0 ? (
+              <div className="mb-4 rounded-xl border border-state-warning/25 bg-state-warning/[0.07] px-4 py-3 text-[13px] leading-relaxed text-ink">
+                <span className="font-medium">Ogranskade steg:</span> {unreviewed} av {reviewable.length}
+                {flagged > 0 && <> — varav {flagged} är flaggade som “behöver granskas”</>}.
+                Du kan publicera ändå, men ogranskade AI-bedömningar följer med som de är.
+              </div>
+            ) : null;
+          })()}
           <div className="space-y-3">
             {results.map((result) => {
               const grade = percentageToGrade(result.percentage);

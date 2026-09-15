@@ -1,6 +1,7 @@
 "use client";
 
 import { useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { api, type AnswerKeyItem } from "@/lib/api";
 import { actions, type Klass } from "@/lib/store";
 import LineIcon from "./LineIcon";
@@ -20,6 +21,7 @@ export default function GradingWizard({
   onClose: () => void;
   onStarted: (provId: string) => void;
 }) {
+  const router = useRouter();
   const [step, setStep] = useState<Step>(1);
   const [title, setTitle] = useState("");
   const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
@@ -284,6 +286,9 @@ export default function GradingWizard({
         files={files}
         identificationMethod={identificationMethod}
         expectedStudents={files.length}
+        onOpenResult={(resultId) =>
+          router.push(`/classes/${klass.id}/grade/${createdProvId}?student=${resultId}`)
+        }
       />
     );
   }

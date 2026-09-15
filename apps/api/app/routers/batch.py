@@ -35,6 +35,7 @@ from ..services.batch_pipeline import (
     expand_pdf_uploads,
     grade_batch,
     integration_status,
+    build_grading_steps,
 )
 
 logger = logging.getLogger("wiseos.grading")
@@ -65,33 +66,59 @@ def _matching_student(test: models.Test, student_name: str) -> models.KlassStude
 
 
 def _grading_steps(result: schemas.StudentDocumentResult) -> list[dict]:
-    return [
-        schemas.GradingStepSchema(
-            id=f"{result.id}-q{question.questionNumber}",
-            questionId=question.questionNumber,
-            label=(
-                f"Uppgift {question.questionNumber}"
-                if question.inAnswerKey
-                else f"Uppgift {question.questionNumber} (ej i facit)"
-            ),
-            questionText=question.questionText,
-            maxPoints=question.assessment.maxPoints,
-            earnedPoints=question.pointsTeacher if question.pointsTeacher is not None else question.assessment.points,
-            status=question.assessment.status,
-            feedback=question.feedback,
-            studentWork=question.studentWork,
-            correctAnswer=question.correctAnswer,
-            found=question.found,
-            transcriptionConfidence=question.transcriptionConfidence,
-            annotation=question.annotation,
-            error=question.error,
-            outsideAnswerKey=not question.inAnswerKey,
-            sourceRegions=question.sourceRegions,
-            mathVerification=question.mathVerification,
-            feedbackProvider=question.feedbackProvider,
-        ).model_dump(mode="json")
-        for question in result.questions
-    ]
+    return build_grading_steps(result.id, result.questions)
+
+
+# Live-status per pågående batch — processlokal (en worker per tjänst idag).
+# Nyckel: test_id. Värde: {"running", "total", "done", "active", "started_at", "error"}.
+_BATCH_JOBS: dict[str, dict] = {}
+
+
+def _persist_result(
+    db: Session,
+    test: models.Test,
+    result: schemas.StudentDocumentResult,
+) -> None:
+    """Persistar ETT elevresultat direkt när det blir klart — gör att
+    frontenden kan polla och visa eleverna i realtid under rättningen."""
+    student = _matching_student(test, result.studentName)
+    student_id = student.id if student else None
+    steps = _grading_steps(result)
+    total_score = round(sum(step["earnedPoints"] for step in steps), 2)
+    max_score = round(sum(step["maxPoints"] for step in steps), 2)
+    percentage = round(total_score / max_score * 100, 2) if max_score else 0.0
+
+    row = (
+        db.query(models.GradingResult)
+        .filter(
+            models.GradingResult.test_id == test.id,
+            models.GradingResult.student_id == student_id
+            if student_id
+            else models.GradingResult.student_id.is_(None),
+            models.GradingResult.student_name == result.studentName,
+        )
+        .first()
+    )
+    if row is None:
+        row = models.GradingResult(test_id=test.id, student_name=result.studentName)
+        db.add(row)
+
+    row.student_name = result.studentName
+    row.student_id = student_id
+    row.identification_method = result.identificationMethod
+    row.identification_confidence = result.identificationConfidence
+    row.scan_pages = result.scanPages
+    row.document = result.document.model_dump(mode="json")
+    row.steps = steps
+    row.total_score = total_score
+    row.max_score = max_score
+    row.percentage = percentage
+    row.graded_at = datetime.utcnow()
+    test.status = "review"
+    db.flush()
+    db.commit()
+    result.id = row.id
+    result.studentId = student_id
 
 
 def _persist_batch(
@@ -298,17 +325,40 @@ async def batch_grade(
         "batch_request prov_id=%s uploads=%d answer_key_items=%d source=%s",
         prov_id, len(uploads), len(answer_key), answer_key_source,
     )
-    results = await grade_batch(
-        prov_id=prov_id,
-        answer_key=answer_key,
-        class_grading_parameters=class_grading_parameters,
-        test_specific_parameters=test_specific_parameters,
-        files=uploads,
-        identification_method=identification_method,
-        answer_key_source=answer_key_source,
-    )
+    job = {
+        "running": True,
+        "total": 0,
+        "done": 0,
+        "active": {},
+        "started_at": datetime.utcnow().isoformat(),
+        "error": None,
+    }
+    _BATCH_JOBS[test.id] = job
+
+    def _on_result(result: schemas.StudentDocumentResult) -> None:
+        _persist_result(db, test, result)
+
+    try:
+        results = await grade_batch(
+            prov_id=prov_id,
+            answer_key=answer_key,
+            class_grading_parameters=class_grading_parameters,
+            test_specific_parameters=test_specific_parameters,
+            files=uploads,
+            identification_method=identification_method,
+            answer_key_source=answer_key_source,
+            progress=job,
+            on_result=_on_result,
+        )
+    except Exception as exc:
+        job["running"] = False
+        job["error"] = str(exc)
+        raise
 
     _persist_batch(db, test, results, answer_key, answer_key_source)
+    job["running"] = False
+    job["done"] = len(results)
+    job["active"] = {}
     combined_params = f"{class_grading_parameters}\n{test_specific_parameters}"
 
     return schemas.BatchGradeResponse(
@@ -325,3 +375,34 @@ async def batch_grade(
         ),
         integrations=integration_status(),
     )
+
+
+@router.get("/status/{test_id}")
+def batch_status(
+    test_id: str,
+    db: Session = Depends(get_db),
+    _user: SupabaseUser = Depends(get_current_supabase_user),
+):
+    """Live-status för en pågående batch — teacher-scoped.
+
+    Frontenden poll-ar denna + /results under rättningen så att eleverna
+    ploppar in i realtid. Okänt prov eller avslutat jobb → running=false.
+    """
+    test = (
+        db.query(models.Test)
+        .join(models.Klass)
+        .filter(models.Test.id == test_id, models.Klass.teacher_id == _user.id)
+        .first()
+    )
+    if not test:
+        raise HTTPException(404, "Test not found")
+    job = _BATCH_JOBS.get(test_id)
+    if not job:
+        return {"running": False, "total": 0, "done": 0, "active": [], "error": None}
+    return {
+        "running": job["running"],
+        "total": job["total"],
+        "done": job["done"],
+        "active": sorted(set(job["active"].values())),
+        "error": job["error"],
+    }

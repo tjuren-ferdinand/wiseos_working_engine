@@ -396,6 +396,13 @@ class GradingStepSchema(BaseModel):
     sourceRegions: list[SourceRegion] = []
     mathVerification: MathVerification | None = None
     feedbackProvider: str | None = None
+    # Lärarens granskning — separerad från AI:s verdict.
+    reviewed: bool = False
+    reviewedAt: str | None = None
+    teacherNote: str | None = None
+    # AI:s originalbedömning — snapshot vid första läraröverstyrning (Återställ).
+    aiEarnedPoints: float | None = None
+    aiStatus: str | None = None
 
 
 class GradingResultCreate(BaseModel):
@@ -414,8 +421,23 @@ class GradingResultCreate(BaseModel):
     feedback: str | None = None
 
 
+class RegradeRequest(BaseModel):
+    """Body för POST /results/{id}/regrade.
+
+    customInstructions = elevspecifika AI-premisser som sparas på resultatet
+    och läggs till i grading_notes. None = behåll befintliga.
+    """
+    customInstructions: str | None = None
+
+
+class RegradeTestResponse(BaseModel):
+    regraded: int
+    skipped: int
+
+
 class GradingResultUpdate(BaseModel):
     steps: list[GradingStepSchema] | None = None
+    customInstructions: str | None = None
     totalScore: float | None = None
     maxScore: float | None = None
     percentage: float | None = None
@@ -444,6 +466,7 @@ class GradingResultListItem(BaseModel):
     percentage: float
     grade: str | None = None
     feedback: str | None = None
+    customInstructions: str | None = Field(default=None, validation_alias="custom_instructions", serialization_alias="customInstructions")
     scannedAt: datetime = Field(validation_alias="scanned_at", serialization_alias="scannedAt")
     gradedAt: datetime | None = Field(default=None, validation_alias="graded_at", serialization_alias="gradedAt")
 
@@ -465,6 +488,7 @@ class GradingResultOut(BaseModel):
     percentage: float
     grade: str | None = None
     feedback: str | None = None
+    customInstructions: str | None = Field(default=None, validation_alias="custom_instructions", serialization_alias="customInstructions")
     scannedAt: datetime = Field(validation_alias="scanned_at", serialization_alias="scannedAt")
     gradedAt: datetime | None = Field(default=None, validation_alias="graded_at", serialization_alias="gradedAt")
 

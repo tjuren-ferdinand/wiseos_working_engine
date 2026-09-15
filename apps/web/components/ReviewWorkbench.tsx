@@ -61,9 +61,19 @@ export default function ReviewWorkbench() {
 
   const saveStep = () => {
     if (!editingStep) return;
+    const result = results.find((r) => r.id === editingStep.resultId);
+    const step = result?.steps.find((s) => s.id === editingStep.stepId);
+    if (!step) return;
     const points = Number(editPoints);
-    if (Number.isNaN(points) || points < 0) return;
-    actions.updateStep(editingStep.resultId, editingStep.stepId, { earnedPoints: points });
+    if (Number.isNaN(points) || points < 0 || points > step.maxPoints) return;
+    actions.updateStep(editingStep.resultId, editingStep.stepId, {
+      earnedPoints: points,
+      status: points <= 0 ? "incorrect" : points >= step.maxPoints ? "correct" : "partial",
+      reviewed: true,
+      reviewedAt: new Date().toISOString(),
+      aiEarnedPoints: step.aiEarnedPoints ?? step.earnedPoints,
+      aiStatus: step.aiStatus ?? step.status,
+    });
     setEditingStep(null);
   };
 
@@ -239,12 +249,27 @@ function ResultCard({
         <div className="h-10 w-10 rounded-[12px] bg-ink/[0.04] border border-ink-hairline grid place-items-center text-[15px] font-medium text-ink">
           {result.studentName.charAt(0)}
         </div>
-        <div>
+        <div className="flex-1 min-w-0">
           <h4 className="text-[15px] font-medium text-ink">{result.studentName}</h4>
           <p className="text-[13px] text-ink-secondary">
             {result.totalScore}/{result.maxScore} poäng · {result.percentage}%
           </p>
         </div>
+        {(() => {
+          const reviewable = result.steps.filter((s) => !s.error && s.found !== false);
+          const reviewed = reviewable.filter((s) => s.reviewed).length;
+          if (!reviewable.length) return null;
+          return reviewed === reviewable.length ? (
+            <span className="shrink-0 inline-flex items-center gap-1.5 rounded-full bg-state-success/10 px-2.5 py-1 text-[11px] font-medium text-state-success ring-1 ring-state-success/20">
+              <LineIcon name="check" className="h-3 w-3" />
+              Granskad
+            </span>
+          ) : (
+            <span className="shrink-0 text-[11px] text-ink-muted tabular-nums">
+              {reviewed}/{reviewable.length} granskade
+            </span>
+          );
+        })()}
       </div>
 
       {layout === "stacked" && showScan && <div className="mt-5">{scanBlock}</div>}
@@ -298,6 +323,11 @@ function ResultCard({
                               ? "Behöver granskas"
                               : "Väntar"}
                     </span>
+                    {step?.reviewed && (
+                      <span title="Granskad av lärare" className="shrink-0">
+                        <LineIcon name="check" className="h-3.5 w-3.5 text-state-success" />
+                      </span>
+                    )}
                   </div>
                   {layout !== "compact" && (
                     <>

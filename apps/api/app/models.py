@@ -196,6 +196,9 @@ class GradingResult(Base):
     percentage: Mapped[float] = mapped_column(Float, default=0.0)
     grade: Mapped[str | None] = mapped_column(String(4), nullable=True)
     feedback: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Elevspecifika AI-premisser — lärarens instruktioner som läggs till i
+    # grading_notes vid om-rättning av just detta resultat.
+    custom_instructions: Mapped[str | None] = mapped_column(Text, nullable=True)
     scanned_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     graded_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     # GDPR-sprint v1 (Vecka 2): sätts när retention-sweepen pseudonymiserat

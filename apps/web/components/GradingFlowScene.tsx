@@ -25,6 +25,8 @@ export type FlowStudent = {
   score?: number;
   maxScore?: number;
   percentage?: number;
+  /** Satt när resultatet är persisterat — gör kortet klickbart till granskning. */
+  resultId?: string;
 };
 
 export type FlowNode = {
@@ -127,14 +129,17 @@ function DotGrid() {
 function StudentCard({
   student,
   index,
+  onOpen,
 }: {
   student: FlowStudent;
   index: number;
+  onOpen?: (resultId: string) => void;
 }) {
   const done = student.status === "done";
   const working = student.status === "working";
   const merged = student.status === "merged";
   const failed = student.status === "failed";
+  const clickable = done && !!student.resultId && !!onOpen;
 
   // Rent grid — ingen tilt eller vertikal-offset. Korten ska ligga i raka
   // rader/kolumner för maximal skannbarhet efter rättning.
@@ -146,9 +151,23 @@ function StudentCard({
       animate={{ opacity: 1, scale: 1, y: 0, rotate: 0 }}
       transition={{ type: "spring", damping: 22, stiffness: 320 }}
       className="relative w-full"
+      onClick={clickable ? () => onOpen(student.resultId!) : undefined}
+      role={clickable ? "button" : undefined}
+      tabIndex={clickable ? 0 : undefined}
+      onKeyDown={
+        clickable
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onOpen(student.resultId!);
+              }
+            }
+          : undefined
+      }
+      style={clickable ? { cursor: "pointer" } : undefined}
     >
       <motion.div
-        className="rounded-2xl border px-4 py-3.5"
+        className="rounded-2xl border px-4 py-3.5 transition-shadow hover:shadow-lg"
         style={{
           borderColor: done
             ? "rgb(var(--state-success) / 0.35)"
@@ -204,7 +223,7 @@ function StudentCard({
           </div>
           <div className="text-[11px] text-[rgb(var(--muted-2))]">
             {done
-              ? `${student.score?.toFixed(1) ?? "–"} / ${student.maxScore ?? "–"} poäng`
+              ? `${student.score?.toFixed(1) ?? "–"} / ${student.maxScore ?? "–"} poäng${clickable ? " · granska" : ""}`
               : working
               ? "Analyserar…"
               : merged
@@ -342,11 +361,13 @@ function SidePanel({
   students,
   params,
   onClose,
+  onOpen,
 }: {
   tool: Exclude<RailTool, "canvas">;
   students: FlowStudent[];
   params?: FlowParam[];
   onClose: () => void;
+  onOpen?: (resultId: string) => void;
 }) {
   const done = students.filter((s) => s.status === "done" && s.percentage !== undefined);
   const avg = done.length
@@ -409,7 +430,15 @@ function SidePanel({
               <div
                 key={s.id}
                 className="flex items-center gap-2.5 rounded-lg px-2.5 py-2"
-                style={{ background: "rgb(var(--surface) / 0.6)" }}
+                style={{
+                  background: "rgb(var(--surface) / 0.6)",
+                  cursor: s.status === "done" && s.resultId && onOpen ? "pointer" : undefined,
+                }}
+                onClick={
+                  s.status === "done" && s.resultId && onOpen
+                    ? () => onOpen(s.resultId!)
+                    : undefined
+                }
               >
                 <span
                   className="h-1.5 w-1.5 shrink-0 rounded-full"
@@ -535,6 +564,7 @@ export default function GradingFlowScene({
   error,
   onClose,
   onReview,
+  onOpenResult,
 }: {
   provTitle: string;
   phase: FlowPhase;
@@ -545,6 +575,7 @@ export default function GradingFlowScene({
   error?: string | null;
   onClose?: () => void;
   onReview?: () => void;
+  onOpenResult?: (resultId: string) => void;
 }) {
   const [activeTool, setActiveTool] = useState<RailTool>("canvas");
   const doneCount = students.filter((s) => s.status === "done").length;
@@ -578,7 +609,7 @@ export default function GradingFlowScene({
         <RailButton icon="chart" label="Statistik" active={activeTool === "stats"} onClick={() => toggleTool("stats")} />
         <RailButton icon="settings" label="Parametrar" active={activeTool === "settings"} onClick={() => toggleTool("settings")} />
         <div className="flex-1" />
-        {onClose && <RailButton icon="x" label="Avbryt och stäng" danger onClick={onClose} />}
+        {onClose && <RailButton icon="x" label="Stäng vyn — rättningen fortsätter" onClick={onClose} />}
       </motion.nav>
 
       {/* Höger yta: top-bar + canvas */}
@@ -633,7 +664,7 @@ export default function GradingFlowScene({
           <div className="mx-auto grid max-w-4xl grid-cols-1 gap-3 px-4 py-6 sm:grid-cols-2 sm:gap-4 sm:px-8 sm:py-12 lg:grid-cols-3 xl:grid-cols-4">
             <AnimatePresence>
               {students.map((s, i) => (
-                <StudentCard key={s.id} student={s} index={i} />
+                <StudentCard key={s.id} student={s} index={i} onOpen={onOpenResult} />
               ))}
             </AnimatePresence>
           </div>
@@ -667,6 +698,7 @@ export default function GradingFlowScene({
             students={students}
             params={params}
             onClose={() => setActiveTool("canvas")}
+            onOpen={onOpenResult}
           />
         )}
       </AnimatePresence>

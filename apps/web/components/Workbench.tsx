@@ -23,6 +23,9 @@ type Props = {
   klass: Klass;
   onBack: () => void;
   onPrint: () => void;
+  /** Ordnad lista över elevresultat i provet — för föregående/nästa-navigering. */
+  allResults?: StudentResult[];
+  onNavigate?: (resultId: string) => void;
 };
 
 /** Rubrik som förklarar VARFÖR en uppgift behöver granskas. Ren presentation
@@ -45,15 +48,48 @@ function reviewReason(step: Step): string | null {
   return "AI:n har otillräckligt underlag för en säker bedömning.";
 }
 
-export default function Workbench({ result, prov, klass, onBack, onPrint }: Props) {
+export default function Workbench({ result, prov, klass, onBack, onPrint, allResults, onNavigate }: Props) {
   const router = useRouter();
-  
+  const [regrading, setRegrading] = useState(false);
+  const [regradeError, setRegradeError] = useState<string | null>(null);
+  const [showPremises, setShowPremises] = useState(false);
+  const [menuOpen, setMenuOpen] = useState(false);
+
   // Beräkna total från V2 Step structure
   const total = result.steps.reduce((s, st) => s + st.earnedPoints, 0);
   const max = result.steps.reduce((s, st) => s + st.maxPoints, 0);
+  const reviewable = result.steps.filter((s) => !s.error && s.found !== false);
+  const reviewedCount = reviewable.filter((s) => s.reviewed).length;
+
+  const ordered = allResults ?? [result];
+  const idx = ordered.findIndex((r) => r.id === result.id);
+  const prevResult = idx > 0 ? ordered[idx - 1] : null;
+  const nextResult = idx >= 0 && idx < ordered.length - 1 ? ordered[idx + 1] : null;
 
   const handlePrint = () => {
     router.push(`/classes/${klass.id}/grade/${prov.id}/print?student=${result.id}`);
+  };
+
+  const approveAll = () => {
+    const now = new Date().toISOString();
+    for (const step of reviewable) {
+      if (!step.reviewed) {
+        actions.updateStep(result.id, step.id, { reviewed: true, reviewedAt: now });
+      }
+    }
+  };
+
+  const handleRegrade = async (instructions?: string) => {
+    setRegrading(true);
+    setRegradeError(null);
+    setMenuOpen(false);
+    try {
+      await actions.regradeResult(result.id, instructions ?? result.customInstructions);
+    } catch (e) {
+      setRegradeError((e as Error).message);
+    } finally {
+      setRegrading(false);
+    }
   };
 
   return (
@@ -62,6 +98,29 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
             <button onClick={onBack} className="btn-tertiary">← Översikt</button>
+            {onNavigate && (prevResult || nextResult) && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={() => prevResult && onNavigate(prevResult.id)}
+                  disabled={!prevResult}
+                  className="btn-tertiary disabled:opacity-40"
+                  title={prevResult ? `Föregående: ${prevResult.studentName}` : "Ingen föregående elev"}
+                >
+                  ←
+                </button>
+                <span className="text-xs text-ink-muted tabular-nums px-1">
+                  {idx + 1}/{ordered.length}
+                </span>
+                <button
+                  onClick={() => nextResult && onNavigate(nextResult.id)}
+                  disabled={!nextResult}
+                  className="btn-tertiary disabled:opacity-40"
+                  title={nextResult ? `Nästa: ${nextResult.studentName}` : "Ingen nästa elev"}
+                >
+                  →
+                </button>
+              </div>
+            )}
             <button
               onClick={() => router.push(`/classes/${klass.id}`)}
               className="btn-tertiary"
@@ -77,6 +136,35 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
               <span className="sm:hidden">Skriv ut</span>
               <span className="hidden sm:inline">Skriv ut genomgång + Original-PDF</span>
             </button>
+            <div className="relative">
+              <button
+                onClick={() => setMenuOpen((v) => !v)}
+                className="btn-secondary"
+                aria-label="Fler alternativ"
+                disabled={regrading}
+              >
+                ⋯
+              </button>
+              {menuOpen && (
+                <>
+                  <div className="fixed inset-0 z-10" onClick={() => setMenuOpen(false)} />
+                  <div className="absolute right-0 z-20 mt-2 w-56 rounded-xl border border-ink-hairline bg-paper-raised shadow-float p-1.5">
+                    <button
+                      onClick={() => void handleRegrade()}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-ink/5"
+                    >
+                      Rätta om eleven
+                    </button>
+                    <button
+                      onClick={() => { setMenuOpen(false); setShowPremises(true); }}
+                      className="w-full rounded-lg px-3 py-2 text-left text-sm text-ink hover:bg-ink/5"
+                    >
+                      AI-premisser för eleven
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
           </div>
         </div>
 
@@ -91,7 +179,46 @@ export default function Workbench({ result, prov, klass, onBack, onPrint }: Prop
           action={<ScoreBadge total={total} max={max} notAssessed={result.document?.documentType === "not_student_submission"} />}
           className="flex-wrap"
         />
+        {reviewable.length > 0 && (
+          <div className="flex items-center justify-between gap-3 border-t border-ink-hairline pt-3">
+            <div className="flex items-center gap-2.5">
+              <div className="h-1.5 w-28 rounded-full overflow-hidden bg-paper-secondary">
+                <div
+                  className="h-full bg-state-success transition-all"
+                  style={{ width: `${(reviewedCount / reviewable.length) * 100}%` }}
+                />
+              </div>
+              <span className="text-xs text-ink-secondary tabular-nums">
+                {reviewedCount} av {reviewable.length} granskade
+              </span>
+            </div>
+            {reviewedCount < reviewable.length && (
+              <button onClick={approveAll} className="btn-secondary text-xs !px-3 !py-1.5">
+                Godkänn alla steg
+              </button>
+            )}
+          </div>
+        )}
       </Surface>
+
+      {regrading && (
+        <div className="rounded-xl border border-ink-hairline bg-paper-secondary px-5 py-4 flex items-center gap-3 text-sm text-ink-secondary">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-ink/20 border-t-ink" />
+          Rättar om eleven mot sparat facit…
+        </div>
+      )}
+      {regradeError && (
+        <div className="rounded-xl border border-state-danger/30 bg-state-danger/10 px-5 py-4 text-sm text-state-danger">
+          Om-rättningen misslyckades: {regradeError}
+        </div>
+      )}
+      {showPremises && (
+        <PremiseModal
+          result={result}
+          onClose={() => setShowPremises(false)}
+          onRegrade={(text) => void handleRegrade(text)}
+        />
+      )}
 
       <AssessmentBasisBanner meta={result.document} facitMode={prov.facitMode} />
       <DocumentTypeBanner meta={result.document} />
@@ -300,25 +427,27 @@ function StepCard({
     annotation?.suggestions?.length
   );
 
+  const canApprove = !step.error && step.found !== false;
+
   const approve = () => {
-    actions.updateStep(resultId, step.id, { status: "correct" });
+    // Godkänn = "jag står bakom bedömningen". Rör aldrig status/poäng.
+    actions.updateStep(resultId, step.id, {
+      reviewed: !step.reviewed,
+      reviewedAt: step.reviewed ? undefined : new Date().toISOString(),
+    });
   };
 
-  const redo = () => {
-    // Läraren ökar poängen ett steg. Inga AI-texter läggs till.
-    actions.updateStep(resultId, step.id, { status: "pending" });
-    setTimeout(() => {
-      const newPoints = Math.min(step.maxPoints, step.earnedPoints + 1);
-      const newStatus: Step["status"] =
-        newPoints === step.maxPoints ? "correct" : step.earnedPoints === 0 ? "incorrect" : "partial";
-      actions.updateStep(resultId, step.id, {
-        status: newStatus,
-        earnedPoints: newPoints,
-        feedback: step.feedback
-          ? `${step.feedback} [Omvärderat av läraren: poäng ändrad till ${newPoints} / ${step.maxPoints}.]`
-          : `Omvärderat av läraren: poäng ändrad till ${newPoints} / ${step.maxPoints}.`,
-      });
-    }, 1200);
+  const reset = () => {
+    // Återställ till AI:s originalbedömning — bara när en överstyrning finns.
+    if (step.aiEarnedPoints === undefined) return;
+    actions.updateStep(resultId, step.id, {
+      earnedPoints: step.aiEarnedPoints,
+      status: step.aiStatus ?? "needs_review",
+      aiEarnedPoints: undefined,
+      aiStatus: undefined,
+      reviewed: false,
+      reviewedAt: undefined,
+    });
   };
 
   return (
@@ -349,6 +478,12 @@ function StepCard({
                 ? "Behöver granskas"
                 : "Väntande"}
             </span>
+            {step.reviewed && (
+              <span className="ml-2 inline-flex items-center gap-1 rounded-full bg-state-success/10 px-2 py-0.5 text-[10px] font-medium text-state-success ring-1 ring-state-success/20">
+                <LineIcon name="check" className="h-3 w-3" />
+                Granskad
+              </span>
+            )}
           </div>
         </div>
         <div className="shrink-0 text-right">
@@ -478,6 +613,14 @@ function StepCard({
         </div>
       )}
 
+      {/* Lärarens egen kommentar */}
+      {step.teacherNote && (
+        <div className="mt-2 rounded-xl ring-1 p-3 text-xs leading-relaxed bg-ink/5 ring-ink/15 text-ink">
+          <span className="font-semibold mr-1">Lärarens kommentar:</span>
+          {step.teacherNote}
+        </div>
+      )}
+
       {editing && (
         <EditStep
           step={step}
@@ -486,29 +629,59 @@ function StepCard({
         />
       )}
 
-      <div className="mt-4 flex flex-wrap gap-2">
-        <ActionBtn
-          variant="primary"
-          onClick={approve}
-        >
-          Godkänn
-        </ActionBtn>
+      <div className="mt-4 flex flex-wrap items-center gap-2">
+        {step.reviewed ? (
+          <ActionBtn
+            variant="ghost"
+            onClick={approve}
+          >
+            <LineIcon name="check" className="h-3.5 w-3.5 text-state-success" />
+            Granskad — ångra
+          </ActionBtn>
+        ) : (
+          <ActionBtn
+            variant="primary"
+            onClick={approve}
+            disabled={!canApprove}
+          >
+            Godkänn
+          </ActionBtn>
+        )}
+        {!canApprove && !step.reviewed && (
+          <span className="text-[11px] text-ink-muted">Går ej att godkänna — anpassa eller granska mot originalet</span>
+        )}
         <ActionBtn
           variant="secondary"
           onClick={() => setEditing(true)}
         >
           Anpassa
         </ActionBtn>
-        <ActionBtn
-          variant="ghost"
-          onClick={redo}
-        >
-          Gör om
-        </ActionBtn>
+        {step.aiEarnedPoints !== undefined && (
+          <ActionBtn
+            variant="ghost"
+            onClick={reset}
+          >
+            Återställ till AI-förslag
+          </ActionBtn>
+        )}
       </div>
     </div>
   );
 }
+
+function deriveStatus(points: number, maxPoints: number): Step["status"] {
+  if (points <= 0) return "incorrect";
+  if (points >= maxPoints) return "correct";
+  return "partial";
+}
+
+const STATUS_LABEL: Record<Step["status"], string> = {
+  correct: "Korrekt",
+  partial: "Delvis korrekt",
+  incorrect: "Inkorrekt",
+  needs_review: "Behöver granskas",
+  pending: "Väntande",
+};
 
 function EditStep({
   step, resultId, onDone,
@@ -517,34 +690,78 @@ function EditStep({
   resultId: string;
   onDone: () => void;
 }) {
-  const [pts, setPts] = useState(step.earnedPoints);
+  const [raw, setRaw] = useState(String(step.earnedPoints));
+  const [feedback, setFeedback] = useState(step.feedback ?? "");
+  const [note, setNote] = useState(step.teacherNote ?? "");
+  const [error, setError] = useState<string | null>(null);
+
+  const pts = Number(raw);
+  const valid = raw.trim() !== "" && !Number.isNaN(pts) && pts >= 0 && pts <= step.maxPoints;
+  const newStatus = valid ? deriveStatus(pts, step.maxPoints) : null;
+
+  const save = () => {
+    if (!valid) {
+      setError(`Ange en poäng mellan 0 och ${step.maxPoints}.`);
+      return;
+    }
+    actions.updateStep(resultId, step.id, {
+      earnedPoints: pts,
+      status: newStatus!,
+      feedback: feedback || undefined,
+      teacherNote: note.trim() || undefined,
+      reviewed: true,
+      reviewedAt: new Date().toISOString(),
+      // Snapshot av AI-originalet vid första överstyrningen — möjliggör Återställ.
+      aiEarnedPoints: step.aiEarnedPoints ?? step.earnedPoints,
+      aiStatus: step.aiStatus ?? step.status,
+    });
+    onDone();
+  };
 
   return (
     <div className="mt-4 rounded-xl p-4 space-y-3 bg-paper-secondary">
-      <div className="flex items-center gap-3">
-        <span className={`text-xs font-medium ${"text-ink-secondary"}`}>Poäng:</span>
+      <div className="flex items-center gap-3 flex-wrap">
+        <span className="text-xs font-medium text-ink-secondary">Poäng:</span>
         <input
           type="number"
           step={0.25}
           min={0}
           max={step.maxPoints}
-          value={pts}
-          onChange={(e) => setPts(Number(e.target.value))}
+          value={raw}
+          onChange={(e) => { setRaw(e.target.value); setError(null); }}
           className="input w-24 font-sans tabular-nums"
         />
-        <span className={`text-xs ${"text-ink-muted"}`}>/ {step.maxPoints}</span>
+        <span className="text-xs text-ink-muted">/ {step.maxPoints}</span>
+        {newStatus && (
+          <span className="text-xs text-ink-secondary">
+            → <span className="font-medium text-ink">{STATUS_LABEL[newStatus]}</span>
+          </span>
+        )}
+      </div>
+      {error && <p className="text-xs text-state-danger">{error}</p>}
+      <div>
+        <label className="text-xs font-medium text-ink-secondary block mb-1">Feedback till eleven</label>
+        <textarea
+          value={feedback}
+          onChange={(e) => setFeedback(e.target.value)}
+          rows={2}
+          className="input w-full text-xs leading-relaxed"
+          placeholder="Feedback som visas för eleven…"
+        />
+      </div>
+      <div>
+        <label className="text-xs font-medium text-ink-secondary block mb-1">Lärarens kommentar (valfri)</label>
+        <textarea
+          value={note}
+          onChange={(e) => setNote(e.target.value)}
+          rows={2}
+          className="input w-full text-xs leading-relaxed"
+          placeholder="T.ex. varför du ändrade bedömningen…"
+        />
       </div>
       <div className="flex justify-end gap-2">
         <button onClick={onDone} className="btn-secondary">Avbryt</button>
-        <button
-          onClick={() => {
-            actions.updateStep(resultId, step.id, {
-              earnedPoints: pts,
-            });
-            onDone();
-          }}
-          className="btn-primary"
-        >
+        <button onClick={save} disabled={!valid} className="btn-primary disabled:opacity-50">
           Spara ändring
         </button>
       </div>
@@ -597,5 +814,66 @@ function ClassParamsSummary({ klass, prov }: { klass: Klass; prov: Prov }) {
         <div><span className={"text-ink-muted"}>Provet:</span> <span className="italic">{prov.customParams}</span></div>
       )}
     </Surface>
+  );
+}
+
+/** Elevspecifika AI-premisser — sparas på resultatet och läggs till i
+ *  grading_notes vid om-rättning av just denna elev. */
+export function PremiseModal({
+  result,
+  onClose,
+  onRegrade,
+}: {
+  result: StudentResult;
+  onClose: () => void;
+  onRegrade: (instructions: string) => void;
+}) {
+  const [text, setText] = useState(result.customInstructions ?? "");
+  const [saving, setSaving] = useState(false);
+
+  const save = async () => {
+    setSaving(true);
+    await actions.setCustomInstructions(result.id, text.trim());
+    setSaving(false);
+    onClose();
+  };
+
+  return (
+    <div className="fixed inset-0 z-30 flex items-center justify-center bg-ink/40 p-4" onClick={onClose}>
+      <div
+        className="w-full max-w-md rounded-2xl bg-paper-raised p-6 shadow-float space-y-4"
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div>
+          <h3 className="text-base font-medium text-ink">AI-premisser för {result.studentName}</h3>
+          <p className="mt-1 text-[13px] leading-relaxed text-ink-secondary">
+            Instruktioner som gäller bara den här eleven vid om-rättning —
+            t.ex. <em>&ldquo;eleven skriver x² som x2 — acceptera notationen&rdquo;</em> eller
+            <em> &ldquo;eleven får använda avrundning till två decimaler&rdquo;</em>.
+          </p>
+        </div>
+        <textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          rows={4}
+          maxLength={2000}
+          className="input w-full text-sm leading-relaxed"
+          placeholder="Premisser för just denna elev…"
+          autoFocus
+        />
+        <div className="flex justify-end gap-2">
+          <button onClick={onClose} className="btn-secondary">Avbryt</button>
+          <button onClick={() => void save()} disabled={saving} className="btn-secondary disabled:opacity-50">
+            Spara
+          </button>
+          <button
+            onClick={() => { onRegrade(text.trim()); onClose(); }}
+            className="btn-primary"
+          >
+            Spara & rätta om
+          </button>
+        </div>
+      </div>
+    </div>
   );
 }
