@@ -192,6 +192,10 @@ class StudentDocument:
     #                             rättas som förr men flaggas som obekräftat
     document_type: str = "student_submission"
     classification_reason: str = ""
+    # Sant om dokumentets sidor klassificerades som utskrivet frågeblad —
+    # används för att automatiskt härleda facit när inget annat underlag
+    # skickades med (t.ex. läraren laddade upp provpappret bland eleverna).
+    is_question_sheet: bool = False
 
 
 # Filnamnssuffix som anger sidnummer: "Anna_Andersson_sida2.jpg", "Anna - p3.png",
@@ -728,6 +732,9 @@ async def identify_and_group_pages(
                 item.pageType in ("question_sheet", "cover", "blank")
                 for item in usable
             ):
+                document.is_question_sheet = any(
+                    item.pageType == "question_sheet" for item in usable
+                )
                 document.classification_reason = (
                     "Dokumentet verkar vara en tom provblankett — "
                     "inga ifyllda elevuppgifter hittades."
@@ -970,6 +977,33 @@ async def grade_batch(
         progress["total"] = len(documents)
         progress.setdefault("done", 0)
         progress["active"] = {}
+
+    # Facit saknas men en tom provblankett låg i uppladdningen — härled
+    # bedömningsunderlaget automatiskt ur blankettens sidor istället för att
+    # rätta alla elever mot ett tomt facit (ger tomma frågelistor).
+    if not answer_key:
+        sheet_pages: list[tuple[bytes, str]] = [
+            (page.content, page.content_type or "image/png")
+            for document in documents
+            if document.is_question_sheet
+            for page in document.pages
+            if gemini_vision.is_supported_document(page.content_type or "")
+        ]
+        if sheet_pages:
+            from .answer_key import QuestionSheetInferenceError, infer_question_sheet
+
+            try:
+                inferred = await infer_question_sheet(sheet_pages)
+                if inferred:
+                    answer_key = inferred
+                    logger.info(
+                        "batch_question_sheet_inferred prov_id=%s questions=%d",
+                        prov_id, len(answer_key),
+                    )
+            except QuestionSheetInferenceError:
+                logger.warning(
+                    "batch_question_sheet_inference_failed prov_id=%s", prov_id
+                )
     grading_notes = "\n".join(
         part.strip()
         for part in (class_grading_parameters, test_specific_parameters)
@@ -1026,6 +1060,31 @@ async def grade_batch(
                         grading_notes=grading_notes,
                         student_label=document.student_name,
                     )
+                    # Andra runda: ett dokument som kom tillbaka helt tomt
+                    # (inga hittade frågor) eller med tekniskt fel på alla
+                    # frågor får en ny analyschans — tillfälliga providerfel
+                    # får aldrig tyst ge en "tom" rättning.
+                    total_failure = meta.error or not any(
+                        q.found for q in questions
+                    )
+                    if total_failure and pages:
+                        logger.warning(
+                            "grade_second_pass student=%s reason=%s",
+                            document.student_name, meta.error or "no_questions_found",
+                        )
+                        retry_q, retry_meta = await get_vision_provider().analyze_document(
+                            pages=pages,
+                            answer_key=answer_key,
+                            grading_notes=grading_notes,
+                            student_label=document.student_name,
+                        )
+                        # Behåll det bättre av de två försöken — retry vinner
+                        # bara om det faktiskt hittade fler frågor.
+                        if sum(1 for q in retry_q if q.found) > sum(
+                            1 for q in questions if q.found
+                        ):
+                            questions, meta = retry_q, retry_meta
+                            meta.attempts += 1
                 except GradingError as e:
                     # Circuit-open or provider-level error → needs_review, never fabricated data.
                     meta = DocumentMeta(

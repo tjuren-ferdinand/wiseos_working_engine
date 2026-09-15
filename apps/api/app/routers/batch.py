@@ -209,6 +209,31 @@ def _persist_batch(
         result.id = row.id
         result.studentId = student_id
 
+    # Rensa inaktuella resultat: rader från tidigare körningar som inte
+    # rörde uppdateras i denna batch (t.ex. misslyckade "Okänd elev"-rader
+    # eller elever med helt tomma frågelistor). Utan detta staplas gamla
+    # och nya rader på varandra och provet visar fler elever än som rättats.
+    if results:
+        kept_ids = {r.id for r in results if r.id}
+        stale = (
+            db.query(models.GradingResult)
+            .filter(
+                models.GradingResult.test_id == test.id,
+                models.GradingResult.id.notin_(kept_ids) if kept_ids else True,
+            )
+            .all()
+        )
+        for row in stale:
+            steps = row.steps or []
+            found_any = any(s.get("found") for s in steps if isinstance(s, dict))
+            is_unresolved = (row.student_name or "").startswith("Okänd elev")
+            if is_unresolved or not found_any:
+                db.delete(row)
+                logger.info(
+                    "stale_result_removed test=%s row=%s name=%s",
+                    test.id, row.id, row.student_name,
+                )
+
     test.status = "review"
     db.commit()
 
