@@ -735,6 +735,10 @@ async def identify_and_group_pages(
                 document.is_question_sheet = any(
                     item.pageType == "question_sheet" for item in usable
                 )
+                if document.is_question_sheet:
+                    # Blanketten är inte en elev — döp om den så att
+                    # resultatgriden visar vad den faktiskt är.
+                    document.student_name = "Provblankett"
                 document.classification_reason = (
                     "Dokumentet verkar vara en tom provblankett — "
                     "inga ifyllda elevuppgifter hittades."
